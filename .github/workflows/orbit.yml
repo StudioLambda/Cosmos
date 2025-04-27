@@ -1,0 +1,35 @@
+name: Test Orbit
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - .github/workflows/orbit.yml
+      - orbit/**
+  pull_request:
+    branches: ["main"]
+    paths:
+      - .github/workflows/orbit.yml
+      - orbit/**
+
+jobs:
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./orbit
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "orbit/go.mod"
+          cache-dependency-path: "orbit/go.sum"
+
+      - name: Download Dependencies
+        run: go mod download
+
+      - name: Test
+        run: go test -v ./...
