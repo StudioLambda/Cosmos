@@ -94,6 +94,21 @@ func (router *Router[H]) Group(pattern string, subrouter func(*Router[H])) {
 	})
 }
 
+// Grouped clones the router inside a subrouter.
+func (router *Router[H]) Grouped(subrouter func(*Router[H])) {
+	subrouter(router.Clone())
+}
+
+// Clone creates a new subrouter and returns it.
+func (router *Router[H]) Clone() *Router[H] {
+	return &Router[H]{
+		native:      nil, // parent's native will be used
+		pattern:     router.pattern,
+		parent:      router,
+		middlewares: slices.Clone(router.middlewares),
+	}
+}
+
 // With does create a new sub-router that automatically applies
 // the given middlewares.
 //
