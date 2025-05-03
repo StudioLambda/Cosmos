@@ -72,6 +72,7 @@ func ErrorHandler(options ErrorHandlerOptions) nova.Middleware {
 	return func(next nova.Handler) nova.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
 			sw := wrapErrorHandlerWriter(w)
+			var err error
 
 			defer func() {
 				if status := sw.Status(); status >= 500 && status < 600 {
@@ -81,11 +82,12 @@ func ErrorHandler(options ErrorHandlerOptions) nova.Middleware {
 						"method", r.Method,
 						"url", r.URL.String(),
 						"status", status,
+						"err", err,
 					)
 				}
 			}()
 
-			if err := next(sw, r); err != nil {
+			if err = next(sw, r); err != nil {
 				// If we are in development, we can check if
 				// the handler implement a development handler.
 				// Those usually add more context to the error.
