@@ -37,7 +37,7 @@ func RecoverWith(handler func(value any) error) nova.Middleware {
 		return func(w http.ResponseWriter, r *http.Request) (err error) {
 			defer func() {
 				if e := recover(); e != nil {
-					err = handler(recover())
+					err = handler(e)
 				}
 			}()
 
