@@ -29,7 +29,7 @@ func String(r *http.Request) (string, error) {
 
 // JSON decodes the given value from the request body.
 func JSON[T any](r *http.Request) (value T, err error) {
-	if err := json.NewDecoder(r.Body).Decode(value); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&value); err != nil {
 		return value, err
 	}
 
@@ -37,7 +37,7 @@ func JSON[T any](r *http.Request) (value T, err error) {
 }
 
 func XML[T any](r *http.Request) (value T, err error) {
-	if err := xml.NewDecoder(r.Body).Decode(value); err != nil {
+	if err := xml.NewDecoder(r.Body).Decode(&value); err != nil {
 		return value, err
 	}
 
