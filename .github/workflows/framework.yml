@@ -1,0 +1,35 @@
+name: Test Framework
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - .github/workflows/framework.yml
+      - framework/**
+  pull_request:
+    branches: ["main"]
+    paths:
+      - .github/workflows/framework.yml
+      - framework/**
+
+jobs:
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./framework
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "framework/go.mod"
+          cache-dependency-path: "framework/go.sum"
+
+      - name: Download Dependencies
+        run: go mod download
+
+      - name: Test
+        run: go test -v ./...

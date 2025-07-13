@@ -1,0 +1,35 @@
+name: Test Router
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - .github/workflows/router.yml
+      - router/**
+  pull_request:
+    branches: ["main"]
+    paths:
+      - .github/workflows/router.yml
+      - router/**
+
+jobs:
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./router
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "router/go.mod"
+          cache-dependency-path: "router/go.sum"
+
+      - name: Download Dependencies
+        run: go mod download
+
+      - name: Test
+        run: go test -v ./...
