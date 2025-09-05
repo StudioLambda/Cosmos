@@ -7,33 +7,51 @@ import (
 	"github.com/studiolambda/cosmos/framework"
 )
 
-// rawErrorHandlerWriter is a small type designed to access the
-// response status code after it has been written.
+// rawErrorHandlerWriter wraps an http.ResponseWriter to capture the HTTP status
+// code that was written to the response. This allows middleware to inspect the
+// status code after handlers have executed, which is useful for logging and
+// error handling decisions.
 type rawErrorHandlerWriter struct {
 	http.ResponseWriter
 	status int
 }
 
-// flushableErrorHandlerWriter is a small type that wraps the
-// [errorHandlerWriter] struct so that it supports the flush
-// operation.
+// flushableErrorHandlerWriter extends rawErrorHandlerWriter to support the
+// http.Flusher interface when the underlying ResponseWriter supports flushing.
+// This enables streaming responses while still capturing status codes.
 type flushableErrorHandlerWriter struct {
 	*rawErrorHandlerWriter
 	http.Flusher
 }
 
+// ErrorHandlerWriter extends http.ResponseWriter with the ability to retrieve
+// the HTTP status code that was written to the response. This interface is
+// used by the error handling middleware to make status-based decisions.
 type ErrorHandlerWriter interface {
 	http.ResponseWriter
+	// Status returns the HTTP status code that was written to the response.
+	// Returns http.StatusOK (200) by default if no status was explicitly set.
 	Status() int
 }
 
+// ErrorHandlerDevHandler defines an interface for errors that can provide
+// enhanced development-time error responses. When running in development mode,
+// errors implementing this interface will use their ServeHTTPDev method
+// instead of the standard error handling, allowing for richer debug information.
 type ErrorHandlerDevHandler interface {
+	// ServeHTTPDev handles the error response in development mode,
+	// typically providing additional debugging information.
 	ServeHTTPDev(w http.ResponseWriter, r *http.Request)
 }
 
+// ErrorHandlerOptions configures the behavior of the error handling middleware.
 type ErrorHandlerOptions struct {
+	// Logger is used to log errors with status codes >= 500. If nil,
+	// a discard logger will be used to prevent panics.
 	Logger *slog.Logger
-	IsDev  bool
+	// IsDev enables development mode, which uses ErrorHandlerDevHandler
+	// when available to provide enhanced error information.
+	IsDev bool
 }
 
 func (w *rawErrorHandlerWriter) Status() int {
@@ -62,6 +80,21 @@ func wrapErrorHandlerWriter(w http.ResponseWriter) ErrorHandlerWriter {
 	return sw
 }
 
+// ErrorHandler creates middleware that provides centralized error handling
+// for Cosmos applications. It captures HTTP status codes, logs server errors
+// (5xx status codes), and provides different error handling strategies based
+// on the environment and error type.
+//
+// The middleware supports:
+//   - Status code capture and logging for server errors (5xx)
+//   - Development mode with enhanced error details via ErrorHandlerDevHandler
+//   - Standard http.Handler error types for custom error responses
+//   - Fallback to basic error responses for unhandled error types
+//
+// Parameters:
+//   - options: Configuration options including logger and development mode settings
+//
+// Returns a middleware function that handles errors from downstream handlers.
 func ErrorHandler(options ErrorHandlerOptions) framework.Middleware {
 	// Make sure we always have a valid logger, even if
 	// this means just discarding the content itself.

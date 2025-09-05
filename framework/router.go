@@ -4,22 +4,37 @@ import (
 	"github.com/studiolambda/cosmos/router"
 )
 
-// Router is the http router type that is
-// used by an application.
+// Router is the HTTP router type used by Cosmos applications.
+// It provides routing functionality with support for path parameters,
+// middleware, and handler composition. The router uses generics to
+// work with Cosmos-specific Handler types.
 //
-// It is an alias for a orbit router.
+// This is an alias for router.Router[Handler] from the router package.
 type Router = router.Router[Handler]
 
-// Middleware determines how a http middleware
-// should be defined.
+// Middleware defines the signature for HTTP middleware functions in Cosmos.
+// Middleware can intercept requests before they reach handlers, modify
+// requests/responses, handle authentication, logging, CORS, and other
+// cross-cutting concerns.
 //
-// It is an alias for a orbit middleware.
+// This is an alias for router.Middleware[Handler] from the router package.
 type Middleware = router.Middleware[Handler]
 
-// New creates a new application.
+// New creates a new Cosmos application router instance.
+// The returned router implements http.Handler and can be used directly
+// with http.Server or other HTTP server implementations.
 //
-// This can be passed directly as an http handler.
-// Usually, this will be the handler of an [http.Server].
+// The router supports:
+//   - RESTful routing with HTTP methods (GET, POST, PUT, DELETE, etc.)
+//   - Path parameters and wildcards
+//   - Middleware composition
+//   - Route groups for organizing related endpoints
+//
+// Example usage:
+//
+//	app := framework.New()
+//	app.GET("/users/{id}", getUserHandler)
+//	http.ListenAndServe(":8080", app)
 func New() *Router {
 	return router.New[Handler]()
 }
