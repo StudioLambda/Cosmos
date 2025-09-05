@@ -4,5 +4,5 @@ go 1.25.0
 
 require (
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/studiolambda/cosmos/contract v0.0.1
+	github.com/studiolambda/cosmos/contract v0.1.0
 )
