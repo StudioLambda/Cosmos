@@ -8,12 +8,10 @@ import (
 	"github.com/studiolambda/cosmos/framework"
 )
 
-var (
-	// ErrRecoverUnexpectedError is the default error that's passed to
-	// the recover response when the error cannot be determined from the
-	// given recover()'s value.
-	ErrRecoverUnexpectedError = errors.New("an unexpected error occurred")
-)
+// ErrRecoverUnexpectedError is the default error that's passed to
+// the recover response when the error cannot be determined from the
+// given recover()'s value.
+var ErrRecoverUnexpectedError = errors.New("an unexpected error occurred")
 
 func defaultRecoverHandler(value any) error {
 	switch r := value.(type) {

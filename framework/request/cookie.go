@@ -9,3 +9,19 @@ func Cookie(r *http.Request, k string) *http.Cookie {
 
 	return nil
 }
+
+func CookieValue(r *http.Request, k string) string {
+	if c := Cookie(r, k); c != nil {
+		return c.Value
+	}
+
+	return ""
+}
+
+func CookieValueOr(r *http.Request, k string, d string) string {
+	if v := CookieValue(r, k); v != "" {
+		return v
+	}
+
+	return d
+}

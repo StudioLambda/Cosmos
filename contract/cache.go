@@ -6,13 +6,15 @@ import (
 	"time"
 )
 
-// ErrCacheKeyNotFound should be returned when a key does not exist in the cache.
-// Additional context should also be supplied, such as the cache key.
-var ErrCacheKeyNotFound = errors.New("cache key not found")
+var (
+	// ErrCacheKeyNotFound should be returned when a key does not exist in the cache.
+	// Additional context should also be supplied, such as the cache key.
+	ErrCacheKeyNotFound = errors.New("cache key not found")
 
-// ErrCacheUnsupportedOperation should be returned when a method (e.g., Forever or atomic ops) is not supported by the backend.
-// Additional context should also be supplied, such as the operation name.
-var ErrCacheUnsupportedOperation = errors.New("cache unsupported operation")
+	// ErrCacheUnsupportedOperation should be returned when a method (e.g., Forever or atomic ops) is not supported by the backend.
+	// Additional context should also be supplied, such as the operation name.
+	ErrCacheUnsupportedOperation = errors.New("cache unsupported operation")
+)
 
 // Cache defines a generic cache contract inspired by Laravel's Cache Repository.
 // It supports basic CRUD, atomic operations, and lazy-loading via Remember patterns.

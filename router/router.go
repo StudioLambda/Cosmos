@@ -267,23 +267,11 @@ func (router *Router[H]) Method(method string, pattern string, handler H) {
 	router.registerPair(method, pattern, handler)
 }
 
-// MethodFunc is a simple alias of [Router.Method] to register
-// a [TFunc] without the manual typecast.
-func (router *Router[H]) MethodFunc(method string, pattern string, handler H) {
-	router.Method(method, pattern, handler)
-}
-
 // Methods allows binding multiple methods to the pattern and handler.
 func (router *Router[H]) Methods(methods []string, pattern string, handler H) {
 	for _, method := range methods {
 		router.Method(method, pattern, handler)
 	}
-}
-
-// MethodsFunc is a simple alias of [Router.Methods] to register
-// a [TFunc] without the manual typecast.
-func (router *Router[H]) MethodsFunc(methods []string, pattern string, handler H) {
-	router.Methods(methods, pattern, handler)
 }
 
 // Any registers all methods to the given pattern and handler.
