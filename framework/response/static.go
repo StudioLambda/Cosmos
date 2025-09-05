@@ -24,6 +24,20 @@ func Raw(w http.ResponseWriter, status int, data []byte) error {
 	return err
 }
 
+// Status sets the HTTP status code for the response without writing any body content.
+// This is useful for responses that only need to communicate a status (like 204 No Content,
+// 201 Created, or various error codes) without additional data. The response body will
+// remain empty after calling this function.
+//
+// Parameters:
+//   - w: The HTTP response writer
+//   - status: The HTTP status code to set
+func Status(w http.ResponseWriter, status int) error {
+	w.WriteHeader(status)
+
+	return nil
+}
+
 // Bytes writes binary data to the response writer with the appropriate
 // Content-Type header for binary content (application/octet-stream).
 // This is useful for serving files, images, or any binary data that
@@ -137,4 +151,25 @@ func XML(w http.ResponseWriter, status int, data any) error {
 	w.WriteHeader(status)
 
 	return xml.NewEncoder(w).Encode(data)
+}
+
+// Redirect sends an HTTP redirect response to the specified URL with the given status code.
+// This is a generic redirect function that allows you to specify any redirect status code.
+// The Location header is set to the provided URL and the appropriate status code is returned.
+//
+// Common redirect status codes:
+//   - 301: Moved Permanently
+//   - 302: Found (temporary redirect)
+//   - 303: See Other
+//   - 307: Temporary Redirect
+//   - 308: Permanent Redirect
+//
+// Parameters:
+//   - w: The HTTP response writer
+//   - status: The HTTP redirect status code to set
+//   - url: The URL to redirect the user to
+func Redirect(w http.ResponseWriter, status int, url string) error {
+	w.Header().Set("Location", url)
+
+	return Status(w, status)
 }
