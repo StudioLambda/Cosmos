@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"strings"
 
 	"github.com/studiolambda/cosmos/problem/internal"
 )
@@ -172,10 +173,14 @@ func (problem Problem) Without(key string) Problem {
 // Error is the error-like string representation of a [Problem].
 func (problem Problem) Error() string {
 	if problem.err != nil {
-		return fmt.Sprintf("%d %s: %s", problem.Status, http.StatusText(problem.Status), problem.err)
+		return strings.ToLower(
+			fmt.Sprintf("%d %s: %s", problem.Status, http.StatusText(problem.Status), problem.err),
+		)
 	}
 
-	return fmt.Sprintf("%d %s: %s", problem.Status, http.StatusText(problem.Status), problem.Title)
+	return strings.ToLower(
+		fmt.Sprintf("%d %s: %s", problem.Status, http.StatusText(problem.Status), problem.Title),
+	)
 }
 
 // Errors returns all the strack-trace of errors that
@@ -344,5 +349,9 @@ func (problem Problem) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	problem.textHandler(w, r)
+	http.HandlerFunc(problem.textHandler).ServeHTTP(w, r)
+}
+
+func (problem Problem) HTTPStatus() int {
+	return problem.Status
 }
