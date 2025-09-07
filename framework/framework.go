@@ -1,6 +1,11 @@
 package framework
 
 import (
+	// Import problem package for side effects to ensure RFC 7807 Problem Details
+	// for HTTP APIs are available to middleware that depend on structured error
+	// responses. This blank import initializes the package without direct usage.
+	_ "github.com/studiolambda/cosmos/problem"
+
 	"github.com/studiolambda/cosmos/router"
 )
 
