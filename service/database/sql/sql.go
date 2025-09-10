@@ -9,14 +9,14 @@ import (
 	"github.com/studiolambda/cosmos/contract"
 )
 
-type preparable interface {
+type prepare interface {
 	PreparexContext(ctx context.Context, query string) (*sqlx.Stmt, error)
 	PrepareNamedContext(ctx context.Context, query string) (*sqlx.NamedStmt, error)
 }
 
 type Database struct {
-	db  preparable // can be *sqlx.DB or *sqlx.Tx
-	raw *sqlx.DB   // needed for transactions
+	db  prepare  // can be *sqlx.DB or *sqlx.Tx
+	raw *sqlx.DB // needed for transactions
 }
 
 func New(driver string, dsn string) (*Database, error) {
@@ -125,7 +125,7 @@ func (db *Database) FindNamed(ctx context.Context, query string, dest any, arg a
 	return nil
 }
 
-func (db *Database) WithTransaction(ctx context.Context, fn func(tx contract.Database) error) error {
+func (db *Database) transaction(ctx context.Context, fn func(db *Database) error) error {
 	if _, ok := db.db.(*sqlx.Tx); ok {
 		return contract.ErrDatabaseNestedTransaction
 	}
@@ -143,4 +143,16 @@ func (db *Database) WithTransaction(ctx context.Context, fn func(tx contract.Dat
 	}
 
 	return tx.Commit()
+}
+
+func (db *Database) WithTransaction(ctx context.Context, fn func(tx contract.Database) error) error {
+	return db.transaction(ctx, func(db *Database) error {
+		return fn(db)
+	})
+}
+
+func (db *Database) WithNamedTransaction(ctx context.Context, fn func(tx contract.DatabaseNamed) error) error {
+	return db.transaction(ctx, func(db *Database) error {
+		return fn(db)
+	})
 }
