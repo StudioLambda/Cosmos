@@ -100,7 +100,7 @@ func TestRouterHandler(t *testing.T) {
 
 	response := r.Record(request)
 
-	if expected := http.StatusOK; response.Code != expected {
-		t.Fatalf("expected status code %d but got %d", expected, response.Code)
+	if expected := http.StatusOK; response.StatusCode != expected {
+		t.Fatalf("expected status code %d but got %d", expected, response.StatusCode)
 	}
 }

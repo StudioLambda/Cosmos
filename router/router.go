@@ -390,14 +390,14 @@ func (router *Router[H]) HandlerMatch(request *http.Request) (h H, ok bool) {
 	return h, false
 }
 
-// Record returns a [httptest.ResponseRecorder] that can be used to inspect what
+// Record returns a [http.Response] that can be used to inspect what
 // the given http request would have returned as a response.
 //
 // This method is a shortcut of calling [RecordHandler] with the router as the
 // handler and the given request.
-func (router *Router[H]) Record(r *http.Request) *httptest.ResponseRecorder {
-	recorder := httptest.NewRecorder()
-	router.ServeHTTP(recorder, r)
+func (router *Router[H]) Record(r *http.Request) *http.Response {
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, r)
 
-	return recorder
+	return rr.Result()
 }
