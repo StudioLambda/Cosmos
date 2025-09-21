@@ -1,6 +1,9 @@
 package framework
 
-import "net/http"
+import (
+	"net/http"
+	"net/http/httptest"
+)
 
 // Handler defines the function signature for HTTP request handlers in Cosmos.
 // Unlike the standard http.HandlerFunc, Cosmos handlers return an error to
@@ -63,4 +66,14 @@ func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		http.Error(w, err.Error(), status)
 	}
+}
+
+// Record executes the handler with the given request and returns the resulting HTTP response.
+// It uses httptest.NewRecorder() to capture the response that would be written to a client,
+// making it useful for testing HTTP handlers without starting a server.
+func (handler Handler) Record(r *http.Request) *http.Response {
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, r)
+
+	return rr.Result()
 }
