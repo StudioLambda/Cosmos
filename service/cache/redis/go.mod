@@ -3,8 +3,8 @@ module github.com/studiolambda/cosmos/service/cache/redis
 go 1.25.0
 
 require (
-	github.com/redis/go-redis/v9 v9.10.0
-	github.com/studiolambda/cosmos/contract v0.1.0
+	github.com/redis/go-redis/v9 v9.14.0
+	github.com/studiolambda/cosmos/contract v0.3.0
 )
 
 require (
