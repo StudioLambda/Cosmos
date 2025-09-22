@@ -20,17 +20,17 @@ type Database struct {
 }
 
 func New(driver string, dsn string) (*Database, error) {
-	db, err := sqlx.Open(driver, dsn)
+	db, err := sqlx.Connect(driver, dsn)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if err := db.Ping(); err != nil {
-		return nil, err
-	}
-
 	return &Database{db: db, raw: db}, nil
+}
+
+func (db *Database) Ping(ctx context.Context) error {
+	return db.raw.PingContext(ctx)
 }
 
 func (db *Database) Exec(ctx context.Context, query string, args ...any) (int64, error) {
@@ -125,7 +125,7 @@ func (db *Database) FindNamed(ctx context.Context, query string, dest any, arg a
 	return nil
 }
 
-func (db *Database) transaction(ctx context.Context, fn func(db *Database) error) error {
+func (db *Database) WithTransaction(ctx context.Context, fn func(tx contract.Database) error) error {
 	if _, ok := db.db.(*sqlx.Tx); ok {
 		return contract.ErrDatabaseNestedTransaction
 	}
@@ -145,14 +145,6 @@ func (db *Database) transaction(ctx context.Context, fn func(db *Database) error
 	return tx.Commit()
 }
 
-func (db *Database) WithTransaction(ctx context.Context, fn func(tx contract.Database) error) error {
-	return db.transaction(ctx, func(db *Database) error {
-		return fn(db)
-	})
-}
-
-func (db *Database) WithNamedTransaction(ctx context.Context, fn func(tx contract.DatabaseNamed) error) error {
-	return db.transaction(ctx, func(db *Database) error {
-		return fn(db)
-	})
+func (db *Database) Close() error {
+	return db.raw.Close()
 }
