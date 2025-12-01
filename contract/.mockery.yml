@@ -1,0 +1,18 @@
+all: false
+dir: "{{.InterfaceDir}}/mock"
+filename: "{{.StructName}}.go"
+force-file-write: true
+formatter: gofmt
+generate: true
+include-auto-generated: false
+log-level: info
+structname: "{{.InterfaceName}}{{.Mock}}"
+pkgname: "mock"
+recursive: false
+require-template-schema-exists: true
+template: testify
+template-schema: "{{.Template}}.schema.json"
+packages:
+  github.com/studiolambda/cosmos/contract:
+    config:
+      all: true
