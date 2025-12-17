@@ -1,6 +1,8 @@
 package framework
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 )
@@ -60,6 +62,10 @@ func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := handler(w, r); err != nil {
 		status := http.StatusInternalServerError
 
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			status = 499 // A non-standard status code: 499 Client Closed Request
+		}
+
 		if s, ok := err.(HTTPStatus); ok {
 			status = s.HTTPStatus()
 		}
@@ -72,8 +78,8 @@ func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // It uses httptest.NewRecorder() to capture the response that would be written to a client,
 // making it useful for testing HTTP handlers without starting a server.
 func (handler Handler) Record(r *http.Request) *http.Response {
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, r)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, r)
 
-	return rr.Result()
+	return rec.Result()
 }

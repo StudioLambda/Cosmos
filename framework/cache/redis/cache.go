@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -19,8 +20,8 @@ func New(options *Options) *Client {
 }
 
 // Get retrieves a value by key or returns contract.ErrNotFound if missing.
-func (c *Client) Get(ctx context.Context, key string) (any, error) {
-	val, err := (*redis.Client)(c).Get(ctx, key).Result()
+func (c *Client) Get(ctx context.Context, key string) (v any, e error) {
+	encoded, err := (*redis.Client)(c).Get(ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
 		return nil, fmt.Errorf("%w: %s", contract.ErrCacheKeyNotFound, key)
@@ -30,12 +31,22 @@ func (c *Client) Get(ctx context.Context, key string) (any, error) {
 		return nil, err
 	}
 
-	return val, nil
+	if err := json.Unmarshal([]byte(encoded), &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
 }
 
 // Put sets a key with value and TTL.
 func (c *Client) Put(ctx context.Context, key string, value any, ttl time.Duration) error {
-	return (*redis.Client)(c).Set(ctx, key, value, ttl).Err()
+	encoded, err := json.Marshal(value)
+
+	if err != nil {
+		return err
+	}
+
+	return (*redis.Client)(c).Set(ctx, key, encoded, ttl).Err()
 }
 
 // Delete removes a key.
@@ -55,38 +66,27 @@ func (c *Client) Has(ctx context.Context, key string) (bool, error) {
 }
 
 // Pull retrieves and deletes a key atomically.
-// NOTE: Redis lacks a native atomic get+del, so a transaction is used.
-func (c *Client) Pull(ctx context.Context, key string) (any, error) {
-	var val string
+func (c *Client) Pull(ctx context.Context, key string) (v any, e error) {
+	encoded, err := (*redis.Client)(c).GetDel(ctx, key).Result()
 
-	txf := func(tx *redis.Tx) error {
-		v, err := tx.Get(ctx, key).Result()
-
-		if errors.Is(err, redis.Nil) {
-			return fmt.Errorf("%w: %s", contract.ErrCacheKeyNotFound, key)
-		}
-
-		if err != nil {
-			return err
-		}
-
-		val = v
-
-		_, err = tx.Del(ctx, key).Result()
-
-		return err
+	if errors.Is(err, redis.Nil) {
+		return nil, fmt.Errorf("%w: %s", contract.ErrCacheKeyNotFound, key)
 	}
 
-	if err := (*redis.Client)(c).Watch(ctx, txf, key); err != nil {
+	if err != nil {
 		return nil, err
 	}
 
-	return val, nil
+	if err := json.Unmarshal([]byte(encoded), &v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
 }
 
 // Forever stores a value indefinitely.
 func (c *Client) Forever(ctx context.Context, key string, value any) error {
-	return (*redis.Client)(c).Set(ctx, key, value, 0).Err()
+	return c.Put(ctx, key, value, 0)
 }
 
 // Increment increases a key's integer value by 'by'.

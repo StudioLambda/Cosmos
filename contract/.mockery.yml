@@ -1,6 +1,6 @@
 all: false
 dir: "{{.InterfaceDir}}/mock"
-filename: "{{.StructName}}.go"
+filename: "{{.InterfaceFile | base}}"
 force-file-write: true
 formatter: gofmt
 generate: true

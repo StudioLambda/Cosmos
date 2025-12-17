@@ -11,14 +11,14 @@ import (
 )
 
 type Memory struct {
-	mux   *sync.Mutex
+	mux   sync.Mutex
 	store *cache.Cache
 }
 
 func New(expiration time.Duration, cleanup time.Duration) *Memory {
 	return &Memory{
 		store: cache.New(expiration, cleanup),
-		mux:   new(sync.Mutex),
+		mux:   sync.Mutex{},
 	}
 }
 

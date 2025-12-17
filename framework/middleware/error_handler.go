@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"context"
+	"errors"
 	"net/http"
 
 	"github.com/studiolambda/cosmos/framework"
@@ -54,6 +56,10 @@ func ErrorHandler(isDev bool) framework.Middleware {
 				}
 
 				status := http.StatusInternalServerError
+
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					status = 499 // A non-standard status code: 499 Client Closed Request
+				}
 
 				if s, ok := err.(framework.HTTPStatus); ok {
 					status = s.HTTPStatus()
