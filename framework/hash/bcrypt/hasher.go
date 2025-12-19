@@ -14,9 +14,11 @@ type Options struct {
 	cost int
 }
 
+const DefaultCost = 10
+
 func NewHasher() *Hasher {
 	return NewHasherWith(Options{
-		cost: 10,
+		cost: DefaultCost,
 	})
 }
 

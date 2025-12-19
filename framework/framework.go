@@ -1,13 +1,6 @@
 package framework
 
-import (
-	// Import problem package for side effects to ensure RFC 7807 Problem Details
-	// for HTTP APIs are available to middleware that depend on structured error
-	// responses. This blank import initializes the package without direct usage.
-	_ "github.com/studiolambda/cosmos/problem"
-
-	"github.com/studiolambda/cosmos/router"
-)
+import "github.com/studiolambda/cosmos/router"
 
 // Router is the HTTP router type used by Cosmos applications.
 // It provides routing functionality with support for path parameters,
@@ -38,7 +31,7 @@ type Middleware = router.Middleware[Handler]
 // Example usage:
 //
 //	app := framework.New()
-//	app.GET("/users/{id}", getUserHandler)
+//	app.Get("/users/{id}", getUserHandler)
 //	http.ListenAndServe(":8080", app)
 func New() *Router {
 	return router.New[Handler]()

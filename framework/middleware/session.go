@@ -23,9 +23,9 @@ type SessionOptions struct {
 	ExpirationDelta time.Duration
 }
 
-var DefaultSessionCookie = "cosmos.session"
-var DefaultSessionExpirationDelta = 15 * time.Minute
-var DefaultSessionTTL = 2 * time.Hour
+const DefaultSessionCookie = "cosmos.session"
+const DefaultSessionExpirationDelta = 15 * time.Minute
+const DefaultSessionTTL = 2 * time.Hour
 
 func currentSession(r *http.Request, driver contract.SessionDriver, options SessionOptions) (contract.Session, error) {
 	id := request.CookieValue(r, options.Name)
