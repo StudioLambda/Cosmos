@@ -1,6 +1,10 @@
 package framework
 
-import "github.com/studiolambda/cosmos/router"
+import (
+	_ "github.com/studiolambda/cosmos/contract"
+	_ "github.com/studiolambda/cosmos/problem"
+	"github.com/studiolambda/cosmos/router"
+)
 
 // Router is the HTTP router type used by Cosmos applications.
 // It provides routing functionality with support for path parameters,
