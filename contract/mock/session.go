@@ -440,6 +440,39 @@ func (_c *SessionMock_HasRegenerated_Call) RunAndReturn(run func() bool) *Sessio
 	return _c
 }
 
+// MarkAsUnchanged provides a mock function for the type SessionMock
+func (_mock *SessionMock) MarkAsUnchanged() {
+	_mock.Called()
+	return
+}
+
+// SessionMock_MarkAsUnchanged_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkAsUnchanged'
+type SessionMock_MarkAsUnchanged_Call struct {
+	*mock.Call
+}
+
+// MarkAsUnchanged is a helper method to define mock.On call
+func (_e *SessionMock_Expecter) MarkAsUnchanged() *SessionMock_MarkAsUnchanged_Call {
+	return &SessionMock_MarkAsUnchanged_Call{Call: _e.mock.On("MarkAsUnchanged")}
+}
+
+func (_c *SessionMock_MarkAsUnchanged_Call) Run(run func()) *SessionMock_MarkAsUnchanged_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *SessionMock_MarkAsUnchanged_Call) Return() *SessionMock_MarkAsUnchanged_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *SessionMock_MarkAsUnchanged_Call) RunAndReturn(run func()) *SessionMock_MarkAsUnchanged_Call {
+	_c.Run(run)
+	return _c
+}
+
 // OriginalSessionID provides a mock function for the type SessionMock
 func (_mock *SessionMock) OriginalSessionID() string {
 	ret := _mock.Called()
