@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding"
 	"errors"
 	"fmt"
 	"net/http"
@@ -33,6 +34,14 @@ func defaultRecoverHandler(value any) error {
 		return errors.New(r)
 	case fmt.Stringer:
 		return errors.New(r.String())
+	case encoding.TextMarshaler:
+		t, err := r.MarshalText()
+
+		if err != nil {
+			return err
+		}
+
+		return errors.New(string(t))
 	default:
 		return errors.Join(ErrRecoverUnexpectedError, fmt.Errorf("%+v", r))
 	}

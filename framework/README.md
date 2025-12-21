@@ -55,11 +55,7 @@ func handler(w http.ResponseWriter, r *http.Request) error {
 func main() {
 	app := framework.New()
 
-	app.Use(middleware.ErrorHandler(middleware.ErrorHandlerOptions{
-		Logger: slog.Default(),
-		IsDev:  true,
-	}))
-
+	app.Use(middleware.Logger(slog.Default()))
 	app.Use(middleware.Recover())
 
 	app.Get("/", handler)

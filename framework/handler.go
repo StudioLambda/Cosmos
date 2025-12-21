@@ -5,6 +5,9 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+
+	"github.com/studiolambda/cosmos/framework/hook"
+	"github.com/studiolambda/cosmos/problem"
 )
 
 // Handler defines the function signature for HTTP request handlers in Cosmos.
@@ -50,6 +53,28 @@ type HTTPStatus interface {
 	HTTPStatus() int
 }
 
+func handleError(w http.ResponseWriter, r *http.Request, err error) {
+	status := http.StatusInternalServerError
+
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		status = 499 // A non-standard status code: 499 Client Closed Request
+	}
+
+	if s, ok := err.(HTTPStatus); ok {
+		status = s.HTTPStatus()
+	}
+
+	// We can check if the error can be directly
+	// handled by using a [http.Handler], in the case
+	// we'll simply handle it using ServeHTTP.
+	if h, ok := err.(http.Handler); ok {
+		h.ServeHTTP(w, r)
+		return
+	}
+
+	problem.NewProblem(err, status).ServeHTTP(w, r)
+}
+
 // ServeHTTP implements the http.Handler interface, allowing Cosmos handlers
 // to be used with the standard HTTP server. It bridges the gap between
 // Cosmos's error-returning handlers and Go's standard http.Handler interface.
@@ -59,18 +84,21 @@ type HTTPStatus interface {
 // response to the client. However, if the response has already been partially
 // written (e.g., during streaming), the error response may not be deliverable.
 func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if err := handler(w, r); err != nil {
-		status := http.StatusInternalServerError
+	hooks := hook.NewManager()
+	wrapped := hook.NewResponseWriter(w, hooks)
+	ctx := context.WithValue(r.Context(), hook.Key, hooks)
+	err := handler(wrapped, r.WithContext(ctx))
 
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			status = 499 // A non-standard status code: 499 Client Closed Request
-		}
+	if err != nil {
+		handleError(w, r, err)
+	}
 
-		if s, ok := err.(HTTPStatus); ok {
-			status = s.HTTPStatus()
-		}
+	if !wrapped.WriteHeaderCalled() {
+		wrapped.WriteHeader(http.StatusNoContent)
+	}
 
-		http.Error(w, err.Error(), status)
+	for _, callback := range hooks.AfterResponseFuncs() {
+		callback(err)
 	}
 }
 

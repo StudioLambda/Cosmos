@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/studiolambda/cosmos/framework"
+	"github.com/studiolambda/cosmos/framework/request"
 )
 
 // rawErrorHandlerWriter wraps an http.ResponseWriter to capture the HTTP status
@@ -36,16 +37,6 @@ type flushableErrorHandlerWriter struct {
 type ErrorHandlerWriter interface {
 	http.ResponseWriter
 	framework.HTTPStatus
-}
-
-// ErrorHandlerOptions configures the behavior of the error handling middleware.
-type ErrorHandlerOptions struct {
-	// Logger is used to log errors with status codes >= 500. If nil,
-	// a discard logger will be used to prevent panics.
-	Logger *slog.Logger
-	// IsDev enables development mode, which uses ErrorHandlerDevHandler
-	// when available to provide enhanced error information.
-	IsDev bool
 }
 
 // HTTPStatus returns the HTTP status code that was written to the response.
@@ -129,11 +120,15 @@ func Logger(logger *slog.Logger) framework.Middleware {
 
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
-			sw := wrapErrorHandlerWriter(w)
-			var err error
+			hooks := request.Hooks(r)
+			status := http.StatusInternalServerError
 
-			defer func() {
-				if status := sw.HTTPStatus(); err != nil || (status >= 500 && status < 600) {
+			hooks.BeforeWriteHeader(func(w http.ResponseWriter, s int) {
+				status = s
+			})
+
+			hooks.AfterResponse(func(err error) {
+				if err != nil || (status >= 500 && status < 600) {
 					logger.ErrorContext(
 						r.Context(),
 						"request failed",
@@ -143,13 +138,9 @@ func Logger(logger *slog.Logger) framework.Middleware {
 						"err", err,
 					)
 				}
-			}()
+			})
 
-			if err = next(sw, r); err != nil {
-				return err
-			}
-
-			return nil
+			return next(w, r)
 		}
 	}
 }

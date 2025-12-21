@@ -12,20 +12,20 @@ import (
 // modifications for persistence decisions. Access to the session is protected by a mutex
 // to ensure thread-safe operations.
 type Session struct {
-	// OriginalID is the session ID assigned when the session was first created.
+	// originalID is the session ID assigned when the session was first created.
 	// This value remains constant even if the session is regenerated.
-	OriginalID string `json:"original_id" yaml:"original_id" toml:"original_id"`
+	originalID string
 
-	// ID is the current session identifier. This may differ from OriginalID if the session
+	// id is the current session identifier. This may differ from OriginalID if the session
 	// has been regenerated (e.g., for security purposes after authentication).
-	ID string `json:"id" yaml:"id" toml:"id"`
+	id string
 
-	// Expiration is the time at which the session will expire and be considered invalid.
-	Expiration time.Time `json:"expires_at" yaml:"expires_at" toml:"expires_at"`
+	// expiration is the time at which the session will expire and be considered invalid.
+	expiration time.Time
 
-	// Storage holds the session data as key-value pairs. Keys are strings and values
+	// storage holds the session data as key-value pairs. Keys are strings and values
 	// can be of any type.
-	Storage map[string]any `json:"storage" yaml:"storage" toml:"storage"`
+	storage map[string]any
 
 	// mutex protects concurrent access to the session fields.
 	mutex sync.Mutex
@@ -53,10 +53,10 @@ func NewSession(expiresAt time.Time, storage map[string]any) (*Session, error) {
 	}
 
 	return &Session{
-		OriginalID: id.String(),
-		ID:         id.String(),
-		Expiration: expiresAt,
-		Storage:    storage,
+		originalID: id.String(),
+		id:         id.String(),
+		expiration: expiresAt,
+		storage:    storage,
 		mutex:      sync.Mutex{},
 		changed:    true, // this will make sure first time its saved
 	}, nil
@@ -68,7 +68,7 @@ func (s *Session) SessionID() string {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	return s.ID
+	return s.id
 }
 
 // OriginalSessionID returns the session identifier that was assigned when the session
@@ -77,7 +77,7 @@ func (s *Session) OriginalSessionID() string {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	return s.OriginalID
+	return s.originalID
 }
 
 // Get retrieves a value from the session storage by key. It returns the value and a
@@ -86,7 +86,7 @@ func (s *Session) Get(key string) (any, bool) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	v, ok := s.Storage[key]
+	v, ok := s.storage[key]
 
 	return v, ok
 }
@@ -97,7 +97,7 @@ func (s *Session) Put(key string, value any) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.Storage[key] = value
+	s.storage[key] = value
 	s.changed = true
 }
 
@@ -107,7 +107,7 @@ func (s *Session) Delete(key string) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	delete(s.Storage, key)
+	delete(s.storage, key)
 	s.changed = true
 }
 
@@ -118,7 +118,7 @@ func (s *Session) Extend(expiresAt time.Time) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.Expiration = expiresAt
+	s.expiration = expiresAt
 	s.changed = true
 }
 
@@ -137,8 +137,8 @@ func (s *Session) Regenerate(expiresAt time.Time) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	s.ID = id.String()
-	s.Expiration = expiresAt
+	s.id = id.String()
+	s.expiration = expiresAt
 	s.changed = true
 
 	return nil
@@ -151,7 +151,7 @@ func (s *Session) Clear() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	clear(s.Storage)
+	clear(s.storage)
 	s.changed = true
 }
 
@@ -160,7 +160,7 @@ func (s *Session) ExpiresAt() time.Time {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	return s.Expiration
+	return s.expiration
 }
 
 // HasExpired checks whether the session has already expired by comparing the current
@@ -169,7 +169,7 @@ func (s *Session) HasExpired() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	return time.Now().After(s.Expiration)
+	return time.Now().After(s.expiration)
 }
 
 // ExpiresSoon checks whether the session will expire within the specified duration
@@ -180,9 +180,9 @@ func (s *Session) ExpiresSoon(delta time.Duration) bool {
 	defer s.mutex.Unlock()
 
 	now := time.Now()
-	warningTime := s.Expiration.Add(-delta)
+	warningTime := s.expiration.Add(-delta)
 
-	return now.After(warningTime) && now.Before(s.Expiration)
+	return now.After(warningTime) && now.Before(s.expiration)
 }
 
 // HasChanged returns true if the session data has been modified since it was loaded.
@@ -201,5 +201,14 @@ func (s *Session) HasRegenerated() bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	return s.ID != s.OriginalID
+	return s.id != s.originalID
+}
+
+// MarkAsUnchanged sets the session as if nothing has changed, therefore avoiding saving
+// the session when the request finishes.
+func (s *Session) MarkAsUnchanged() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	s.changed = false
 }

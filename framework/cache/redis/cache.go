@@ -20,8 +20,8 @@ func New(options *Options) *Client {
 }
 
 // Get retrieves a value by key or returns contract.ErrNotFound if missing.
-func (c *Client) Get(ctx context.Context, key string) (v any, e error) {
-	encoded, err := (*redis.Client)(c).Get(ctx, key).Result()
+func (c *Client) Get(ctx context.Context, key string) (any, error) {
+	v, err := (*redis.Client)(c).Get(ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
 		return nil, fmt.Errorf("%w: %s", contract.ErrCacheKeyNotFound, key)
@@ -31,22 +31,12 @@ func (c *Client) Get(ctx context.Context, key string) (v any, e error) {
 		return nil, err
 	}
 
-	if err := json.Unmarshal([]byte(encoded), &v); err != nil {
-		return nil, err
-	}
-
 	return v, nil
 }
 
 // Put sets a key with value and TTL.
 func (c *Client) Put(ctx context.Context, key string, value any, ttl time.Duration) error {
-	encoded, err := json.Marshal(value)
-
-	if err != nil {
-		return err
-	}
-
-	return (*redis.Client)(c).Set(ctx, key, encoded, ttl).Err()
+	return (*redis.Client)(c).Set(ctx, key, value, ttl).Err()
 }
 
 // Delete removes a key.

@@ -12,7 +12,7 @@ import "net/http"
 //
 // Returns the cookie object or nil if not found.
 func Cookie(r *http.Request, k string) *http.Cookie {
-	if cookie, err := r.Cookie(k); err != nil {
+	if cookie, err := r.Cookie(k); err == nil {
 		return cookie
 	}
 

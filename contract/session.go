@@ -58,6 +58,10 @@ type Session interface {
 	// HasRegenerated returns true if the session has been regenerated (i.e., the session ID
 	// has changed). This is useful for sending updated session identifiers to the client.
 	HasRegenerated() bool
+
+	// MarkAsUnchanged sets the session as if nothing has changed, therefore avoiding saving
+	// the session when the request finishes.
+	MarkAsUnchanged()
 }
 
 // SessionDriver defines the interface for persisting and retrieving session data.

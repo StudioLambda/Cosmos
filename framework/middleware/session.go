@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"time"
 
@@ -32,6 +31,8 @@ func currentSession(r *http.Request, driver contract.SessionDriver, options Sess
 
 	if id != "" {
 		if s, err := driver.Get(r.Context(), id); err == nil {
+			s.MarkAsUnchanged()
+
 			return s, nil
 		}
 	}
@@ -48,48 +49,42 @@ func SessionWith(driver contract.SessionDriver, options SessionOptions) framewor
 				return err
 			}
 
+			hooks := request.Hooks(r)
+			hooks.BeforeWriteHeader(func(w http.ResponseWriter, status int) {
+				if s.HasExpired() {
+					_ = s.Regenerate(time.Now().Add(options.TTL))
+				}
+
+				if s.ExpiresSoon(options.ExpirationDelta) {
+					s.Extend(time.Now().Add(options.TTL))
+				}
+
+				if s.HasRegenerated() {
+					_ = driver.Delete(r.Context(), s.OriginalSessionID())
+				}
+
+				if s.HasChanged() {
+					expiration := time.Until(s.ExpiresAt())
+
+					_ = driver.Save(r.Context(), s, expiration)
+
+					http.SetCookie(w, &http.Cookie{
+						Name:        options.Name,
+						Value:       s.SessionID(), // Will contain the new id if regenerated
+						Path:        options.Path,
+						Domain:      options.Domain,
+						Expires:     s.ExpiresAt(),             // Will be prior date if expired.
+						MaxAge:      int(expiration.Seconds()), // Will be negative if expired.
+						Secure:      options.Secure,
+						HttpOnly:    true,
+						SameSite:    options.SameSite,
+						Partitioned: options.Partitioned,
+					})
+				}
+			})
+
 			ctx := context.WithValue(r.Context(), session.Key, s)
-			err = next(w, r.WithContext(ctx))
-
-			if s.HasExpired() {
-				if e := s.Regenerate(time.Now().Add(options.TTL)); e != nil {
-					return errors.Join(e, err)
-				}
-			}
-
-			if s.ExpiresSoon(options.ExpirationDelta) {
-				s.Extend(time.Now().Add(options.TTL))
-			}
-
-			if s.HasRegenerated() {
-				// Original session may have died during the execution of this
-				// request. We don't really need to handle the error of this as
-				// it's just active cleanup before ttl hits.
-				_ = driver.Delete(r.Context(), s.OriginalSessionID())
-			}
-
-			if s.HasChanged() {
-				expiration := time.Until(s.ExpiresAt())
-
-				if e := driver.Save(r.Context(), s, expiration); e != nil {
-					return errors.Join(e, err)
-				}
-
-				http.SetCookie(w, &http.Cookie{
-					Name:        options.Name,
-					Value:       s.SessionID(), // Will contain the new id if regenerated
-					Path:        options.Path,
-					Domain:      options.Domain,
-					Expires:     s.ExpiresAt(),             // Will be prior date if expired.
-					MaxAge:      int(expiration.Seconds()), // Will be negative if expired.
-					Secure:      options.Secure,
-					HttpOnly:    true,
-					SameSite:    options.SameSite,
-					Partitioned: options.Partitioned,
-				})
-			}
-
-			return err
+			return next(w, r.WithContext(ctx))
 		}
 	}
 }

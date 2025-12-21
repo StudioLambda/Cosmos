@@ -1,6 +1,6 @@
-# Cosmos: Fracture
+# Cosmos: Problem
 
-**Fracture** provides an easy way to work with [RFC 9457 - Problem Details for HTTP APIs](https://datatracker.ietf.org/doc/html/rfc9457) in Go.
+**Problem** provides an easy way to work with [RFC 9457 - Problem Details for HTTP APIs](https://datatracker.ietf.org/doc/html/rfc9457) in Go.
 It helps standardize your error responses while keeping them flexible and developer-friendly.
 
 ---
