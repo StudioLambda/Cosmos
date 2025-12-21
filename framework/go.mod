@@ -9,7 +9,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/stretchr/testify v1.11.1
-	github.com/studiolambda/cosmos/contract v0.5.0
+	github.com/studiolambda/cosmos/contract v0.6.1
 	github.com/studiolambda/cosmos/problem v0.2.0
 	github.com/studiolambda/cosmos/router v0.2.0
 	golang.org/x/crypto v0.45.0
