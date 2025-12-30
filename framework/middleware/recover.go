@@ -4,16 +4,20 @@ import (
 	"encoding"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/studiolambda/cosmos/framework"
 )
 
-// ErrRecoverUnexpectedError is the default error returned when a panic
+// ErrRecoverUnexpected is the default error returned when a panic
 // occurs but the recovered value cannot be converted to a meaningful error.
 // This ensures that all panics result in a recoverable error state rather
 // than crashing the application.
-var ErrRecoverUnexpectedError = errors.New("an unexpected error occurred")
+var ErrRecoverUnexpected = errors.New("an unexpected error occurred")
+
+// ErrFailedRecovering is an error that's returned when the recover process failed.
+var ErrFailedRecovering = errors.New("failed recovering from unexpected error")
 
 // defaultRecoverHandler converts recovered panic values into errors.
 // It handles common panic value types and provides sensible error conversion:
@@ -34,16 +38,24 @@ func defaultRecoverHandler(value any) error {
 		return errors.New(r)
 	case fmt.Stringer:
 		return errors.New(r.String())
+	case io.Reader:
+		b, err := io.ReadAll(r)
+
+		if err != nil {
+			return errors.Join(ErrFailedRecovering, err)
+		}
+
+		return errors.New(string(b))
 	case encoding.TextMarshaler:
 		t, err := r.MarshalText()
 
 		if err != nil {
-			return err
+			return errors.Join(ErrFailedRecovering, err)
 		}
 
 		return errors.New(string(t))
 	default:
-		return errors.Join(ErrRecoverUnexpectedError, fmt.Errorf("%+v", r))
+		return errors.Join(ErrRecoverUnexpected, fmt.Errorf("%+v", r))
 	}
 }
 

@@ -33,10 +33,10 @@ type Session interface {
 	// for extending a session's lifetime during active use.
 	Extend(expiresAt time.Time)
 
-	// Regenerate creates a new session ID and associates it with this session, updating
-	// the expiration time. This is commonly used after authentication to prevent session
+	// Regenerate creates a new session ID and associates it with this session.
+	// This is commonly used after authentication to prevent session
 	// fixation attacks. It returns an error if the regeneration process fails.
-	Regenerate(expiresAt time.Time) error
+	Regenerate() error
 
 	// Clear removes all data from the session while maintaining the session itself.
 	Clear()

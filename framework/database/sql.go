@@ -1,4 +1,4 @@
-package sql
+package database
 
 import (
 	"context"
@@ -14,26 +14,26 @@ type prepare interface {
 	PrepareNamedContext(ctx context.Context, query string) (*sqlx.NamedStmt, error)
 }
 
-type Database struct {
+type SQL struct {
 	db  prepare  // can be *sqlx.DB or *sqlx.Tx
 	raw *sqlx.DB // needed for transactions
 }
 
-func New(driver string, dsn string) (*Database, error) {
+func NewSQL(driver string, dsn string) (*SQL, error) {
 	db, err := sqlx.Connect(driver, dsn)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Database{db: db, raw: db}, nil
+	return &SQL{db: db, raw: db}, nil
 }
 
-func (db *Database) Ping(ctx context.Context) error {
+func (db *SQL) Ping(ctx context.Context) error {
 	return db.raw.PingContext(ctx)
 }
 
-func (db *Database) Exec(ctx context.Context, query string, args ...any) (int64, error) {
+func (db *SQL) Exec(ctx context.Context, query string, args ...any) (int64, error) {
 	q, err := db.db.PreparexContext(ctx, query)
 
 	if err != nil {
@@ -49,7 +49,7 @@ func (db *Database) Exec(ctx context.Context, query string, args ...any) (int64,
 	return result.RowsAffected()
 }
 
-func (db *Database) ExecNamed(ctx context.Context, query string, arg any) (int64, error) {
+func (db *SQL) ExecNamed(ctx context.Context, query string, arg any) (int64, error) {
 	q, err := db.db.PrepareNamedContext(ctx, query)
 
 	if err != nil {
@@ -65,7 +65,7 @@ func (db *Database) ExecNamed(ctx context.Context, query string, arg any) (int64
 	return result.RowsAffected()
 }
 
-func (db *Database) Select(ctx context.Context, query string, dest any, args ...any) error {
+func (db *SQL) Select(ctx context.Context, query string, dest any, args ...any) error {
 	q, err := db.db.PreparexContext(ctx, query)
 
 	if err != nil {
@@ -79,7 +79,7 @@ func (db *Database) Select(ctx context.Context, query string, dest any, args ...
 	return nil
 }
 
-func (db *Database) SelectNamed(ctx context.Context, query string, dest any, arg any) error {
+func (db *SQL) SelectNamed(ctx context.Context, query string, dest any, arg any) error {
 	q, err := db.db.PrepareNamedContext(ctx, query)
 
 	if err != nil {
@@ -93,7 +93,7 @@ func (db *Database) SelectNamed(ctx context.Context, query string, dest any, arg
 	return nil
 }
 
-func (db *Database) Find(ctx context.Context, query string, dest any, args ...any) error {
+func (db *SQL) Find(ctx context.Context, query string, dest any, args ...any) error {
 	q, err := db.db.PreparexContext(ctx, query)
 
 	if err != nil {
@@ -111,7 +111,7 @@ func (db *Database) Find(ctx context.Context, query string, dest any, args ...an
 	return nil
 }
 
-func (db *Database) FindNamed(ctx context.Context, query string, dest any, arg any) error {
+func (db *SQL) FindNamed(ctx context.Context, query string, dest any, arg any) error {
 	q, err := db.db.PrepareNamedContext(ctx, query)
 
 	if err != nil {
@@ -125,7 +125,7 @@ func (db *Database) FindNamed(ctx context.Context, query string, dest any, arg a
 	return nil
 }
 
-func (db *Database) WithTransaction(ctx context.Context, fn func(tx contract.Database) error) error {
+func (db *SQL) WithTransaction(ctx context.Context, fn func(tx contract.Database) error) error {
 	if _, ok := db.db.(*sqlx.Tx); ok {
 		return contract.ErrDatabaseNestedTransaction
 	}
@@ -136,7 +136,7 @@ func (db *Database) WithTransaction(ctx context.Context, fn func(tx contract.Dat
 		return err
 	}
 
-	txWrapper := &Database{db: tx, raw: db.raw}
+	txWrapper := &SQL{db: tx, raw: db.raw}
 
 	if err := fn(txWrapper); err != nil {
 		return errors.Join(err, tx.Rollback())
@@ -145,6 +145,6 @@ func (db *Database) WithTransaction(ctx context.Context, fn func(tx contract.Dat
 	return tx.Commit()
 }
 
-func (db *Database) Close() error {
+func (db *SQL) Close() error {
 	return db.raw.Close()
 }

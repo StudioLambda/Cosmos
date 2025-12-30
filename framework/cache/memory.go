@@ -1,4 +1,4 @@
-package memory
+package cache
 
 import (
 	"context"
@@ -15,7 +15,7 @@ type Memory struct {
 	store *cache.Cache
 }
 
-func New(expiration time.Duration, cleanup time.Duration) *Memory {
+func NewMemory(expiration time.Duration, cleanup time.Duration) *Memory {
 	return &Memory{
 		store: cache.New(expiration, cleanup),
 		mux:   sync.Mutex{},

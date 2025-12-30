@@ -127,7 +127,7 @@ func (s *Session) Extend(expiresAt time.Time) {
 // after user authentication. The original session ID is preserved and can be retrieved
 // via OriginalSessionID. This operation marks the session as changed. It returns an
 // error if ID generation fails.
-func (s *Session) Regenerate(expiresAt time.Time) error {
+func (s *Session) Regenerate() error {
 	id, err := uuid.NewV7()
 
 	if err != nil {
@@ -138,7 +138,6 @@ func (s *Session) Regenerate(expiresAt time.Time) error {
 	defer s.mutex.Unlock()
 
 	s.id = id.String()
-	s.expiration = expiresAt
 	s.changed = true
 
 	return nil

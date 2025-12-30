@@ -1,4 +1,4 @@
-package chacha20
+package crypto
 
 import (
 	"crypto/cipher"
@@ -9,27 +9,27 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-type Encrypter struct {
+type ChaCha20 struct {
 	aead cipher.AEAD
 }
 
-var ErrMissmatchedNonceSize = errors.New("missmatched nonce size")
+var ErrMissmatchedChaCha20NonceSize = errors.New("missmatched nonce size")
 
-// NewEncrypter creates a new ChaCha20-Poly1305 encrypter.
+// NewChaCha20 creates a new ChaCha20-Poly1305 encrypter.
 // Key must be exactly 32 bytes.
-func NewEncrypter(key []byte) (*Encrypter, error) {
+func NewChaCha20(key []byte) (*ChaCha20, error) {
 	aead, err := chacha20poly1305.New(key)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Encrypter{aead: aead}, nil
+	return &ChaCha20{aead: aead}, nil
 }
 
 // Encrypt encrypts the plaintext using ChaCha20-Poly1305.
 // Returns ciphertext with nonce prepended.
-func (e *Encrypter) Encrypt(value []byte) ([]byte, error) {
+func (e *ChaCha20) Encrypt(value []byte) ([]byte, error) {
 	nonce := make([]byte, e.aead.NonceSize())
 
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
@@ -42,11 +42,11 @@ func (e *Encrypter) Encrypt(value []byte) ([]byte, error) {
 
 // Decrypt decrypts the ciphertext using ChaCha20-Poly1305.
 // Expects nonce to be prepended to ciphertext.
-func (e *Encrypter) Decrypt(value []byte) ([]byte, error) {
+func (e *ChaCha20) Decrypt(value []byte) ([]byte, error) {
 	nonceSize := e.aead.NonceSize()
 
 	if len(value) < nonceSize {
-		return nil, ErrMissmatchedNonceSize
+		return nil, ErrMissmatchedChaCha20NonceSize
 	}
 
 	nonce, ciphertext := value[:nonceSize], value[nonceSize:]

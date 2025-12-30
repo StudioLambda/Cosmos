@@ -1,4 +1,4 @@
-package bcrypt
+package hash
 
 import (
 	"errors"
@@ -6,29 +6,29 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Hasher struct {
-	options Options
+type Bcrypt struct {
+	options BcryptOptions
 }
 
-type Options struct {
+type BcryptOptions struct {
 	cost int
 }
 
-const DefaultCost = 10
+const DefaultBcryptCost = 10
 
-func NewHasher() *Hasher {
-	return NewHasherWith(Options{
-		cost: DefaultCost,
+func NewBcrypt() *Bcrypt {
+	return NewBcryptWith(BcryptOptions{
+		cost: DefaultBcryptCost,
 	})
 }
 
-func NewHasherWith(options Options) *Hasher {
-	return &Hasher{
+func NewBcryptWith(options BcryptOptions) *Bcrypt {
+	return &Bcrypt{
 		options: options,
 	}
 }
 
-func (h *Hasher) Hash(value []byte) ([]byte, error) {
+func (h *Bcrypt) Hash(value []byte) ([]byte, error) {
 	hash, err := bcrypt.GenerateFromPassword(value, h.options.cost)
 
 	if err != nil {
@@ -38,7 +38,7 @@ func (h *Hasher) Hash(value []byte) ([]byte, error) {
 	return hash, nil
 }
 
-func (h *Hasher) Check(value []byte, hash []byte) (bool, error) {
+func (h *Bcrypt) Check(value []byte, hash []byte) (bool, error) {
 	err := bcrypt.CompareHashAndPassword(hash, value)
 
 	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {

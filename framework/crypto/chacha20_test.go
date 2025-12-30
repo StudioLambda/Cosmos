@@ -1,22 +1,22 @@
-package chacha20_test
+package crypto_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/studiolambda/cosmos/framework/crypto/chacha20"
+	"github.com/studiolambda/cosmos/framework/crypto"
 )
 
-func TestItCanCreateEncrypter(t *testing.T) {
+func TestItCanCreateChaCha20Encrypter(t *testing.T) {
 	key := []byte("12345678901234567890123456789012")
-	_, err := chacha20.NewEncrypter(key)
+	_, err := crypto.NewChaCha20(key)
 
 	require.NoError(t, err)
 }
 
-func TestItCanEncrypt(t *testing.T) {
+func TestItCanEncryptChaCha20(t *testing.T) {
 	key := []byte("12345678901234567890123456789012")
-	e, err := chacha20.NewEncrypter(key)
+	e, err := crypto.NewChaCha20(key)
 
 	require.NoError(t, err)
 
@@ -26,9 +26,9 @@ func TestItCanEncrypt(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestItCanDecrypt(t *testing.T) {
+func TestItCanDecryptChaCha20(t *testing.T) {
 	key := []byte("12345678901234567890123456789012")
-	e, _ := chacha20.NewEncrypter(key)
+	e, _ := crypto.NewChaCha20(key)
 	plain := []byte("Hello, World!")
 	cypher, _ := e.Encrypt(plain)
 	res, err := e.Decrypt(cypher)

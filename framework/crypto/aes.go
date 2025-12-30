@@ -1,4 +1,4 @@
-package aes
+package crypto
 
 import (
 	"crypto/aes"
@@ -8,25 +8,25 @@ import (
 	"io"
 )
 
-type Encrypter struct {
+type AES struct {
 	key []byte
 }
 
-var ErrMissmatchedNonceSize = errors.New("missmatched nonce size")
+var ErrMissmatchedAESNonceSize = errors.New("missmatched nonce size")
 
-// NewEncrypter creates a new AES encrypter with the provided key.
+// NewAES creates a new AES encrypter with the provided key.
 // Key should be 16, 24, or 32 bytes for AES-128, AES-192, or AES-256.
-func NewEncrypter(key []byte) (*Encrypter, error) {
+func NewAES(key []byte) (*AES, error) {
 	if len(key) != 16 && len(key) != 24 && len(key) != 32 {
 		return nil, aes.KeySizeError(len(key))
 	}
 
-	return &Encrypter{key: key}, nil
+	return &AES{key: key}, nil
 }
 
 // Encrypt encrypts the plaintext using AES-GCM.
 // Returns ciphertext with nonce prepended.
-func (e *Encrypter) Encrypt(value []byte) ([]byte, error) {
+func (e *AES) Encrypt(value []byte) ([]byte, error) {
 	block, err := aes.NewCipher(e.key)
 
 	if err != nil {
@@ -51,7 +51,7 @@ func (e *Encrypter) Encrypt(value []byte) ([]byte, error) {
 
 // Decrypt decrypts the ciphertext using AES-GCM.
 // Expects nonce to be prepended to ciphertext.
-func (e *Encrypter) Decrypt(value []byte) ([]byte, error) {
+func (e *AES) Decrypt(value []byte) ([]byte, error) {
 	block, err := aes.NewCipher(e.key)
 
 	if err != nil {
@@ -67,7 +67,7 @@ func (e *Encrypter) Decrypt(value []byte) ([]byte, error) {
 	nonceSize := gcm.NonceSize()
 
 	if len(value) < nonceSize {
-		return nil, ErrMissmatchedNonceSize
+		return nil, ErrMissmatchedAESNonceSize
 	}
 
 	nonce, ciphertext := value[:nonceSize], value[nonceSize:]

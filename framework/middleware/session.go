@@ -52,7 +52,8 @@ func SessionWith(driver contract.SessionDriver, options SessionOptions) framewor
 			hooks := request.Hooks(r)
 			hooks.BeforeWriteHeader(func(w http.ResponseWriter, status int) {
 				if s.HasExpired() {
-					_ = s.Regenerate(time.Now().Add(options.TTL))
+					_ = s.Regenerate()
+					s.Extend(time.Now().Add(options.TTL))
 				}
 
 				if s.ExpiresSoon(options.ExpirationDelta) {
@@ -84,6 +85,7 @@ func SessionWith(driver contract.SessionDriver, options SessionOptions) framewor
 			})
 
 			ctx := context.WithValue(r.Context(), session.Key, s)
+
 			return next(w, r.WithContext(ctx))
 		}
 	}

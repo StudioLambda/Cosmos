@@ -1,14 +1,14 @@
-package argon2_test
+package hash_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/studiolambda/cosmos/framework/hash/argon2"
+	"github.com/studiolambda/cosmos/framework/hash"
 )
 
-func TestItCanHashPasswords(t *testing.T) {
-	h := argon2.NewHasher()
+func TestItCanHashArgon2Passwords(t *testing.T) {
+	h := hash.NewArgon2()
 	content := []byte("hello, world")
 
 	r, err := h.Hash(content)
@@ -17,8 +17,8 @@ func TestItCanHashPasswords(t *testing.T) {
 	require.Greater(t, len(r), 0)
 }
 
-func TestItCanCheckHashedHashes(t *testing.T) {
-	h := argon2.NewHasher()
+func TestItCanCheckHashedArgon2Hashes(t *testing.T) {
+	h := hash.NewArgon2()
 	content := []byte("hello, world")
 
 	r, _ := h.Hash(content)

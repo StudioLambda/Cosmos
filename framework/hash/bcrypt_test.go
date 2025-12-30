@@ -1,14 +1,14 @@
-package bcrypt_test
+package hash_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/studiolambda/cosmos/framework/hash/bcrypt"
+	"github.com/studiolambda/cosmos/framework/hash"
 )
 
-func TestItCanHashPasswords(t *testing.T) {
-	h := bcrypt.NewHasher()
+func TestItCanHashBcryptPasswords(t *testing.T) {
+	h := hash.NewBcrypt()
 	content := []byte("hello, world")
 
 	r, err := h.Hash(content)
@@ -17,8 +17,8 @@ func TestItCanHashPasswords(t *testing.T) {
 	require.Greater(t, len(r), 0)
 }
 
-func TestItCanCheckHashedHashes(t *testing.T) {
-	h := bcrypt.NewHasher()
+func TestItCanCheckHashedBcryptHashes(t *testing.T) {
+	h := hash.NewBcrypt()
 	content := []byte("hello, world")
 
 	r, _ := h.Hash(content)

@@ -1,22 +1,22 @@
-package aes_test
+package crypto_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/studiolambda/cosmos/framework/crypto/aes"
+	"github.com/studiolambda/cosmos/framework/crypto"
 )
 
-func TestItCanCreateEncrypter(t *testing.T) {
+func TestItCanCreateAESEncrypter(t *testing.T) {
 	key := []byte("12345678901234567890123456789012")
-	_, err := aes.NewEncrypter(key)
+	_, err := crypto.NewAES(key)
 
 	require.NoError(t, err)
 }
 
-func TestItCanEncrypt(t *testing.T) {
+func TestItCanEncryptAES(t *testing.T) {
 	key := []byte("12345678901234567890123456789012")
-	e, err := aes.NewEncrypter(key)
+	e, err := crypto.NewAES(key)
 
 	require.NoError(t, err)
 
@@ -26,9 +26,9 @@ func TestItCanEncrypt(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestItCanDecrypt(t *testing.T) {
+func TestItCanDecryptAES(t *testing.T) {
 	key := []byte("12345678901234567890123456789012")
-	e, _ := aes.NewEncrypter(key)
+	e, _ := crypto.NewAES(key)
 	plain := []byte("Hello, World!")
 	cypher, _ := e.Encrypt(plain)
 	res, err := e.Decrypt(cypher)
