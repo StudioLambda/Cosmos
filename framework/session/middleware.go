@@ -1,4 +1,4 @@
-package middleware
+package session
 
 import (
 	"context"
@@ -8,10 +8,9 @@ import (
 	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework"
 	"github.com/studiolambda/cosmos/framework/request"
-	"github.com/studiolambda/cosmos/framework/session"
 )
 
-type SessionOptions struct {
+type MiddlewareOptions struct {
 	Name            string
 	Path            string
 	Domain          string
@@ -22,11 +21,11 @@ type SessionOptions struct {
 	ExpirationDelta time.Duration
 }
 
-const DefaultSessionCookie = "cosmos.session"
-const DefaultSessionExpirationDelta = 15 * time.Minute
-const DefaultSessionTTL = 2 * time.Hour
+const DefaultCookie = "cosmos.session"
+const DefaultExpirationDelta = 15 * time.Minute
+const DefaultTTL = 2 * time.Hour
 
-func currentSession(r *http.Request, driver contract.SessionDriver, options SessionOptions) (contract.Session, error) {
+func currentSession(r *http.Request, driver contract.SessionDriver, options MiddlewareOptions) (contract.Session, error) {
 	id := request.CookieValue(r, options.Name)
 
 	if id != "" {
@@ -37,10 +36,10 @@ func currentSession(r *http.Request, driver contract.SessionDriver, options Sess
 		}
 	}
 
-	return session.NewSession(time.Now().Add(options.TTL), map[string]any{})
+	return NewSession(time.Now().Add(options.TTL), map[string]any{})
 }
 
-func SessionWith(driver contract.SessionDriver, options SessionOptions) framework.Middleware {
+func MiddlewareWith(driver contract.SessionDriver, options MiddlewareOptions) framework.Middleware {
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
 			s, err := currentSession(r, driver, options)
@@ -84,22 +83,22 @@ func SessionWith(driver contract.SessionDriver, options SessionOptions) framewor
 				}
 			})
 
-			ctx := context.WithValue(r.Context(), session.Key, s)
+			ctx := context.WithValue(r.Context(), Key, s)
 
 			return next(w, r.WithContext(ctx))
 		}
 	}
 }
 
-func Session(driver contract.SessionDriver) framework.Middleware {
-	return SessionWith(driver, SessionOptions{
-		Name:            DefaultSessionCookie,
+func Middleware(driver contract.SessionDriver) framework.Middleware {
+	return MiddlewareWith(driver, MiddlewareOptions{
+		Name:            DefaultCookie,
 		Path:            "/",
 		Domain:          "",
 		Secure:          true,
 		SameSite:        http.SameSiteLaxMode,
 		Partitioned:     false,
-		TTL:             DefaultSessionTTL,
-		ExpirationDelta: DefaultSessionExpirationDelta,
+		TTL:             DefaultTTL,
+		ExpirationDelta: DefaultExpirationDelta,
 	})
 }

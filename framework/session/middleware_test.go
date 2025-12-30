@@ -1,4 +1,4 @@
-package middleware_test
+package session_test
 
 import (
 	"net/http"
@@ -10,10 +10,10 @@ import (
 	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/contract/mock"
 	"github.com/studiolambda/cosmos/framework"
-	"github.com/studiolambda/cosmos/framework/middleware"
+	"github.com/studiolambda/cosmos/framework/session"
 )
 
-func TestSessionCookieExists(t *testing.T) {
+func TestMiddlewareCookieExists(t *testing.T) {
 	handler := framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	})
@@ -22,7 +22,7 @@ func TestSessionCookieExists(t *testing.T) {
 
 	cache.On("Save", tmock.Anything, tmock.Anything, tmock.Anything).Return(nil).Once()
 
-	handlerWithSessions := middleware.Session(cache)(handler)
+	handlerWithSessions := session.Middleware(cache)(handler)
 
 	req := httptest.NewRequest("GET", "/", nil)
 	res := handlerWithSessions.Record(req)
@@ -32,5 +32,5 @@ func TestSessionCookieExists(t *testing.T) {
 	require.Len(t, cookies, 1)
 	require.Len(t, cache.Calls, 1)
 	require.Equal(t, cache.Calls[0].Arguments.Get(1).(contract.Session).SessionID(), cookies[0].Value)
-	require.Equal(t, cookies[0].Name, middleware.DefaultSessionCookie)
+	require.Equal(t, cookies[0].Name, session.DefaultCookie)
 }
