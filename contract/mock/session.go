@@ -564,16 +564,16 @@ func (_c *SessionMock_Put_Call) RunAndReturn(run func(key string, value any)) *S
 }
 
 // Regenerate provides a mock function for the type SessionMock
-func (_mock *SessionMock) Regenerate(expiresAt time.Time) error {
-	ret := _mock.Called(expiresAt)
+func (_mock *SessionMock) Regenerate() error {
+	ret := _mock.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for Regenerate")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(time.Time) error); ok {
-		r0 = returnFunc(expiresAt)
+	if returnFunc, ok := ret.Get(0).(func() error); ok {
+		r0 = returnFunc()
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -586,20 +586,13 @@ type SessionMock_Regenerate_Call struct {
 }
 
 // Regenerate is a helper method to define mock.On call
-//   - expiresAt time.Time
-func (_e *SessionMock_Expecter) Regenerate(expiresAt interface{}) *SessionMock_Regenerate_Call {
-	return &SessionMock_Regenerate_Call{Call: _e.mock.On("Regenerate", expiresAt)}
+func (_e *SessionMock_Expecter) Regenerate() *SessionMock_Regenerate_Call {
+	return &SessionMock_Regenerate_Call{Call: _e.mock.On("Regenerate")}
 }
 
-func (_c *SessionMock_Regenerate_Call) Run(run func(expiresAt time.Time)) *SessionMock_Regenerate_Call {
+func (_c *SessionMock_Regenerate_Call) Run(run func()) *SessionMock_Regenerate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 time.Time
-		if args[0] != nil {
-			arg0 = args[0].(time.Time)
-		}
-		run(
-			arg0,
-		)
+		run()
 	})
 	return _c
 }
@@ -609,7 +602,7 @@ func (_c *SessionMock_Regenerate_Call) Return(err error) *SessionMock_Regenerate
 	return _c
 }
 
-func (_c *SessionMock_Regenerate_Call) RunAndReturn(run func(expiresAt time.Time) error) *SessionMock_Regenerate_Call {
+func (_c *SessionMock_Regenerate_Call) RunAndReturn(run func() error) *SessionMock_Regenerate_Call {
 	_c.Call.Return(run)
 	return _c
 }
