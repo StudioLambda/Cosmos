@@ -1,10 +1,10 @@
-package hook
+package framework
 
 import "net/http"
 
 type ResponseWriter struct {
 	http.ResponseWriter
-	*Manager
+	*Hooks
 	writeHeaderCalled bool
 }
 
@@ -18,10 +18,10 @@ type WrappedResponseWriter interface {
 	WriteHeaderCalled() bool
 }
 
-func NewResponseWriter(w http.ResponseWriter, m *Manager) WrappedResponseWriter {
+func NewResponseWriter(w http.ResponseWriter, h *Hooks) WrappedResponseWriter {
 	wrapped := &ResponseWriter{
 		ResponseWriter: w,
-		Manager:        m,
+		Hooks:          h,
 	}
 
 	if f, ok := w.(http.Flusher); ok {
@@ -43,7 +43,7 @@ func (w *ResponseWriter) WriteHeader(status int) {
 		return
 	}
 
-	for _, hook := range w.Manager.BeforeWriteHeaderFuncs() {
+	for _, hook := range w.Hooks.BeforeWriteHeaderFuncs() {
 		hook(w.ResponseWriter, status)
 	}
 
@@ -57,7 +57,7 @@ func (w *ResponseWriter) Write(content []byte) (int, error) {
 		w.WriteHeader(http.StatusOK)
 	}
 
-	for _, hook := range w.Manager.BeforeWriteFuncs() {
+	for _, hook := range w.Hooks.BeforeWriteFuncs() {
 		hook(w.ResponseWriter, content)
 	}
 

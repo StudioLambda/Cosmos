@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/studiolambda/cosmos/framework/hook"
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/problem"
 )
 
@@ -84,9 +84,9 @@ func handleError(w http.ResponseWriter, r *http.Request, err error) {
 // response to the client. However, if the response has already been partially
 // written (e.g., during streaming), the error response may not be deliverable.
 func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	hooks := hook.NewManager()
-	wrapped := hook.NewResponseWriter(w, hooks)
-	ctx := context.WithValue(r.Context(), hook.Key, hooks)
+	hooks := NewHooks()
+	wrapped := NewResponseWriter(w, hooks)
+	ctx := context.WithValue(r.Context(), contract.HooksKey, hooks)
 	err := handler(wrapped, r.WithContext(ctx))
 
 	if err != nil {

@@ -201,11 +201,11 @@ func (router *Router[H]) registerPair(method string, pattern string, handler H) 
 	router.register(method, pattern, handler)
 
 	// Assest the first scenario, check if we
-	// are in a pattern ended with a slash
-	if strings.HasSuffix(pattern, "/") {
-		// We must register the pattern without the last
-		// slash, so we simply remove it:
-		pattern = strings.TrimSuffix(pattern, "/")
+	// are in a pattern ended with a slash.
+	//
+	// We must register the pattern without the last
+	// slash, so we simply remove it.
+	if pattern, ok := strings.CutSuffix(pattern, "/"); ok {
 		router.register(method, pattern, handler)
 
 		return

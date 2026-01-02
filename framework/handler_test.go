@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/studiolambda/cosmos/contract/response"
 	"github.com/studiolambda/cosmos/framework"
-	"github.com/studiolambda/cosmos/framework/response"
 )
 
 func handler(w http.ResponseWriter, r *http.Request) error {

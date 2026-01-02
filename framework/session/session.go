@@ -35,12 +35,6 @@ type Session struct {
 	changed bool
 }
 
-// Key is the context key used to store and retrieve the session from a context.Context.
-var Key = sessionKey{}
-
-// sessionKey is a private type used as a context key to avoid collisions.
-type sessionKey struct{}
-
 // NewSession creates a new session with the specified expiration time and initial storage data.
 // It generates a new UUID v7 for both the original and current session IDs.
 // The session is marked as changed to ensure it is persisted on first save.

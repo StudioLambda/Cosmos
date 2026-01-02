@@ -4,8 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/studiolambda/cosmos/contract/request"
 	"github.com/studiolambda/cosmos/framework"
-	"github.com/studiolambda/cosmos/framework/request"
 )
 
 // Logger creates middleware that provides comprehensive request logging for Cosmos

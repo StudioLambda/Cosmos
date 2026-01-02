@@ -5,6 +5,12 @@ import (
 	"time"
 )
 
+// sessionKey is a private type used as a context key to avoid collisions.
+type sessionKey struct{}
+
+// SessionKey is the context key used to store and retrieve the session from a context.Context.
+var SessionKey = sessionKey{}
+
 // Session represents a user session with data storage and lifecycle management capabilities.
 // It provides methods to store, retrieve, and manage session data, as well as control
 // session expiration and regeneration for security purposes.

@@ -13,16 +13,24 @@ var ErrSessionNotFound = problem.Problem{
 	Status: http.StatusInternalServerError,
 }
 
-func Session(r *http.Request, key any) (contract.Session, bool) {
+func Session(r *http.Request) (contract.Session, bool) {
+	return SessionKeyed(r, contract.SessionKey)
+}
+
+func SessionKeyed(r *http.Request, key any) (contract.Session, bool) {
 	s, ok := r.Context().Value(key).(contract.Session)
 
 	return s, ok
 }
 
-func MustSession(r *http.Request, key any) contract.Session {
-	if s, ok := Session(r, key); ok {
+func MustSessionKeyed(r *http.Request, key any) contract.Session {
+	if s, ok := SessionKeyed(r, key); ok {
 		return s
 	}
 
 	panic(ErrSessionNotFound)
+}
+
+func MustSession(r *http.Request) contract.Session {
+	return MustSessionKeyed(r, contract.SessionKey)
 }

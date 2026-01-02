@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/studiolambda/cosmos/contract"
+	"github.com/studiolambda/cosmos/contract/request"
 	"github.com/studiolambda/cosmos/framework"
-	"github.com/studiolambda/cosmos/framework/request"
 )
 
 type MiddlewareOptions struct {
@@ -19,6 +19,7 @@ type MiddlewareOptions struct {
 	Partitioned     bool
 	TTL             time.Duration
 	ExpirationDelta time.Duration
+	Key             any
 }
 
 const DefaultCookie = "cosmos.session"
@@ -83,7 +84,7 @@ func MiddlewareWith(driver contract.SessionDriver, options MiddlewareOptions) fr
 				}
 			})
 
-			ctx := context.WithValue(r.Context(), Key, s)
+			ctx := context.WithValue(r.Context(), options.Key, s)
 
 			return next(w, r.WithContext(ctx))
 		}
@@ -100,5 +101,6 @@ func Middleware(driver contract.SessionDriver) framework.Middleware {
 		Partitioned:     false,
 		TTL:             DefaultTTL,
 		ExpirationDelta: DefaultExpirationDelta,
+		Key:             contract.SessionKey,
 	})
 }
