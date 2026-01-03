@@ -30,8 +30,8 @@ import (
 
 	"github.com/studiolambda/cosmos/framework"
 	"github.com/studiolambda/cosmos/framework/middleware"
-	"github.com/studiolambda/cosmos/framework/request"
-	"github.com/studiolambda/cosmos/framework/response"
+	"github.com/studiolambda/cosmos/contract/request"
+	"github.com/studiolambda/cosmos/contract/response"
 )
 
 type Data struct {
