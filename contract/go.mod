@@ -2,7 +2,10 @@ module github.com/studiolambda/cosmos/contract
 
 go 1.25.0
 
-require github.com/stretchr/testify v1.11.1
+require (
+	github.com/stretchr/testify v1.11.1
+	github.com/studiolambda/cosmos/problem v0.2.0
+)
 
 require (
 	github.com/brunoga/deep v1.2.4 // indirect

@@ -1,9 +1,10 @@
 package framework
 
 import (
-	"net/http"
 	"slices"
 	"sync"
+
+	"github.com/studiolambda/cosmos/contract"
 )
 
 // Hooks is a structure that can be used to
@@ -13,31 +14,27 @@ import (
 // It is safe for concurrent use.
 type Hooks struct {
 	mutex                  sync.Mutex
-	afterResponseHooks     []AfterResponseHook
-	beforeWriteHeaderHooks []BeforeWriteHeaderHook
-	beforeWriteHooks       []BeforeWriteHook
+	afterResponseHooks     []contract.AfterResponseHook
+	beforeWriteHeaderHooks []contract.BeforeWriteHeaderHook
+	beforeWriteHooks       []contract.BeforeWriteHook
 }
-
-type AfterResponseHook func(err error)
-type BeforeWriteHeaderHook func(w http.ResponseWriter, status int)
-type BeforeWriteHook func(w http.ResponseWriter, content []byte)
 
 func NewHooks() *Hooks {
 	return &Hooks{
 		mutex:                  sync.Mutex{},
-		beforeWriteHeaderHooks: []BeforeWriteHeaderHook{},
-		beforeWriteHooks:       []BeforeWriteHook{},
+		beforeWriteHeaderHooks: []contract.BeforeWriteHeaderHook{},
+		beforeWriteHooks:       []contract.BeforeWriteHook{},
 	}
 }
 
-func (h *Hooks) BeforeWriteHeader(callbacks ...BeforeWriteHeaderHook) {
+func (h *Hooks) BeforeWriteHeader(callbacks ...contract.BeforeWriteHeaderHook) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
 	h.beforeWriteHeaderHooks = append(h.beforeWriteHeaderHooks, callbacks...)
 }
 
-func (h *Hooks) BeforeWriteHeaderFuncs() []BeforeWriteHeaderHook {
+func (h *Hooks) BeforeWriteHeaderFuncs() []contract.BeforeWriteHeaderHook {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
@@ -47,14 +44,14 @@ func (h *Hooks) BeforeWriteHeaderFuncs() []BeforeWriteHeaderHook {
 	return clone
 }
 
-func (h *Hooks) BeforeWrite(callbacks ...BeforeWriteHook) {
+func (h *Hooks) BeforeWrite(callbacks ...contract.BeforeWriteHook) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
 	h.beforeWriteHooks = append(h.beforeWriteHooks, callbacks...)
 }
 
-func (h *Hooks) BeforeWriteFuncs() []BeforeWriteHook {
+func (h *Hooks) BeforeWriteFuncs() []contract.BeforeWriteHook {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
@@ -64,14 +61,14 @@ func (h *Hooks) BeforeWriteFuncs() []BeforeWriteHook {
 	return clone
 }
 
-func (h *Hooks) AfterResponse(callbacks ...AfterResponseHook) {
+func (h *Hooks) AfterResponse(callbacks ...contract.AfterResponseHook) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
 	h.afterResponseHooks = append(h.afterResponseHooks, callbacks...)
 }
 
-func (h *Hooks) AfterResponseFuncs() []AfterResponseHook {
+func (h *Hooks) AfterResponseFuncs() []contract.AfterResponseHook {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
