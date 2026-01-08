@@ -26,7 +26,11 @@ func NewSQL(driver string, dsn string) (*SQL, error) {
 		return nil, err
 	}
 
-	return &SQL{db: db, raw: db}, nil
+	return NewSQLFrom(db), nil
+}
+
+func NewSQLFrom(db *sqlx.DB) *SQL {
+	return &SQL{db: db, raw: db}
 }
 
 func (db *SQL) Ping(ctx context.Context) error {

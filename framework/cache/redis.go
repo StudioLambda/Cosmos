@@ -16,7 +16,11 @@ type RedisOptions = redis.Options
 type RedisClient redis.Client
 
 func NewRedis(options *RedisOptions) *RedisClient {
-	return (*RedisClient)(redis.NewClient((*redis.Options)(options)))
+	return NewRedisFrom(redis.NewClient((*redis.Options)(options)))
+}
+
+func NewRedisFrom(client *redis.Client) *RedisClient {
+	return (*RedisClient)(client)
 }
 
 // Get retrieves a value by key or returns contract.ErrNotFound if missing.
