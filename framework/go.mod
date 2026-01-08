@@ -12,7 +12,7 @@ require (
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/stretchr/testify v1.11.1
-	github.com/studiolambda/cosmos/contract v0.7.0
+	github.com/studiolambda/cosmos/contract v0.8.0
 	github.com/studiolambda/cosmos/problem v0.2.0
 	github.com/studiolambda/cosmos/router v0.2.0
 	golang.org/x/crypto v0.46.0
