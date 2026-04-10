@@ -4,7 +4,6 @@ go 1.25.0
 
 require (
 	github.com/eclipse/paho.golang v0.23.0
-	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/matthewhartstonge/argon2 v1.4.3
 	github.com/nats-io/nats.go v1.48.0

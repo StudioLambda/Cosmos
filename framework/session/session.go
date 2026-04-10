@@ -1,10 +1,10 @@
 package session
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // Session represents an HTTP session with data storage, expiration management, and change tracking.
@@ -35,20 +35,42 @@ type Session struct {
 	changed bool
 }
 
-// NewSession creates a new session with the specified expiration time and initial storage data.
-// It generates a new UUID v7 for both the original and current session IDs.
-// The session is marked as changed to ensure it is persisted on first save.
-// It returns an error if the UUID generation fails.
+// sessionIDLength is the number of random bytes used to generate
+// a session ID. 32 bytes provides 256 bits of entropy, which is
+// encoded to a 43-character base64url string.
+const sessionIDLength = 32
+
+// generateSessionID generates a cryptographically random session
+// ID using crypto/rand and base64url encoding. The resulting ID
+// is 43 characters long with 256 bits of entropy and contains no
+// embedded timestamp, unlike UUID v7.
+func generateSessionID() (string, error) {
+	b := make([]byte, sessionIDLength)
+
+	_, err := rand.Read(b)
+
+	if err != nil {
+		return "", err
+	}
+
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// NewSession creates a new session with the specified expiration
+// time and initial storage data. It generates a cryptographically
+// random session ID for both the original and current session IDs.
+// The session is marked as changed to ensure it is persisted on
+// first save. It returns an error if ID generation fails.
 func NewSession(expiresAt time.Time, storage map[string]any) (*Session, error) {
-	id, err := uuid.NewV7()
+	id, err := generateSessionID()
 
 	if err != nil {
 		return nil, err
 	}
 
 	return &Session{
-		originalID: id.String(),
-		id:         id.String(),
+		originalID: id,
+		id:         id,
 		expiration: expiresAt,
 		storage:    storage,
 		mutex:      sync.Mutex{},
@@ -122,7 +144,7 @@ func (session *Session) Extend(expiresAt time.Time) {
 // via OriginalSessionID. This operation marks the session as changed. It returns an
 // error if ID generation fails.
 func (session *Session) Regenerate() error {
-	id, err := uuid.NewV7()
+	id, err := generateSessionID()
 
 	if err != nil {
 		return err
@@ -131,7 +153,7 @@ func (session *Session) Regenerate() error {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	session.id = id.String()
+	session.id = id
 	session.changed = true
 
 	return nil
