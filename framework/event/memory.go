@@ -71,12 +71,12 @@ func NewMemoryBroker() *MemoryBroker {
 //
 // Returns an error if JSON encoding fails or if the broker is closed.
 // The context is checked once at the start of the publish operation.
-func (b *MemoryBroker) Publish(
+func (broker *MemoryBroker) Publish(
 	ctx context.Context,
 	event string,
 	payload any,
 ) error {
-	if b.isClosed.Load() {
+	if broker.isClosed.Load() {
 		return ErrBrokerClosed
 	}
 
@@ -90,16 +90,16 @@ func (b *MemoryBroker) Publish(
 		return err
 	}
 
-	b.mu.RLock()
-	defer b.mu.RUnlock()
+	broker.mu.RLock()
+	defer broker.mu.RUnlock()
 
-	for pattern, patternHandlers := range b.handlers {
+	for pattern, patternHandlers := range broker.handlers {
 		if !matchEvent(pattern, event) {
 			continue
 		}
 
 		for _, handler := range patternHandlers {
-			go b.deliverToHandler(handler, encoded)
+			go broker.deliverToHandler(handler, encoded)
 		}
 	}
 
@@ -120,35 +120,35 @@ func (b *MemoryBroker) Publish(
 // Returns an error if the broker is closed.
 // The context is used only for the subscription setup, not for the handler
 // lifecycle.
-func (b *MemoryBroker) Subscribe(
+func (broker *MemoryBroker) Subscribe(
 	ctx context.Context,
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
-	if b.isClosed.Load() {
+	if broker.isClosed.Load() {
 		return nil, ErrBrokerClosed
 	}
 
-	handlerID := fmt.Sprintf("%d", b.nextID.Add(1))
+	handlerID := fmt.Sprintf("%d", broker.nextID.Add(1))
 
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	broker.mu.Lock()
+	defer broker.mu.Unlock()
 
-	if b.handlers[event] == nil {
-		b.handlers[event] = make(map[string]contract.EventHandler)
+	if broker.handlers[event] == nil {
+		broker.handlers[event] = make(map[string]contract.EventHandler)
 	}
 
-	b.handlers[event][handlerID] = handler
+	broker.handlers[event][handlerID] = handler
 
 	return func() error {
-		b.mu.Lock()
-		defer b.mu.Unlock()
+		broker.mu.Lock()
+		defer broker.mu.Unlock()
 
-		if patternHandlers, ok := b.handlers[event]; ok {
+		if patternHandlers, ok := broker.handlers[event]; ok {
 			delete(patternHandlers, handlerID)
 
 			if len(patternHandlers) == 0 {
-				delete(b.handlers, event)
+				delete(broker.handlers, event)
 			}
 		}
 
@@ -160,13 +160,13 @@ func (b *MemoryBroker) Subscribe(
 // After Close is called, all operations return ErrBrokerClosed and the
 // broker cannot be reused.
 // In-flight message deliveries may still complete after Close returns.
-func (b *MemoryBroker) Close() error {
-	b.isClosed.Store(true)
+func (broker *MemoryBroker) Close() error {
+	broker.isClosed.Store(true)
 
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	broker.mu.Lock()
+	defer broker.mu.Unlock()
 
-	b.handlers = make(map[string]map[string]contract.EventHandler)
+	broker.handlers = make(map[string]map[string]contract.EventHandler)
 
 	return nil
 }
@@ -175,7 +175,7 @@ func (b *MemoryBroker) Close() error {
 // goroutine with panic recovery.
 // This ensures that a panic in one handler doesn't affect other handlers
 // or the broker itself.
-func (b *MemoryBroker) deliverToHandler(
+func (broker *MemoryBroker) deliverToHandler(
 	handler contract.EventHandler,
 	encoded []byte,
 ) {

@@ -8,6 +8,8 @@ import (
 )
 
 func TestItCanCreateChaCha20Encrypter(t *testing.T) {
+	t.Parallel()
+
 	key := []byte("12345678901234567890123456789012")
 	_, err := crypto.NewChaCha20(key)
 
@@ -15,6 +17,8 @@ func TestItCanCreateChaCha20Encrypter(t *testing.T) {
 }
 
 func TestItCanEncryptChaCha20(t *testing.T) {
+	t.Parallel()
+
 	key := []byte("12345678901234567890123456789012")
 	e, err := crypto.NewChaCha20(key)
 
@@ -27,10 +31,18 @@ func TestItCanEncryptChaCha20(t *testing.T) {
 }
 
 func TestItCanDecryptChaCha20(t *testing.T) {
+	t.Parallel()
+
 	key := []byte("12345678901234567890123456789012")
-	e, _ := crypto.NewChaCha20(key)
+	e, err := crypto.NewChaCha20(key)
+
+	require.NoError(t, err)
+
 	plain := []byte("Hello, World!")
-	cypher, _ := e.Encrypt(plain)
+	cypher, err := e.Encrypt(plain)
+
+	require.NoError(t, err)
+
 	res, err := e.Decrypt(cypher)
 
 	require.NoError(t, err)

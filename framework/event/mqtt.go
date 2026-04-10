@@ -231,11 +231,11 @@ func NewMQTTBrokerFrom(
 // handlers based on topic pattern matching. This implements
 // fan-out behavior where multiple handlers can receive the
 // same message if they subscribed to matching patterns.
-func (b *MQTTBroker) route(pb *paho.Publish) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
+func (broker *MQTTBroker) route(pb *paho.Publish) {
+	broker.mu.RLock()
+	defer broker.mu.RUnlock()
 
-	for pattern, handlers := range b.handlers {
+	for pattern, handlers := range broker.handlers {
 		if matchTopic(pattern, pb.Topic) {
 			for _, handler := range handlers {
 				handler(func(dest any) error {
@@ -253,7 +253,7 @@ func (b *MQTTBroker) route(pb *paho.Publish) {
 // Publishing is thread-safe and respects context cancellation.
 // The operation uses the configured QoS level for delivery
 // guarantees.
-func (b *MQTTBroker) Publish(
+func (broker *MQTTBroker) Publish(
 	ctx context.Context,
 	event string,
 	payload any,
@@ -266,9 +266,9 @@ func (b *MQTTBroker) Publish(
 
 	topic := convertTopic(event)
 
-	_, err = b.client.Publish(ctx, &paho.Publish{
+	_, err = broker.client.Publish(ctx, &paho.Publish{
 		Topic:   topic,
-		QoS:     b.qos,
+		QoS:     broker.qos,
 		Payload: encoded,
 		Properties: &paho.PublishProperties{
 			ContentType: "application/json",
@@ -291,67 +291,67 @@ func (b *MQTTBroker) Publish(
 // The returned unsubscribe function removes the specific handler
 // and unsubscribes from the MQTT broker only when the last handler
 // for the topic is removed.
-func (b *MQTTBroker) Subscribe(
+func (broker *MQTTBroker) Subscribe(
 	ctx context.Context,
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
 	topic := convertTopic(event)
-	handlerID := strconv.FormatUint(b.nextID.Add(1), 10)
+	handlerID := strconv.FormatUint(broker.nextID.Add(1), 10)
 
-	b.mu.Lock()
-	isFirst := !b.subscriptions[topic]
-
-	if isFirst {
-		b.subscriptions[topic] = true
-	}
-
-	if b.handlers[topic] == nil {
-		b.handlers[topic] = make(map[string]contract.EventHandler)
-	}
-
-	b.handlers[topic][handlerID] = handler
-	b.mu.Unlock()
+	broker.mu.Lock()
+	isFirst := !broker.subscriptions[topic]
 
 	if isFirst {
-		_, err := b.client.Subscribe(ctx, &paho.Subscribe{
+		broker.subscriptions[topic] = true
+	}
+
+	if broker.handlers[topic] == nil {
+		broker.handlers[topic] = make(map[string]contract.EventHandler)
+	}
+
+	broker.handlers[topic][handlerID] = handler
+	broker.mu.Unlock()
+
+	if isFirst {
+		_, err := broker.client.Subscribe(ctx, &paho.Subscribe{
 			Subscriptions: []paho.SubscribeOptions{
 				{
 					Topic: topic,
-					QoS:   b.qos,
+					QoS:   broker.qos,
 				},
 			},
 		})
 
 		if err != nil {
-			b.mu.Lock()
-			delete(b.handlers[topic], handlerID)
+			broker.mu.Lock()
+			delete(broker.handlers[topic], handlerID)
 
-			if len(b.handlers[topic]) == 0 {
-				delete(b.handlers, topic)
-				delete(b.subscriptions, topic)
+			if len(broker.handlers[topic]) == 0 {
+				delete(broker.handlers, topic)
+				delete(broker.subscriptions, topic)
 			}
 
-			b.mu.Unlock()
+			broker.mu.Unlock()
 
 			return nil, err
 		}
 	}
 
 	return func() error {
-		b.mu.Lock()
-		delete(b.handlers[topic], handlerID)
-		shouldUnsubscribe := len(b.handlers[topic]) == 0
+		broker.mu.Lock()
+		delete(broker.handlers[topic], handlerID)
+		shouldUnsubscribe := len(broker.handlers[topic]) == 0
 
 		if shouldUnsubscribe {
-			delete(b.handlers, topic)
-			delete(b.subscriptions, topic)
+			delete(broker.handlers, topic)
+			delete(broker.subscriptions, topic)
 		}
 
-		b.mu.Unlock()
+		broker.mu.Unlock()
 
 		if shouldUnsubscribe {
-			_, err := b.client.Unsubscribe(ctx, &paho.Unsubscribe{
+			_, err := broker.client.Unsubscribe(ctx, &paho.Unsubscribe{
 				Topics: []string{topic},
 			})
 
@@ -365,6 +365,6 @@ func (b *MQTTBroker) Subscribe(
 // Close gracefully disconnects from the MQTT broker and releases
 // all resources. This will terminate all active subscriptions and
 // close the underlying connection.
-func (b *MQTTBroker) Close() error {
-	return b.client.Disconnect(context.Background())
+func (broker *MQTTBroker) Close() error {
+	return broker.client.Disconnect(context.Background())
 }

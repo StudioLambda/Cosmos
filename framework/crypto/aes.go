@@ -8,14 +8,21 @@ import (
 	"io"
 )
 
+// AES implements contract.Encrypter using AES-GCM (Galois/Counter Mode)
+// authenticated encryption. The nonce is generated randomly for each
+// Encrypt call and prepended to the ciphertext.
 type AES struct {
 	key []byte
 }
 
-var ErrMissmatchedAESNonceSize = errors.New("missmatched nonce size")
+// ErrMismatchedAESNonceSize is returned when the ciphertext provided
+// to Decrypt is shorter than the expected GCM nonce size, indicating
+// truncated or corrupted data.
+var ErrMismatchedAESNonceSize = errors.New("mismatched nonce size")
 
-// NewAES creates a new AES encrypter with the provided key.
-// Key should be 16, 24, or 32 bytes for AES-128, AES-192, or AES-256.
+// NewAES creates an AES encrypter with the provided key.
+// The key must be 16, 24, or 32 bytes for AES-128, AES-192,
+// or AES-256 respectively.
 func NewAES(key []byte) (*AES, error) {
 	if len(key) != 16 && len(key) != 24 && len(key) != 32 {
 		return nil, aes.KeySizeError(len(key))
@@ -24,10 +31,11 @@ func NewAES(key []byte) (*AES, error) {
 	return &AES{key: key}, nil
 }
 
-// Encrypt encrypts the plaintext using AES-GCM.
-// Returns ciphertext with nonce prepended.
-func (e *AES) Encrypt(value []byte) ([]byte, error) {
-	block, err := aes.NewCipher(e.key)
+// Encrypt encrypts the plaintext using AES-GCM with a random nonce.
+// The returned slice contains the nonce followed by the ciphertext
+// and authentication tag.
+func (encrypter *AES) Encrypt(value []byte) ([]byte, error) {
+	block, err := aes.NewCipher(encrypter.key)
 
 	if err != nil {
 		return nil, err
@@ -45,14 +53,14 @@ func (e *AES) Encrypt(value []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// Prepend nonce to ciphertext
 	return gcm.Seal(nonce, nonce, value, nil), nil
 }
 
-// Decrypt decrypts the ciphertext using AES-GCM.
-// Expects nonce to be prepended to ciphertext.
-func (e *AES) Decrypt(value []byte) ([]byte, error) {
-	block, err := aes.NewCipher(e.key)
+// Decrypt decrypts AES-GCM ciphertext that has the nonce prepended.
+// Returns ErrMismatchedAESNonceSize if the input is too short to
+// contain a valid nonce.
+func (encrypter *AES) Decrypt(value []byte) ([]byte, error) {
+	block, err := aes.NewCipher(encrypter.key)
 
 	if err != nil {
 		return nil, err
@@ -67,7 +75,7 @@ func (e *AES) Decrypt(value []byte) ([]byte, error) {
 	nonceSize := gcm.NonceSize()
 
 	if len(value) < nonceSize {
-		return nil, ErrMissmatchedAESNonceSize
+		return nil, ErrMismatchedAESNonceSize
 	}
 
 	nonce, ciphertext := value[:nonceSize], value[nonceSize:]

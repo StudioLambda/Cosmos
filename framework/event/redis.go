@@ -10,37 +10,57 @@ import (
 	"github.com/studiolambda/cosmos/contract"
 )
 
+// RedisBroker implements contract.EventBus using Redis Pub/Sub.
+// It maps the "#" multi-level wildcard to Redis's "*" glob pattern
+// for topic subscriptions.
 type RedisBroker struct {
 	client *redis.Client
 }
 
+// RedisBrokerOptions is an alias for redis.Options, exposing the
+// full set of Redis connection parameters without requiring a
+// direct import of the go-redis package.
 type RedisBrokerOptions = redis.Options
 
+// NewRedisBroker creates a RedisBroker by connecting to Redis
+// with the given options.
 func NewRedisBroker(options *redis.Options) *RedisBroker {
 	client := redis.NewClient(options)
 
 	return NewRedisBrokerFrom(client)
 }
 
+// NewRedisBrokerFrom wraps an existing redis.Client as a
+// RedisBroker, allowing reuse of a pre-configured connection.
 func NewRedisBrokerFrom(client *redis.Client) *RedisBroker {
 	return &RedisBroker{
 		client: client,
 	}
 }
 
-func (b *RedisBroker) Publish(ctx context.Context, event string, payload any) error {
+// Publish serializes the payload as JSON and publishes it to the
+// given Redis channel.
+func (broker *RedisBroker) Publish(ctx context.Context, event string, payload any) error {
 	encoded, err := json.Marshal(payload)
 
 	if err != nil {
 		return err
 	}
 
-	return b.client.Publish(ctx, event, encoded).Err()
+	return broker.client.Publish(ctx, event, encoded).Err()
 }
 
-func (b *RedisBroker) Subscribe(ctx context.Context, event string, handler contract.EventHandler) (contract.EventUnsubscribeFunc, error) {
+// Subscribe registers a handler for messages matching the given
+// event pattern. The "#" wildcard is translated to Redis's "*" glob.
+// It returns an unsubscribe function that closes the subscription
+// and waits for the delivery goroutine to finish.
+func (broker *RedisBroker) Subscribe(
+	ctx context.Context,
+	event string,
+	handler contract.EventHandler,
+) (contract.EventUnsubscribeFunc, error) {
 	event = strings.ReplaceAll(event, "#", "*")
-	sub := b.client.PSubscribe(ctx, event)
+	sub := broker.client.PSubscribe(ctx, event)
 	wg := sync.WaitGroup{}
 
 	wg.Go(func() {
@@ -57,6 +77,7 @@ func (b *RedisBroker) Subscribe(ctx context.Context, event string, handler contr
 	}, nil
 }
 
-func (b *RedisBroker) Close() error {
-	return b.client.Close()
+// Close shuts down the underlying Redis client connection.
+func (broker *RedisBroker) Close() error {
+	return broker.client.Close()
 }

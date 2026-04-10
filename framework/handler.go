@@ -60,29 +60,35 @@ func handleError(w http.ResponseWriter, r *http.Request, err error) {
 		status = 499 // A non-standard status code: 499 Client Closed Request
 	}
 
-	if s, ok := err.(HTTPStatus); ok {
-		status = s.HTTPStatus()
+	var statusErr HTTPStatus
+
+	if errors.As(err, &statusErr) {
+		status = statusErr.HTTPStatus()
 	}
 
-	// We can check if the error can be directly
-	// handled by using a [http.Handler], in the case
-	// we'll simply handle it using ServeHTTP.
-	if h, ok := err.(http.Handler); ok {
-		h.ServeHTTP(w, r)
+	// When the error itself implements http.Handler, delegate
+	// rendering entirely to it. This allows error types like
+	// problem.Problem to control their own HTTP response format.
+	var handlerErr http.Handler
+
+	if errors.As(err, &handlerErr) {
+		handlerErr.ServeHTTP(w, r)
 		return
 	}
 
 	problem.NewProblem(err, status).ServeHTTP(w, r)
 }
 
-// ServeHTTP implements the http.Handler interface, allowing Cosmos handlers
-// to be used with the standard HTTP server. It bridges the gap between
-// Cosmos's error-returning handlers and Go's standard http.Handler interface.
+// ServeHTTP implements the http.Handler interface, bridging Cosmos's
+// error-returning handlers with Go's standard handler contract.
 //
-// This method calls the handler and provides basic error handling as a fallback.
-// If the handler returns an error, it attempts to send a 500 Internal Server Error
-// response to the client. However, if the response has already been partially
-// written (e.g., during streaming), the error response may not be deliverable.
+// It wraps the response writer with lifecycle hooks, calls the handler,
+// and delegates error rendering to handleError when the handler fails.
+// Errors implementing [HTTPStatus] get their custom status code, and
+// errors implementing [http.Handler] render themselves directly.
+// If no status code has been written after the handler returns, a
+// 204 No Content is sent as the default. AfterResponse hooks run
+// last, regardless of success or failure.
 func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hooks := NewHooks()
 	wrapped := NewResponseWriter(w, hooks)

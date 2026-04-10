@@ -9,16 +9,25 @@ import (
 	"github.com/studiolambda/cosmos/contract"
 )
 
+// prepare is the shared interface between *sqlx.DB and *sqlx.Tx
+// that allows SQL to operate transparently on either a raw
+// connection or an active transaction.
 type prepare interface {
 	PreparexContext(ctx context.Context, query string) (*sqlx.Stmt, error)
 	PrepareNamedContext(ctx context.Context, query string) (*sqlx.NamedStmt, error)
 }
 
+// SQL implements contract.Database using sqlx for query preparation,
+// named parameters, and struct scanning. It supports both direct
+// connections and transactions through the shared prepare interface.
 type SQL struct {
 	db  prepare  // can be *sqlx.DB or *sqlx.Tx
 	raw *sqlx.DB // needed for transactions
 }
 
+// NewSQL connects to the database using the given driver name and DSN,
+// returning a ready-to-use SQL instance or an error if the connection
+// cannot be established.
 func NewSQL(driver string, dsn string) (*SQL, error) {
 	db, err := sqlx.Connect(driver, dsn)
 
@@ -29,16 +38,24 @@ func NewSQL(driver string, dsn string) (*SQL, error) {
 	return NewSQLFrom(db), nil
 }
 
+// NewSQLFrom wraps an existing sqlx.DB connection in a SQL instance.
+// This is useful when you need to configure the connection pool or
+// driver options before handing it to the framework.
 func NewSQLFrom(db *sqlx.DB) *SQL {
 	return &SQL{db: db, raw: db}
 }
 
-func (db *SQL) Ping(ctx context.Context) error {
-	return db.raw.PingContext(ctx)
+// Ping verifies that the database connection is still alive,
+// returning an error if the check fails.
+func (database *SQL) Ping(ctx context.Context) error {
+	return database.raw.PingContext(ctx)
 }
 
-func (db *SQL) Exec(ctx context.Context, query string, args ...any) (int64, error) {
-	q, err := db.db.PreparexContext(ctx, query)
+// Exec prepares and executes a query that modifies data (INSERT,
+// UPDATE, DELETE) using positional arguments. It returns the number
+// of rows affected.
+func (database *SQL) Exec(ctx context.Context, query string, args ...any) (int64, error) {
+	q, err := database.db.PreparexContext(ctx, query)
 
 	if err != nil {
 		return 0, err
@@ -53,8 +70,10 @@ func (db *SQL) Exec(ctx context.Context, query string, args ...any) (int64, erro
 	return result.RowsAffected()
 }
 
-func (db *SQL) ExecNamed(ctx context.Context, query string, arg any) (int64, error) {
-	q, err := db.db.PrepareNamedContext(ctx, query)
+// ExecNamed prepares and executes a query that modifies data using
+// a named parameter struct or map. It returns the number of rows affected.
+func (database *SQL) ExecNamed(ctx context.Context, query string, arg any) (int64, error) {
+	q, err := database.db.PrepareNamedContext(ctx, query)
 
 	if err != nil {
 		return 0, err
@@ -69,36 +88,36 @@ func (db *SQL) ExecNamed(ctx context.Context, query string, arg any) (int64, err
 	return result.RowsAffected()
 }
 
-func (db *SQL) Select(ctx context.Context, query string, dest any, args ...any) error {
-	q, err := db.db.PreparexContext(ctx, query)
+// Select prepares and executes a query that returns multiple rows,
+// scanning the results into the dest slice using positional arguments.
+func (database *SQL) Select(ctx context.Context, query string, dest any, args ...any) error {
+	q, err := database.db.PreparexContext(ctx, query)
 
 	if err != nil {
 		return err
 	}
 
-	if err := q.Select(dest, args...); err != nil {
-		return err
-	}
-
-	return nil
+	return q.Select(dest, args...)
 }
 
-func (db *SQL) SelectNamed(ctx context.Context, query string, dest any, arg any) error {
-	q, err := db.db.PrepareNamedContext(ctx, query)
+// SelectNamed prepares and executes a query that returns multiple rows,
+// scanning the results into the dest slice using a named parameter
+// struct or map.
+func (database *SQL) SelectNamed(ctx context.Context, query string, dest any, arg any) error {
+	q, err := database.db.PrepareNamedContext(ctx, query)
 
 	if err != nil {
 		return err
 	}
 
-	if err := q.Select(dest, arg); err != nil {
-		return err
-	}
-
-	return nil
+	return q.Select(dest, arg)
 }
 
-func (db *SQL) Find(ctx context.Context, query string, dest any, args ...any) error {
-	q, err := db.db.PreparexContext(ctx, query)
+// Find prepares and executes a query expected to return a single row,
+// scanning the result into dest. If no row is found, the returned
+// error wraps both sql.ErrNoRows and contract.ErrDatabaseNoRows.
+func (database *SQL) Find(ctx context.Context, query string, dest any, args ...any) error {
+	q, err := database.db.PreparexContext(ctx, query)
 
 	if err != nil {
 		return err
@@ -115,32 +134,36 @@ func (db *SQL) Find(ctx context.Context, query string, dest any, args ...any) er
 	return nil
 }
 
-func (db *SQL) FindNamed(ctx context.Context, query string, dest any, arg any) error {
-	q, err := db.db.PrepareNamedContext(ctx, query)
+// FindNamed prepares and executes a query expected to return a single
+// row using a named parameter struct or map, scanning the result into
+// dest.
+func (database *SQL) FindNamed(ctx context.Context, query string, dest any, arg any) error {
+	q, err := database.db.PrepareNamedContext(ctx, query)
 
 	if err != nil {
 		return err
 	}
 
-	if err := q.GetContext(ctx, dest, arg); err != nil {
-		return err
-	}
-
-	return nil
+	return q.GetContext(ctx, dest, arg)
 }
 
-func (db *SQL) WithTransaction(ctx context.Context, fn func(tx contract.Database) error) error {
-	if _, ok := db.db.(*sqlx.Tx); ok {
+// WithTransaction executes fn inside a database transaction. If fn
+// returns an error, the transaction is rolled back and both the
+// original error and any rollback error are joined. If fn succeeds,
+// the transaction is committed. Nested transactions are not supported
+// and return contract.ErrDatabaseNestedTransaction.
+func (database *SQL) WithTransaction(ctx context.Context, fn func(tx contract.Database) error) error {
+	if _, ok := database.db.(*sqlx.Tx); ok {
 		return contract.ErrDatabaseNestedTransaction
 	}
 
-	tx, err := db.raw.BeginTxx(ctx, &sql.TxOptions{})
+	tx, err := database.raw.BeginTxx(ctx, &sql.TxOptions{})
 
 	if err != nil {
 		return err
 	}
 
-	txWrapper := &SQL{db: tx, raw: db.raw}
+	txWrapper := &SQL{db: tx, raw: database.raw}
 
 	if err := fn(txWrapper); err != nil {
 		return errors.Join(err, tx.Rollback())
@@ -149,6 +172,8 @@ func (db *SQL) WithTransaction(ctx context.Context, fn func(tx contract.Database
 	return tx.Commit()
 }
 
-func (db *SQL) Close() error {
-	return db.raw.Close()
+// Close closes the underlying database connection and releases
+// all associated resources.
+func (database *SQL) Close() error {
+	return database.raw.Close()
 }
