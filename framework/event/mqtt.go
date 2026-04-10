@@ -165,11 +165,11 @@ func NewMQTTBrokerWith(options *MQTTBrokerOptions) (*MQTTBroker, error) {
 
 	urls := make([]*url.URL, len(options.URLs))
 	for i, urlStr := range options.URLs {
-		u, err := url.Parse(urlStr)
+		parsed, err := url.Parse(urlStr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid url %q: %w", urlStr, err)
 		}
-		urls[i] = u
+		urls[i] = parsed
 	}
 
 	broker := &MQTTBroker{
@@ -300,9 +300,9 @@ func (broker *MQTTBroker) Subscribe(
 	handlerID := strconv.FormatUint(broker.nextID.Add(1), 10)
 
 	broker.mu.Lock()
-	isFirst := !broker.subscriptions[topic]
+	first := !broker.subscriptions[topic]
 
-	if isFirst {
+	if first {
 		broker.subscriptions[topic] = true
 	}
 
@@ -313,7 +313,7 @@ func (broker *MQTTBroker) Subscribe(
 	broker.handlers[topic][handlerID] = handler
 	broker.mu.Unlock()
 
-	if isFirst {
+	if first {
 		_, err := broker.client.Subscribe(ctx, &paho.Subscribe{
 			Subscriptions: []paho.SubscribeOptions{
 				{

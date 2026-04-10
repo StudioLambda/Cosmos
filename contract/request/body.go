@@ -44,26 +44,26 @@ func LimitedBytes(r *http.Request, maxSize int64) ([]byte, error) {
 // Prefer [LimitedString] or apply [http.MaxBytesReader] in a
 // middleware to prevent memory exhaustion from oversized requests.
 func String(r *http.Request) (string, error) {
-	b, err := Bytes(r)
+	body, err := Bytes(r)
 
 	if err != nil {
 		return "", err
 	}
 
-	return string(b), nil
+	return string(body), nil
 }
 
 // LimitedString reads the request body up to maxSize bytes and
 // returns it as a string. If the body exceeds maxSize, the result
 // is truncated. Pass -1 to use [DefaultMaxBodySize].
 func LimitedString(r *http.Request, maxSize int64) (string, error) {
-	b, err := LimitedBytes(r, maxSize)
+	body, err := LimitedBytes(r, maxSize)
 
 	if err != nil {
 		return "", err
 	}
 
-	return string(b), nil
+	return string(body), nil
 }
 
 // JSON decodes JSON data from the request body into a value of type T.

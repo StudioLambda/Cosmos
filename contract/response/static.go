@@ -3,8 +3,11 @@ package response
 import (
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	htmltemplate "html/template"
 	"net/http"
+	"net/url"
+	"strings"
 	"text/template"
 )
 
@@ -159,6 +162,9 @@ func XML(w http.ResponseWriter, status int, data any) error {
 // This is a generic redirect function that allows you to specify any redirect status code.
 // The Location header is set to the provided URL and the appropriate status code is returned.
 //
+// WARNING: This function does not validate the redirect URL. If the URL comes
+// from user input, use [SafeRedirect] instead to prevent open redirect attacks.
+//
 // Common redirect status codes:
 //   - 301: Moved Permanently
 //   - 302: Found (temporary redirect)
@@ -174,4 +180,53 @@ func Redirect(w http.ResponseWriter, status int, url string) error {
 	w.Header().Set("Location", url)
 
 	return Status(w, status)
+}
+
+// ErrUnsafeRedirect is returned by [SafeRedirect] when the target
+// URL is not a safe relative path. This prevents open redirect
+// attacks where an attacker tricks users into visiting a malicious
+// external site via your application's redirect endpoint.
+var ErrUnsafeRedirect = errors.New("unsafe redirect URL: must be a relative path")
+
+// SafeRedirect sends an HTTP redirect response only if the target
+// URL is a safe relative path (starts with "/" and does not contain
+// a scheme, host, or protocol-relative prefix "//"). This prevents
+// open redirect vulnerabilities when the redirect target comes from
+// user input such as query parameters or form fields.
+//
+// Returns [ErrUnsafeRedirect] if the URL fails validation.
+//
+// Parameters:
+//   - w: The HTTP response writer
+//   - status: The HTTP redirect status code to set
+//   - rawURL: The URL to redirect the user to (must be a relative path)
+func SafeRedirect(w http.ResponseWriter, status int, rawURL string) error {
+	if !isRelativePath(rawURL) {
+		return ErrUnsafeRedirect
+	}
+
+	return Redirect(w, status, rawURL)
+}
+
+// isRelativePath validates that a URL is a safe relative path
+// and not an absolute URL, protocol-relative URL, javascript:
+// URI, or data: URI that could be used in an open redirect attack.
+func isRelativePath(rawURL string) bool {
+	if !strings.HasPrefix(rawURL, "/") {
+		return false
+	}
+
+	// Reject protocol-relative URLs like "//evil.com"
+	if strings.HasPrefix(rawURL, "//") {
+		return false
+	}
+
+	parsed, err := url.Parse(rawURL)
+
+	if err != nil {
+		return false
+	}
+
+	// Reject if a scheme or host is present.
+	return parsed.Scheme == "" && parsed.Host == ""
 }

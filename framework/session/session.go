@@ -20,8 +20,9 @@ type Session struct {
 	// has been regenerated (e.g., for security purposes after authentication).
 	id string
 
-	// expiration is the time at which the session will expire and be considered invalid.
-	expiration time.Time
+	// expiresAt is the time at which the session will expire
+	// and be considered invalid.
+	expiresAt time.Time
 
 	// storage holds the session data as key-value pairs. Keys are strings and values
 	// can be of any type.
@@ -30,8 +31,9 @@ type Session struct {
 	// mutex protects concurrent access to the session fields.
 	mutex sync.Mutex
 
-	// changed tracks whether the session data has been modified since it was loaded,
-	// indicating whether it needs to be persisted.
+	// changed tracks whether the session data has been modified
+	// since it was loaded, indicating whether it needs to be
+	// persisted.
 	changed bool
 }
 
@@ -49,7 +51,7 @@ func NewSession(expiresAt time.Time, storage map[string]any) (*Session, error) {
 	return &Session{
 		originalID: id.String(),
 		id:         id.String(),
-		expiration: expiresAt,
+		expiresAt:  expiresAt,
 		storage:    storage,
 		mutex:      sync.Mutex{},
 		changed:    true, // this will make sure first time its saved
@@ -80,9 +82,9 @@ func (session *Session) Get(key string) (any, bool) {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	v, ok := session.storage[key]
+	value, ok := session.storage[key]
 
-	return v, ok
+	return value, ok
 }
 
 // Put stores a value in the session storage associated with the given key. If the key
@@ -112,7 +114,7 @@ func (session *Session) Extend(expiresAt time.Time) {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	session.expiration = expiresAt
+	session.expiresAt = expiresAt
 	session.changed = true
 }
 
@@ -153,7 +155,7 @@ func (session *Session) ExpiresAt() time.Time {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	return session.expiration
+	return session.expiresAt
 }
 
 // HasExpired checks whether the session has already expired by comparing the current
@@ -162,7 +164,7 @@ func (session *Session) HasExpired() bool {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	return time.Now().After(session.expiration)
+	return time.Now().After(session.expiresAt)
 }
 
 // ExpiresSoon checks whether the session will expire within the specified duration
@@ -173,9 +175,9 @@ func (session *Session) ExpiresSoon(delta time.Duration) bool {
 	defer session.mutex.Unlock()
 
 	now := time.Now()
-	warningTime := session.expiration.Add(-delta)
+	warningTime := session.expiresAt.Add(-delta)
 
-	return now.After(warningTime) && now.Before(session.expiration)
+	return now.After(warningTime) && now.Before(session.expiresAt)
 }
 
 // HasChanged returns true if the session data has been modified since it was loaded.

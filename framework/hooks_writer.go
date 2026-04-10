@@ -1,16 +1,20 @@
 package framework
 
-import "net/http"
+import (
+	"net/http"
+	"sync/atomic"
+)
 
 // ResponseWriter wraps an http.ResponseWriter to intercept
 // WriteHeader and Write calls, firing registered lifecycle
 // hooks before delegating to the underlying writer. It also
 // tracks whether WriteHeader has been called to prevent
-// duplicate status line writes.
+// duplicate status line writes. The tracking flag uses
+// sync/atomic for safe concurrent access.
 type ResponseWriter struct {
 	http.ResponseWriter
 	*Hooks
-	writeHeaderCalled bool
+	writeHeaderCalled atomic.Bool
 }
 
 // ResponseWriterFlusher extends ResponseWriter with the
@@ -55,7 +59,7 @@ func NewResponseWriter(writer http.ResponseWriter, hooks *Hooks) WrappedResponse
 // been invoked on this writer. Useful for middleware that
 // needs to conditionally set a default status code.
 func (writer *ResponseWriter) WriteHeaderCalled() bool {
-	return writer.writeHeaderCalled
+	return writer.writeHeaderCalled.Load()
 }
 
 // WriteHeader sends the HTTP status code to the client after
@@ -71,7 +75,7 @@ func (writer *ResponseWriter) WriteHeader(status int) {
 	}
 
 	writer.ResponseWriter.WriteHeader(status)
-	writer.writeHeaderCalled = true
+	writer.writeHeaderCalled.Store(true)
 }
 
 // Write sends the response body bytes to the client after

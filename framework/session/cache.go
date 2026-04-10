@@ -55,15 +55,15 @@ func (driver *CacheDriver) key(id string) string {
 // ErrCacheDriverInvalidType if the cached value is not a valid
 // contract.Session.
 func (driver *CacheDriver) Get(ctx context.Context, id string) (contract.Session, error) {
-	k := driver.key(id)
-	v, err := driver.cache.Get(ctx, k)
+	cacheKey := driver.key(id)
+	value, err := driver.cache.Get(ctx, cacheKey)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if s, ok := v.(contract.Session); ok {
-		return s, nil
+	if session, ok := value.(contract.Session); ok {
+		return session, nil
 	}
 
 	return nil, ErrCacheDriverInvalidType

@@ -31,31 +31,31 @@ var ErrFailedRecovering = errors.New("failed recovering from unexpected error")
 //
 // Returns an error representation of the panic value.
 func defaultRecoverHandler(value any) error {
-	switch r := value.(type) {
+	switch recovered := value.(type) {
 	case error:
-		return r
+		return recovered
 	case string:
-		return errors.New(r)
+		return errors.New(recovered)
 	case fmt.Stringer:
-		return errors.New(r.String())
+		return errors.New(recovered.String())
 	case io.Reader:
-		b, err := io.ReadAll(r)
+		body, err := io.ReadAll(recovered)
 
 		if err != nil {
 			return errors.Join(ErrFailedRecovering, err)
 		}
 
-		return errors.New(string(b))
+		return errors.New(string(body))
 	case encoding.TextMarshaler:
-		t, err := r.MarshalText()
+		text, err := recovered.MarshalText()
 
 		if err != nil {
 			return errors.Join(ErrFailedRecovering, err)
 		}
 
-		return errors.New(string(t))
+		return errors.New(string(text))
 	default:
-		return errors.Join(ErrRecoverUnexpected, fmt.Errorf("%+v", r))
+		return errors.Join(ErrRecoverUnexpected, fmt.Errorf("%+v", recovered))
 	}
 }
 
