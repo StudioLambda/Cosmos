@@ -7,12 +7,12 @@ import (
 )
 
 var (
-	// ErrCacheKeyNotFound should be returned when a key does not exist in the cache.
-	// Additional context should also be supplied, such as the cache key.
+	// ErrCacheKeyNotFound is returned when a key does not exist in the cache.
+	// Callers should also supply additional context, such as the cache key.
 	ErrCacheKeyNotFound = errors.New("cache key not found")
 
-	// ErrCacheUnsupportedOperation should be returned when a method (e.g., Forever or atomic ops) is not supported by the backend.
-	// Additional context should also be supplied, such as the operation name.
+	// ErrCacheUnsupportedOperation is returned when a method such as Forever
+	// or atomic operations is not supported by the cache backend.
 	ErrCacheUnsupportedOperation = errors.New("cache unsupported operation")
 )
 

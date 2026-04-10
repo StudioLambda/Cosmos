@@ -131,7 +131,7 @@ func NewAMQPBrokerFrom(
 // Publishing is thread-safe and respects context cancellation.
 // If the context is cancelled before the publish completes, the
 // operation will be aborted and an error returned.
-func (b *AMQPBroker) Publish(
+func (broker *AMQPBroker) Publish(
 	ctx context.Context,
 	event string,
 	payload any,
@@ -141,12 +141,12 @@ func (b *AMQPBroker) Publish(
 		return err
 	}
 
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	broker.mu.Lock()
+	defer broker.mu.Unlock()
 
-	return b.pubCh.PublishWithContext(
+	return broker.pubCh.PublishWithContext(
 		ctx,
-		b.exchange,
+		broker.exchange,
 		event,
 		false,
 		false,
@@ -170,12 +170,12 @@ func (b *AMQPBroker) Publish(
 //
 // If subscription setup fails, the returned unsubscribe function
 // will return the setup error when called.
-func (b *AMQPBroker) Subscribe(
+func (broker *AMQPBroker) Subscribe(
 	ctx context.Context,
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
-	ch, err := b.conn.Channel()
+	ch, err := broker.conn.Channel()
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (b *AMQPBroker) Subscribe(
 	err = ch.QueueBind(
 		queue.Name,
 		event,
-		b.exchange,
+		broker.exchange,
 		false,
 		nil,
 	)
@@ -249,14 +249,14 @@ func (b *AMQPBroker) Subscribe(
 //
 // If closing the publish channel fails, the connection is still
 // closed and the channel close error is returned.
-func (b *AMQPBroker) Close() error {
-	if b.pubCh != nil {
-		if err := b.pubCh.Close(); err != nil {
-			b.conn.Close()
+func (broker *AMQPBroker) Close() error {
+	if broker.pubCh != nil {
+		if err := broker.pubCh.Close(); err != nil {
+			broker.conn.Close()
 
 			return err
 		}
 	}
 
-	return b.conn.Close()
+	return broker.conn.Close()
 }

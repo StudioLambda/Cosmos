@@ -8,6 +8,8 @@ import (
 )
 
 func TestItCanHashArgon2Passwords(t *testing.T) {
+	t.Parallel()
+
 	h := hash.NewArgon2()
 	content := []byte("hello, world")
 
@@ -18,10 +20,15 @@ func TestItCanHashArgon2Passwords(t *testing.T) {
 }
 
 func TestItCanCheckHashedArgon2Hashes(t *testing.T) {
+	t.Parallel()
+
 	h := hash.NewArgon2()
 	content := []byte("hello, world")
 
-	r, _ := h.Hash(content)
+	r, err := h.Hash(content)
+
+	require.NoError(t, err)
+
 	ok, err := h.Check(content, r)
 
 	require.NoError(t, err)

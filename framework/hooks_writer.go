@@ -2,64 +2,91 @@ package framework
 
 import "net/http"
 
+// ResponseWriter wraps an http.ResponseWriter to intercept
+// WriteHeader and Write calls, firing registered lifecycle
+// hooks before delegating to the underlying writer. It also
+// tracks whether WriteHeader has been called to prevent
+// duplicate status line writes.
 type ResponseWriter struct {
 	http.ResponseWriter
 	*Hooks
 	writeHeaderCalled bool
 }
 
+// ResponseWriterFlusher extends ResponseWriter with the
+// http.Flusher interface. It is returned by NewResponseWriter
+// when the underlying writer supports flushing, preserving
+// streaming capabilities through the hook layer.
 type ResponseWriterFlusher struct {
 	*ResponseWriter
 	http.Flusher
 }
 
+// WrappedResponseWriter is the interface returned by
+// NewResponseWriter. It combines the standard http.ResponseWriter
+// with a WriteHeaderCalled check so callers can determine
+// whether a status code has already been sent.
 type WrappedResponseWriter interface {
 	http.ResponseWriter
 	WriteHeaderCalled() bool
 }
 
-func NewResponseWriter(w http.ResponseWriter, h *Hooks) WrappedResponseWriter {
+// NewResponseWriter creates a WrappedResponseWriter that fires
+// the given hooks on write operations. If the underlying writer
+// implements http.Flusher, the returned value also satisfies
+// http.Flusher via ResponseWriterFlusher.
+func NewResponseWriter(writer http.ResponseWriter, hooks *Hooks) WrappedResponseWriter {
 	wrapped := &ResponseWriter{
-		ResponseWriter: w,
-		Hooks:          h,
+		ResponseWriter: writer,
+		Hooks:          hooks,
 	}
 
-	if f, ok := w.(http.Flusher); ok {
+	if flusher, ok := writer.(http.Flusher); ok {
 		return &ResponseWriterFlusher{
 			ResponseWriter: wrapped,
-			Flusher:        f,
+			Flusher:        flusher,
 		}
 	}
 
 	return wrapped
 }
 
-func (w *ResponseWriter) WriteHeaderCalled() bool {
-	return w.writeHeaderCalled
+// WriteHeaderCalled reports whether WriteHeader has already
+// been invoked on this writer. Useful for middleware that
+// needs to conditionally set a default status code.
+func (writer *ResponseWriter) WriteHeaderCalled() bool {
+	return writer.writeHeaderCalled
 }
 
-func (w *ResponseWriter) WriteHeader(status int) {
-	if w.WriteHeaderCalled() {
+// WriteHeader sends the HTTP status code to the client after
+// firing all registered BeforeWriteHeader hooks. Subsequent
+// calls are no-ops to match http.ResponseWriter semantics.
+func (writer *ResponseWriter) WriteHeader(status int) {
+	if writer.WriteHeaderCalled() {
 		return
 	}
 
-	for _, hook := range w.Hooks.BeforeWriteHeaderFuncs() {
-		hook(w.ResponseWriter, status)
+	for _, hook := range writer.Hooks.BeforeWriteHeaderFuncs() {
+		hook(writer.ResponseWriter, status)
 	}
 
-	w.ResponseWriter.WriteHeader(status)
-	w.writeHeaderCalled = true
+	writer.ResponseWriter.WriteHeader(status)
+	writer.writeHeaderCalled = true
 }
 
-func (w *ResponseWriter) Write(content []byte) (int, error) {
-	if !w.WriteHeaderCalled() {
+// Write sends the response body bytes to the client after
+// firing all registered BeforeWrite hooks. If WriteHeader has
+// not yet been called, it defaults to http.StatusOK, matching
+// the standard http.ResponseWriter behaviour.
+func (writer *ResponseWriter) Write(content []byte) (int, error) {
+	if !writer.WriteHeaderCalled() {
 		// Same behaviour as the [http.ResponseWriter]
-		w.WriteHeader(http.StatusOK)
+		writer.WriteHeader(http.StatusOK)
 	}
 
-	for _, hook := range w.Hooks.BeforeWriteFuncs() {
-		hook(w.ResponseWriter, content)
+	for _, hook := range writer.Hooks.BeforeWriteFuncs() {
+		hook(writer.ResponseWriter, content)
 	}
 
-	return w.ResponseWriter.Write(content)
+	return writer.ResponseWriter.Write(content)
 }

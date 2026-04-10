@@ -16,7 +16,7 @@ type Middleware[H http.Handler] = func(H) H
 // Router is the structure that handles
 // http routing in an application.
 //
-// This router is completly optional and
+// This router is completely optional and
 // uses [http.ServeMux] under the hood
 // to register all the routes.
 //
@@ -24,7 +24,6 @@ type Middleware[H http.Handler] = func(H) H
 // such as {$}, that is appended on each route
 // automatically, regardless of the pattern.
 type Router[H http.Handler] struct {
-
 	// native stores the actual [http.ServeMux]
 	// that's used internally  to register the routes.
 	native *http.ServeMux
@@ -63,10 +62,9 @@ var allMethods = []string{
 	http.MethodTrace,
 }
 
-// NewRouter creates a new [Router] instance and
-// automatically creates all the needed components
-// such as the middleware list or the native
-// [http.ServeMux] that's used under the hood.
+// New creates a new [Router] instance and automatically
+// creates all the needed components such as the middleware
+// list or the native [http.ServeMux] used under the hood.
 func New[H http.Handler]() *Router[H] {
 	return &Router[H]{
 		native:      http.NewServeMux(),
@@ -81,7 +79,7 @@ func New[H http.Handler]() *Router[H] {
 // prefix.
 //
 // This means that any route registered with the
-// sub-router will also have the given pattern suffixed.
+// sub-router will also have the given pattern prefixed.
 //
 // Keep in mind this can be nested as well, meaning that
 // many sub-routers may be grouped, creating complex patterns.
@@ -112,10 +110,10 @@ func (router *Router[H]) Clone() *Router[H] {
 // With does create a new sub-router that automatically applies
 // the given middlewares.
 //
-// This is very usefull when used to inline some middlewares to
+// This is very useful when used to inline some middlewares to
 // specific routes.
 //
-// In constrast to [Router.Use] method, it does create a new
+// In contrast to [Router.Use] method, it does create a new
 // sub-router instead of modifying the current router.
 func (router *Router[H]) With(middlewares ...Middleware[H]) *Router[H] {
 	return &Router[H]{
@@ -156,7 +154,7 @@ func (router *Router[H]) wrap(handler H) H {
 // middlewares that the router had defined, plus the new ones
 // that are registered after this call.
 //
-// In constrats with the [Router.With] method, this one does modify
+// In contrast with the [Router.With] method, this one does modify
 // the current router instead of returning a new sub-router.
 func (router *Router[H]) Use(middlewares ...Middleware[H]) {
 	router.middlewares = append(router.middlewares, middlewares...)
@@ -170,21 +168,20 @@ func (router *Router[H]) register(method string, pattern string, handler H) {
 }
 
 // registerRoot registers the given pattern when the route
-// is suposed to be a root route ("/").
+// is supposed to be a root route ("/").
 func (router *Router[H]) registerRoot(method string, handler H) {
 	router.register(method, "/{$}", handler)
 }
 
 // registerTrailing registers the given pattern when the route
-// is suposed to end up in a slash ("/").
+// is supposed to end up in a slash ("/").
 func (router *Router[H]) registerTrailing(method string, pattern string, handler H) {
 	pattern = fmt.Sprintf("%s/{$}", pattern)
 	router.register(method, pattern, handler)
 }
 
-// There's two possible scenarios here, either the route
-// in question is a trailing slash or not. We must make sure
-// to register both either way.
+// registerPair registers both a pattern and its trailing-slash
+// counterpart to ensure routes match with or without a trailing slash.
 //
 // Possible scenarios are:
 //  1. The path ends in anonymous wildcard: '/'
@@ -200,7 +197,7 @@ func (router *Router[H]) registerPair(method string, pattern string, handler H) 
 	// In all cases we always register the pattern, so let's do this first.
 	router.register(method, pattern, handler)
 
-	// Assest the first scenario, check if we
+	// Assess the first scenario, check if we
 	// are in a pattern ended with a slash.
 	//
 	// We must register the pattern without the last
@@ -211,7 +208,7 @@ func (router *Router[H]) registerPair(method string, pattern string, handler H) 
 		return
 	}
 
-	// Assest the second scenario, check if we
+	// Assess the second scenario, check if we
 	// are in a wildcard "rest" parameter.
 	if strings.HasSuffix(pattern, "...}") {
 		// We have to register the pattern without
@@ -232,11 +229,11 @@ func (router *Router[H]) registerPair(method string, pattern string, handler H) 
 }
 
 // Method registers a new handler to the router with the given
-// method and pattern. This is usefull if you need to dynamically
+// method and pattern. This is useful if you need to dynamically
 // register a route to the router using a string as the method.
 //
 // A notable difference is that the patterns's ending slash "/" is
-// not treated as an annonymous catch-all "{...}" and is instead treated
+// not treated as an anonymous catch-all "{...}" and is instead treated
 // as if it finished with "/{$}", making a specific route only.
 //
 // If the route does not finish in "/", one will be added automatically and
@@ -384,7 +381,9 @@ func (router *Router[H]) HandlerMatch(request *http.Request) (h H, ok bool) {
 	// We can look for that specific handler in the
 	// native [http.ServeMux] and return it if found.
 	if handler, pattern := router.native.Handler(request); pattern != "" {
-		return handler.(H), true
+		if typed, ok := handler.(H); ok {
+			return typed, true
+		}
 	}
 
 	return h, false

@@ -9,14 +9,20 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
+// ChaCha20 implements contract.Encrypter using ChaCha20-Poly1305
+// authenticated encryption. The AEAD cipher is created once at
+// construction time and reused for every Encrypt/Decrypt call.
 type ChaCha20 struct {
 	aead cipher.AEAD
 }
 
-var ErrMissmatchedChaCha20NonceSize = errors.New("missmatched nonce size")
+// ErrMismatchedChaCha20NonceSize is returned when the ciphertext
+// provided to Decrypt is shorter than the expected nonce size,
+// indicating truncated or corrupted data.
+var ErrMismatchedChaCha20NonceSize = errors.New("mismatched nonce size")
 
-// NewChaCha20 creates a new ChaCha20-Poly1305 encrypter.
-// Key must be exactly 32 bytes.
+// NewChaCha20 creates a ChaCha20-Poly1305 encrypter with the given
+// key. The key must be exactly 32 bytes.
 func NewChaCha20(key []byte) (*ChaCha20, error) {
 	aead, err := chacha20poly1305.New(key)
 
@@ -27,30 +33,31 @@ func NewChaCha20(key []byte) (*ChaCha20, error) {
 	return &ChaCha20{aead: aead}, nil
 }
 
-// Encrypt encrypts the plaintext using ChaCha20-Poly1305.
-// Returns ciphertext with nonce prepended.
-func (e *ChaCha20) Encrypt(value []byte) ([]byte, error) {
-	nonce := make([]byte, e.aead.NonceSize())
+// Encrypt encrypts the plaintext using ChaCha20-Poly1305 with a
+// random nonce. The returned slice contains the nonce followed by
+// the ciphertext and authentication tag.
+func (encrypter *ChaCha20) Encrypt(value []byte) ([]byte, error) {
+	nonce := make([]byte, encrypter.aead.NonceSize())
 
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, err
 	}
 
-	// Prepend nonce to ciphertext
-	return e.aead.Seal(nonce, nonce, value, nil), nil
+	return encrypter.aead.Seal(nonce, nonce, value, nil), nil
 }
 
-// Decrypt decrypts the ciphertext using ChaCha20-Poly1305.
-// Expects nonce to be prepended to ciphertext.
-func (e *ChaCha20) Decrypt(value []byte) ([]byte, error) {
-	nonceSize := e.aead.NonceSize()
+// Decrypt decrypts ChaCha20-Poly1305 ciphertext that has the nonce
+// prepended. Returns ErrMismatchedChaCha20NonceSize if the input is
+// too short to contain a valid nonce.
+func (encrypter *ChaCha20) Decrypt(value []byte) ([]byte, error) {
+	nonceSize := encrypter.aead.NonceSize()
 
 	if len(value) < nonceSize {
-		return nil, ErrMissmatchedChaCha20NonceSize
+		return nil, ErrMismatchedChaCha20NonceSize
 	}
 
 	nonce, ciphertext := value[:nonceSize], value[nonceSize:]
-	plaintext, err := e.aead.Open(nil, nonce, ciphertext, nil)
+	plaintext, err := encrypter.aead.Open(nil, nonce, ciphertext, nil)
 
 	if err != nil {
 		return nil, err

@@ -8,69 +8,73 @@ import (
 )
 
 func TestRouterHas(t *testing.T) {
-	r := router.New[http.HandlerFunc]()
+	t.Parallel()
 
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+	rt := router.New[http.HandlerFunc]()
+
+	rt.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	r.Get("/foo/", func(w http.ResponseWriter, r *http.Request) {
+	rt.Get("/foo/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	r.Get("/bar", func(w http.ResponseWriter, r *http.Request) {
+	rt.Get("/bar", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	r.Get("/baz/{other...}", func(w http.ResponseWriter, r *http.Request) {
+	rt.Get("/baz/{other...}", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	if route := "/"; !r.Has(http.MethodGet, route) {
+	if route := "/"; !rt.Has(http.MethodGet, route) {
 		t.Fatalf("router should have the %s route", route)
 	}
 
-	if route := "/foo"; !r.Has(http.MethodGet, route) {
+	if route := "/foo"; !rt.Has(http.MethodGet, route) {
 		t.Fatalf("router should have the %s route", route)
 	}
 
-	if route := "/foo/"; !r.Has(http.MethodGet, route) {
+	if route := "/foo/"; !rt.Has(http.MethodGet, route) {
 		t.Fatalf("router should have the %s route", route)
 	}
 
-	if route := "/bar"; !r.Has(http.MethodGet, route) {
+	if route := "/bar"; !rt.Has(http.MethodGet, route) {
 		t.Fatalf("router should have the %s route", route)
 	}
 
-	if route := "/bar/"; !r.Has(http.MethodGet, route) {
+	if route := "/bar/"; !rt.Has(http.MethodGet, route) {
 		t.Fatalf("router should have the %s route", route)
 	}
 
-	if route := "/baz"; !r.Has(http.MethodGet, route) {
+	if route := "/baz"; !rt.Has(http.MethodGet, route) {
 		t.Fatalf("router should have the %s route", route)
 	}
 
-	if route := "/baz/"; !r.Has(http.MethodGet, route) {
+	if route := "/baz/"; !rt.Has(http.MethodGet, route) {
 		t.Fatalf("router should have the %s route", route)
 	}
 
-	if route := "/baz/foo/bar/baz"; !r.Has(http.MethodGet, route) {
+	if route := "/baz/foo/bar/baz"; !rt.Has(http.MethodGet, route) {
 		t.Fatalf("router should have the %s route", route)
 	}
 
-	if route := "/baz/foo/bar/baz/"; !r.Has(http.MethodGet, route) {
+	if route := "/baz/foo/bar/baz/"; !rt.Has(http.MethodGet, route) {
 		t.Fatalf("router should have the %s route", route)
 	}
 
-	if route := "/not-found"; r.Has(http.MethodGet, route) {
+	if route := "/not-found"; rt.Has(http.MethodGet, route) {
 		t.Fatalf("router should not have the %s route", route)
 	}
 }
 
 func TestRouterMatches(t *testing.T) {
-	r := router.New[http.HandlerFunc]()
+	t.Parallel()
 
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+	rt := router.New[http.HandlerFunc]()
+
+	rt.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -80,15 +84,17 @@ func TestRouterMatches(t *testing.T) {
 		t.Fatalf("unable to create http request: %v", err)
 	}
 
-	if !r.Matches(request) {
+	if !rt.Matches(request) {
 		t.Fatal("router does not have the route")
 	}
 }
 
 func TestRouterHandler(t *testing.T) {
-	r := router.New[http.HandlerFunc]()
+	t.Parallel()
 
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+	rt := router.New[http.HandlerFunc]()
+
+	rt.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -98,7 +104,7 @@ func TestRouterHandler(t *testing.T) {
 		t.Fatalf("failed to create http request: %v", err)
 	}
 
-	response := r.Record(request)
+	response := rt.Record(request)
 
 	if expected := http.StatusOK; response.StatusCode != expected {
 		t.Fatalf("expected status code %d but got %d", expected, response.StatusCode)
