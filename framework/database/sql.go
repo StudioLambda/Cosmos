@@ -25,9 +25,16 @@ type SQL struct {
 	raw *sqlx.DB // needed for transactions
 }
 
-// NewSQL connects to the database using the given driver name and DSN,
-// returning a ready-to-use SQL instance or an error if the connection
-// cannot be established.
+// NewSQL connects to the database using the given driver name and
+// DSN, returning a ready-to-use SQL instance or an error if the
+// connection cannot be established.
+//
+// WARNING: No default query timeout is applied. Long-running or
+// runaway queries will block indefinitely unless the caller
+// passes a context.Context with a deadline or timeout. For
+// production use, configure statement timeouts at the database
+// driver level (e.g., statement_timeout for PostgreSQL) or wrap
+// all query contexts with context.WithTimeout.
 func NewSQL(driver string, dsn string) (*SQL, error) {
 	db, err := sqlx.Connect(driver, dsn)
 
@@ -41,6 +48,9 @@ func NewSQL(driver string, dsn string) (*SQL, error) {
 // NewSQLFrom wraps an existing sqlx.DB connection in a SQL instance.
 // This is useful when you need to configure the connection pool or
 // driver options before handing it to the framework.
+//
+// WARNING: No default query timeout is applied. See [NewSQL] for
+// recommendations on configuring query timeouts.
 func NewSQLFrom(db *sqlx.DB) *SQL {
 	return &SQL{db: db, raw: db}
 }
