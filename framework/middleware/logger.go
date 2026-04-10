@@ -8,12 +8,14 @@ import (
 	"github.com/studiolambda/cosmos/framework"
 )
 
-// Logger creates middleware that provides comprehensive request logging for Cosmos
-// applications. It captures HTTP status codes, logs requests that result in errors
-// or server errors (5xx status codes), and provides structured logging with
-// contextual information about each request.
+// Logger creates middleware that provides comprehensive request
+// logging for Cosmos applications. It captures HTTP status codes,
+// logs requests that result in errors or server errors (5xx status
+// codes), and provides structured logging with contextual
+// information about each request.
 //
-// The middleware logs the following information for failed requests:
+// The middleware logs the following information for failed
+// requests:
 //   - HTTP method (GET, POST, etc.)
 //   - Full request URL
 //   - HTTP status code returned
@@ -23,14 +25,25 @@ import (
 //   - A handler returns an error (regardless of status code)
 //   - The response has a 5xx server error status code
 //
-// The middleware uses structured logging with slog for consistent log formatting
-// and includes request context for distributed tracing compatibility.
+// Security note: request URLs are included in log output.
+// Because this middleware uses slog (structured logging), values
+// are emitted as discrete key-value pairs rather than
+// interpolated into a message string, which mitigates classic
+// log injection attacks. However, callers that forward logs to
+// systems that render plain text should remain aware that
+// attacker-controlled URLs may appear in log entries.
+//
+// The middleware uses structured logging with slog for consistent
+// log formatting and includes request context for distributed
+// tracing compatibility.
 //
 // Parameters:
-//   - logger: The slog.Logger instance to use for logging. If nil, a discard
-//     logger is used to prevent panics while maintaining functionality.
+//   - logger: The slog.Logger instance to use for logging.
+//     If nil, a discard logger is used to prevent panics while
+//     maintaining functionality.
 //
-// Returns a middleware function that wraps handlers with request logging.
+// Returns a middleware function that wraps handlers with request
+// logging.
 //
 // Example usage:
 //
