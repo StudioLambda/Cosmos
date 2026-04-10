@@ -47,9 +47,10 @@ type Router[H http.Handler] struct {
 	middlewares []Middleware[H]
 }
 
-// allMethods stores all the http methods
-// available to use. This is interesting when
-// dealing with the [Router.Any] method.
+// allMethods stores the HTTP methods registered by [Router.Any].
+// TRACE and CONNECT are intentionally excluded: TRACE enables
+// cross-site tracing (XST) attacks that can leak credentials,
+// and CONNECT is intended for HTTP proxies only.
 var allMethods = []string{
 	http.MethodGet,
 	http.MethodHead,
@@ -57,9 +58,7 @@ var allMethods = []string{
 	http.MethodPut,
 	http.MethodPatch,
 	http.MethodDelete,
-	http.MethodConnect,
 	http.MethodOptions,
-	http.MethodTrace,
 }
 
 // New creates a new [Router] instance and automatically
@@ -154,6 +153,12 @@ func (router *Router[H]) wrap(handler H) H {
 // middlewares that the router had defined, plus the new ones
 // that are registered after this call.
 //
+// WARNING: Middleware execution order matters. Security-critical
+// middleware such as Recover, Logger, Secure Headers, and CSRF
+// should be registered first to ensure they wrap all subsequent
+// handlers and middleware. Registering security middleware after
+// application middleware may leave routes unprotected.
+//
 // In contrast with the [Router.With] method, this one does modify
 // the current router instead of returning a new sub-router.
 func (router *Router[H]) Use(middlewares ...Middleware[H]) {
@@ -247,9 +252,12 @@ func (router *Router[H]) registerPair(method string, pattern string, handler H) 
 //   - [http.MethodPut]
 //   - [http.MethodPatch]
 //   - [http.MethodDelete]
-//   - [http.MethodConnect]
 //   - [http.MethodOptions]
-//   - [http.MethodTrace]
+//
+// WARNING: TRACE and CONNECT should not be used in general-purpose
+// applications. TRACE enables cross-site tracing (XST) attacks and
+// CONNECT is reserved for HTTP proxies. If needed, use the
+// [Router.Trace] or [Router.Connect] methods explicitly.
 func (router *Router[H]) Method(method string, pattern string, handler H) {
 	pattern = path.Join(router.pattern, pattern)
 
