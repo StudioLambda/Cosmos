@@ -5,11 +5,13 @@ on:
     branches: ["main"]
     paths:
       - .github/workflows/framework.yml
+      - contract/**
       - framework/**
   pull_request:
     branches: ["main"]
     paths:
       - .github/workflows/framework.yml
+      - contract/**
       - framework/**
 
 jobs:
@@ -27,6 +29,9 @@ jobs:
         with:
           go-version-file: "framework/go.mod"
           cache-dependency-path: "framework/go.sum"
+
+      - name: Link local modules
+        run: go mod edit -replace github.com/studiolambda/cosmos/contract=../contract -replace github.com/studiolambda/cosmos/problem=../problem -replace github.com/studiolambda/cosmos/router=../router
 
       - name: Download Dependencies
         run: go mod download
