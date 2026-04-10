@@ -105,9 +105,17 @@ func (client *RedisClient) Decrement(ctx context.Context, key string, by int64) 
 	return (*redis.Client)(client).DecrBy(ctx, key, by).Result()
 }
 
-// Remember retrieves the cached value for key, or computes and stores
-// it with the given TTL on a cache miss. Non-"key not found" errors
-// from Get are returned immediately without calling compute.
+// Remember retrieves the cached value for key, or computes and
+// stores it with the given TTL on a cache miss. Non-"key not
+// found" errors from Get are returned immediately without calling
+// compute.
+//
+// WARNING: This method is not protected against thundering herd
+// (cache stampede). Under high concurrency, multiple goroutines
+// may observe a cache miss simultaneously and all invoke the
+// compute function. For expensive computations, callers should
+// use golang.org/x/sync/singleflight to deduplicate concurrent
+// calls for the same key.
 func (client *RedisClient) Remember(ctx context.Context, key string, ttl time.Duration, compute func() (any, error)) (any, error) {
 	val, err := client.Get(ctx, key)
 
