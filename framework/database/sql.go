@@ -61,6 +61,8 @@ func (database *SQL) Exec(ctx context.Context, query string, args ...any) (int64
 		return 0, err
 	}
 
+	defer q.Close()
+
 	result, err := q.ExecContext(ctx, args...)
 
 	if err != nil {
@@ -78,6 +80,8 @@ func (database *SQL) ExecNamed(ctx context.Context, query string, arg any) (int6
 	if err != nil {
 		return 0, err
 	}
+
+	defer q.Close()
 
 	result, err := q.ExecContext(ctx, arg)
 
@@ -97,6 +101,8 @@ func (database *SQL) Select(ctx context.Context, query string, dest any, args ..
 		return err
 	}
 
+	defer q.Close()
+
 	return q.Select(dest, args...)
 }
 
@@ -110,6 +116,8 @@ func (database *SQL) SelectNamed(ctx context.Context, query string, dest any, ar
 		return err
 	}
 
+	defer q.Close()
+
 	return q.Select(dest, arg)
 }
 
@@ -122,6 +130,8 @@ func (database *SQL) Find(ctx context.Context, query string, dest any, args ...a
 	if err != nil {
 		return err
 	}
+
+	defer q.Close()
 
 	if err := q.GetContext(ctx, dest, args...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -143,6 +153,8 @@ func (database *SQL) FindNamed(ctx context.Context, query string, dest any, arg 
 	if err != nil {
 		return err
 	}
+
+	defer q.Close()
 
 	return q.GetContext(ctx, dest, arg)
 }
