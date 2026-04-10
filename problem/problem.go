@@ -309,10 +309,10 @@ func (problem Problem) textHandler(w http.ResponseWriter, r *http.Request) {
 	traces, tracesOK := additional.([]string)
 
 	if found && tracesOK {
-		textResponse += fmt.Sprintf("\n\n")
+		textResponse += "\n\n"
 
 		for _, trace := range traces {
-			textResponse += fmt.Sprintf("%s\n", trace)
+			textResponse += trace + "\n"
 		}
 	}
 
