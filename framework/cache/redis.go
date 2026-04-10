@@ -72,7 +72,7 @@ func (client *RedisClient) Has(ctx context.Context, key string) (bool, error) {
 
 // Pull atomically retrieves and deletes a key using Redis GETDEL.
 // The stored value is JSON-decoded into the return value.
-func (client *RedisClient) Pull(ctx context.Context, key string) (v any, e error) {
+func (client *RedisClient) Pull(ctx context.Context, key string) (v any, err error) {
 	encoded, err := (*redis.Client)(client).GetDel(ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {

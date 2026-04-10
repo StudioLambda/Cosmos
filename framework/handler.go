@@ -99,7 +99,7 @@ func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		handleError(wrapped, r, err)
 	}
 
-	if !wrapped.IsWriteHeaderCalled() {
+	if !wrapped.WriteHeaderCalled() {
 		wrapped.WriteHeader(http.StatusNoContent)
 	}
 

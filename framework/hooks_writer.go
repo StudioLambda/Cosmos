@@ -14,7 +14,7 @@ import (
 type ResponseWriter struct {
 	http.ResponseWriter
 	*Hooks
-	isWriteHeaderCalled atomic.Bool
+	writeHeaderCalled atomic.Bool
 }
 
 // ResponseWriterFlusher extends ResponseWriter with the
@@ -28,11 +28,11 @@ type ResponseWriterFlusher struct {
 
 // WrappedResponseWriter is the interface returned by
 // NewResponseWriter. It combines the standard http.ResponseWriter
-// with an IsWriteHeaderCalled check so callers can determine
+// with a WriteHeaderCalled check so callers can determine
 // whether a status code has already been sent.
 type WrappedResponseWriter interface {
 	http.ResponseWriter
-	IsWriteHeaderCalled() bool
+	WriteHeaderCalled() bool
 }
 
 // NewResponseWriter creates a WrappedResponseWriter that fires
@@ -55,18 +55,18 @@ func NewResponseWriter(writer http.ResponseWriter, hooks *Hooks) WrappedResponse
 	return wrapped
 }
 
-// IsWriteHeaderCalled reports whether WriteHeader has already
+// WriteHeaderCalled reports whether WriteHeader has already
 // been invoked on this writer. Useful for middleware that
 // needs to conditionally set a default status code.
-func (writer *ResponseWriter) IsWriteHeaderCalled() bool {
-	return writer.isWriteHeaderCalled.Load()
+func (writer *ResponseWriter) WriteHeaderCalled() bool {
+	return writer.writeHeaderCalled.Load()
 }
 
 // WriteHeader sends the HTTP status code to the client after
 // firing all registered BeforeWriteHeader hooks. Subsequent
 // calls are no-ops to match http.ResponseWriter semantics.
 func (writer *ResponseWriter) WriteHeader(status int) {
-	if writer.IsWriteHeaderCalled() {
+	if writer.WriteHeaderCalled() {
 		return
 	}
 
@@ -75,7 +75,7 @@ func (writer *ResponseWriter) WriteHeader(status int) {
 	}
 
 	writer.ResponseWriter.WriteHeader(status)
-	writer.isWriteHeaderCalled.Store(true)
+	writer.writeHeaderCalled.Store(true)
 }
 
 // Write sends the response body bytes to the client after
@@ -83,7 +83,7 @@ func (writer *ResponseWriter) WriteHeader(status int) {
 // not yet been called, it defaults to http.StatusOK, matching
 // the standard http.ResponseWriter behaviour.
 func (writer *ResponseWriter) Write(content []byte) (int, error) {
-	if !writer.IsWriteHeaderCalled() {
+	if !writer.WriteHeaderCalled() {
 		// Same behaviour as the [http.ResponseWriter]
 		writer.WriteHeader(http.StatusOK)
 	}
