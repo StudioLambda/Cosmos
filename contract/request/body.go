@@ -26,11 +26,31 @@ func String(r *http.Request) (string, error) {
 	return string(b), nil
 }
 
-// JSON decodes JSON data from the request body into a value of type T.
-// It uses a streaming decoder for memory efficiency. The type parameter
-// T should match the expected JSON structure.
+// JSON decodes JSON data from the request body into a value of
+// type T. It uses a streaming decoder for memory efficiency. The
+// type parameter T should match the expected JSON structure.
+//
+// Unknown fields in the JSON input are silently ignored. Use
+// [StrictJSON] if unknown fields should cause an error.
 func JSON[T any](r *http.Request) (value T, err error) {
 	if err := json.NewDecoder(r.Body).Decode(&value); err != nil {
+		return value, err
+	}
+
+	return value, nil
+}
+
+// StrictJSON decodes JSON data from the request body into a value
+// of type T, rejecting any fields not present in T's definition.
+// This is useful for APIs that require exact schema compliance
+// and want to surface typos or unsupported fields to callers.
+//
+// For a lenient variant that ignores unknown fields, use [JSON].
+func StrictJSON[T any](r *http.Request) (value T, err error) {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(&value); err != nil {
 		return value, err
 	}
 
