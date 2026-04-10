@@ -71,6 +71,50 @@ func (_c *SessionMock_Clear_Call) RunAndReturn(run func()) *SessionMock_Clear_Ca
 	return _c
 }
 
+// CreatedAt provides a mock function for the type SessionMock
+func (_mock *SessionMock) CreatedAt() time.Time {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreatedAt")
+	}
+
+	var r0 time.Time
+	if returnFunc, ok := ret.Get(0).(func() time.Time); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(time.Time)
+	}
+	return r0
+}
+
+// SessionMock_CreatedAt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreatedAt'
+type SessionMock_CreatedAt_Call struct {
+	*mock.Call
+}
+
+// CreatedAt is a helper method to define mock.On call
+func (_e *SessionMock_Expecter) CreatedAt() *SessionMock_CreatedAt_Call {
+	return &SessionMock_CreatedAt_Call{Call: _e.mock.On("CreatedAt")}
+}
+
+func (_c *SessionMock_CreatedAt_Call) Run(run func()) *SessionMock_CreatedAt_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *SessionMock_CreatedAt_Call) Return(time1 time.Time) *SessionMock_CreatedAt_Call {
+	_c.Call.Return(time1)
+	return _c
+}
+
+func (_c *SessionMock_CreatedAt_Call) RunAndReturn(run func() time.Time) *SessionMock_CreatedAt_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Delete provides a mock function for the type SessionMock
 func (_mock *SessionMock) Delete(key string) {
 	_mock.Called(key)

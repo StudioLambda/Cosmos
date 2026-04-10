@@ -11,62 +11,87 @@ type sessionKey struct{}
 // SessionKey is the context key used to store and retrieve the session from a context.Context.
 var SessionKey = sessionKey{}
 
-// Session represents a user session with data storage and lifecycle management capabilities.
-// It provides methods to store, retrieve, and manage session data, as well as control
-// session expiration and regeneration for security purposes.
+// Session represents a user session with data storage and lifecycle
+// management capabilities. It provides methods to store, retrieve,
+// and manage session data, as well as control session expiration
+// and regeneration for security purposes.
 type Session interface {
-	// SessionID returns the current session identifier. This may differ from the original
-	// session ID if the session has been regenerated.
+	// SessionID returns the current session identifier. This may
+	// differ from the original session ID if the session has been
+	// regenerated.
 	SessionID() string
 
-	// OriginalSessionID returns the session ID that was originally assigned to this session.
-	// This remains constant even if the session is regenerated.
+	// OriginalSessionID returns the session ID that was originally
+	// assigned to this session. This remains constant even if the
+	// session is regenerated.
 	OriginalSessionID() string
 
-	// Get retrieves a value from the session by key. It returns the value and a boolean
-	// indicating whether the key exists in the session. The value can be of any type.
+	// Get retrieves a value from the session by key. It returns
+	// the value and a boolean indicating whether the key exists
+	// in the session. The value can be of any type.
 	Get(key string) (any, bool)
 
-	// Put stores a value in the session associated with the given key. If the key already
-	// exists, its value is overwritten.
+	// Put stores a value in the session associated with the given
+	// key. If the key already exists, its value is overwritten.
+	//
+	// WARNING: When storing authentication-related state, callers
+	// MUST call Regenerate immediately after to prevent session
+	// fixation attacks.
 	Put(key string, value any)
 
-	// Delete removes the value associated with the given key from the session.
-	// If the key does not exist, this operation is a no-op.
+	// Delete removes the value associated with the given key from
+	// the session. If the key does not exist, this is a no-op.
 	Delete(key string)
 
-	// Extend updates the session's expiration time to the specified time. This is useful
-	// for extending a session's lifetime during active use.
+	// Extend updates the session's expiration time to the specified
+	// time. This is useful for extending a session's lifetime
+	// during active use.
 	Extend(expiresAt time.Time)
 
-	// Regenerate creates a new session ID and associates it with this session.
-	// This is commonly used after authentication to prevent session
-	// fixation attacks. It returns an error if the regeneration process fails.
+	// Regenerate creates a new session ID and associates it with
+	// this session. This is commonly used after authentication to
+	// prevent session fixation attacks. It returns an error if
+	// the regeneration process fails.
+	//
+	// WARNING: This method MUST be called after any authentication
+	// state change (login, logout, privilege escalation).
 	Regenerate() error
 
-	// Clear removes all data from the session while maintaining the session itself.
+	// Clear removes all data from the session while maintaining
+	// the session itself.
 	Clear()
+
+	// CreatedAt returns the absolute time the session was first
+	// created. This value never changes, even if the session is
+	// regenerated or extended.
+	CreatedAt() time.Time
 
 	// ExpiresAt returns the time at which the session will expire.
 	ExpiresAt() time.Time
 
-	// HasExpired returns true if the current time is past the session's expiration time.
+	// HasExpired returns true if the current time is past the
+	// session's expiration time.
 	HasExpired() bool
 
-	// ExpiresSoon returns true if the session will expire within the specified duration
-	// from the current time. This is useful for triggering session renewal prompts.
+	// ExpiresSoon returns true if the session will expire within
+	// the specified duration from the current time. This is useful
+	// for triggering session renewal prompts.
 	ExpiresSoon(delta time.Duration) bool
 
-	// HasChanged returns true if the session data has been modified since it was loaded.
-	// This is useful for determining whether the session needs to be persisted.
+	// HasChanged returns true if the session data has been modified
+	// since it was loaded. This is useful for determining whether
+	// the session needs to be persisted.
 	HasChanged() bool
 
-	// HasRegenerated returns true if the session has been regenerated (i.e., the session ID
-	// has changed). This is useful for sending updated session identifiers to the client.
+	// HasRegenerated returns true if the session has been
+	// regenerated (i.e., the session ID has changed). This is
+	// useful for sending updated session identifiers to the
+	// client.
 	HasRegenerated() bool
 
-	// MarkAsUnchanged sets the session as if nothing has changed, therefore avoiding saving
-	// the session when the request finishes.
+	// MarkAsUnchanged sets the session as if nothing has changed,
+	// therefore avoiding saving the session when the request
+	// finishes.
 	MarkAsUnchanged()
 }
 
