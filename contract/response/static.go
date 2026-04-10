@@ -7,16 +7,21 @@ import (
 	"text/template"
 )
 
-// Raw writes raw byte data to the response writer with the specified status code.
-// It does not set any Content-Type header, allowing the caller full control over
-// the response format. This is the most basic response function that other
-// response functions build upon.
+// Raw writes raw byte data to the response writer with
+// the specified status code. If no Content-Type header has
+// been explicitly set on the response writer, it defaults
+// to application/octet-stream to ensure a safe default
+// content type is always present.
 //
 // Parameters:
 //   - w: The HTTP response writer
 //   - status: The HTTP status code to set
 //   - data: The raw byte data to write to the response
 func Raw(w http.ResponseWriter, status int, data []byte) error {
+	if w.Header().Get("Content-Type") == "" {
+		w.Header().Set("Content-Type", "application/octet-stream")
+	}
+
 	w.WriteHeader(status)
 
 	_, err := w.Write(data)
@@ -84,32 +89,37 @@ func StringTemplate(w http.ResponseWriter, status int, tmpl template.Template, d
 	return tmpl.Execute(w, data)
 }
 
-// HTML writes HTML content to the response writer with the appropriate
-// Content-Type header for HTML (text/html). This is used for serving
-// static HTML content or HTML strings that have been pre-generated.
+// HTML writes HTML content to the response writer with the
+// appropriate Content-Type header for HTML content
+// (text/html; charset=utf-8). The charset is explicitly
+// set to prevent XSS attacks via charset sniffing in
+// older browsers that may otherwise guess the encoding.
 //
 // Parameters:
 //   - w: The HTTP response writer
 //   - status: The HTTP status code to set
 //   - data: The HTML string to write to the response
 func HTML(w http.ResponseWriter, status int, data string) error {
-	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 	return Raw(w, status, []byte(data))
 }
 
-// HTMLTemplate executes an HTML template with the provided data and writes
-// the result as HTML to the response writer. The Content-Type is set to
-// text/html. This is the standard way to serve dynamic HTML pages in web
-// applications using Go's html/template package.
+// HTMLTemplate executes an HTML template with the provided
+// data and writes the result as HTML to the response writer.
+// The Content-Type is set to text/html; charset=utf-8.
+// The charset is explicitly set to prevent XSS attacks via
+// charset sniffing in older browsers. This is the standard
+// way to serve dynamic HTML pages in web applications using
+// Go's html/template package.
 //
 // Parameters:
 //   - w: The HTTP response writer
-//   - status: The HTTP status code to set (note: this is set after template execution)
+//   - status: The HTTP status code to set
 //   - tmpl: The HTML template to execute
 //   - data: The data to pass to the template for execution
 func HTMLTemplate(w http.ResponseWriter, status int, tmpl template.Template, data any) error {
-	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 
 	return tmpl.Execute(w, data)

@@ -9,11 +9,20 @@ import (
 // implement the http.Flusher interface, which is required for streaming responses.
 var ErrNonFlushableWriter = errors.New("non-flushable response writer")
 
-// Stream sends data from a channel to an HTTP client using streaming.
-// It flushes data as it becomes available and returns when the channel
-// is closed or the request context is canceled. Returns
-// [ErrNonFlushableWriter] if the writer does not support flushing.
+// Stream sends data from a channel to an HTTP client using
+// streaming. It flushes data as it becomes available and
+// returns when the channel is closed or the request context
+// is canceled. Returns [ErrNonFlushableWriter] if the writer
+// does not support flushing.
+//
+// If no Content-Type header has been explicitly set on the
+// response writer, it defaults to application/octet-stream
+// to ensure a safe default content type is always present.
 func Stream(w http.ResponseWriter, r *http.Request, c <-chan []byte) error {
+	if w.Header().Get("Content-Type") == "" {
+		w.Header().Set("Content-Type", "application/octet-stream")
+	}
+
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
