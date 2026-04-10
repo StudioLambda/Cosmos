@@ -7,7 +7,7 @@ import (
 
 var (
 	// ErrDatabaseNoRows is the error that should be returned
-	// when there's no rows found.
+	// when there are no rows found.
 	ErrDatabaseNoRows = errors.New("no database rows were found")
 
 	// ErrDatabaseNestedTransaction is the error that should be returned

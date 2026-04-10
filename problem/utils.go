@@ -1,5 +1,7 @@
 package problem
 
+import "errors"
+
 // stackTrace creates a stack trace of all the errors found
 // that have been either Joined or Wrapped using [errors.Join]
 // or [fmt.Errorf] with `%w` directive.
@@ -14,8 +16,10 @@ func stackTrace(err error) []error {
 		Unwrap() []error
 	}
 
-	if e, ok := err.(joined); ok {
-		for _, err := range e.Unwrap() {
+	var j joined
+
+	if errors.As(err, &j) {
+		for _, err := range j.Unwrap() {
 			result = append(result, stackTrace(err)...)
 		}
 

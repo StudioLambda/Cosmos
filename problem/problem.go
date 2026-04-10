@@ -105,8 +105,8 @@ type Problem struct {
 	Instance string
 }
 
-// Determines the key that's used to
-// store the traces in a [Problem].
+// StackTraceKey is the key used to store the error
+// stack trace in a [Problem]'s additional metadata.
 const StackTraceKey = "stack_trace"
 
 // NewProblem creates a new [Problem] from
@@ -143,7 +143,7 @@ func (problem Problem) With(key string, value any) Problem {
 }
 
 // WithError returns a new [Problem] with the given error
-// set as the
+// set as the underlying cause.
 func (problem Problem) WithError(err error) Problem {
 	problem.err = err
 
@@ -210,7 +210,7 @@ func (problem Problem) WithStackTrace() Problem {
 	return problem.With(StackTraceKey, messages)
 }
 
-// WithoutStackTrace removes the traces from the [Problem]
+// WithoutStackTrace removes the traces from the [Problem].
 func (problem Problem) WithoutStackTrace() Problem {
 	return problem.Without(StackTraceKey)
 }
@@ -295,6 +295,8 @@ func (problem Problem) Defaulted(request *http.Request) Problem {
 	return problem
 }
 
+// textHandler writes the problem as a plain text HTTP response
+// including the status code, title, detail, and any stack traces.
 func (problem Problem) textHandler(w http.ResponseWriter, r *http.Request) {
 	textResponse := fmt.Sprintf(
 		"%d %s\n\n%s",
@@ -303,20 +305,22 @@ func (problem Problem) textHandler(w http.ResponseWriter, r *http.Request) {
 		problem.Detail,
 	)
 
-	errors, found := problem.Additional(StackTraceKey)
-	traces, tracesOK := errors.([]string)
+	additional, found := problem.Additional(StackTraceKey)
+	traces, tracesOK := additional.([]string)
 
 	if found && tracesOK {
-		textResponse += fmt.Sprintf("\n\n")
+		textResponse += "\n\n"
 
 		for _, trace := range traces {
-			textResponse += fmt.Sprintf("%s\n", trace)
+			textResponse += trace + "\n"
 		}
 	}
 
 	http.Error(w, textResponse, problem.Status)
 }
 
+// jsonHandler writes the problem as a standard application/json
+// HTTP response.
 func (problem Problem) jsonHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(problem.Status)
@@ -324,6 +328,8 @@ func (problem Problem) jsonHandler(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(problem)
 }
 
+// jsonProblemHandler writes the problem as an application/problem+json
+// HTTP response per RFC 9457.
 func (problem Problem) jsonProblemHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(problem.Status)
@@ -331,10 +337,16 @@ func (problem Problem) jsonProblemHandler(w http.ResponseWriter, r *http.Request
 	_ = json.NewEncoder(w).Encode(problem)
 }
 
+// ServeHTTPDev serves the problem as an HTTP response with the full
+// stack trace included. This is intended for development environments
+// where detailed error information is useful.
 func (problem Problem) ServeHTTPDev(w http.ResponseWriter, r *http.Request) {
 	problem.WithStackTrace().ServeHTTP(w, r)
 }
 
+// ServeHTTP writes the problem as an HTTP response using content
+// negotiation. It supports application/problem+json, application/json,
+// and falls back to plain text.
 func (problem Problem) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	problem = problem.Defaulted(r)
 	responses := map[string]http.Handler{
@@ -352,6 +364,9 @@ func (problem Problem) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.HandlerFunc(problem.textHandler).ServeHTTP(w, r)
 }
 
+// HTTPStatus returns the HTTP status code of the problem.
+// This is useful for error handlers that need to extract the
+// status code from the problem.
 func (problem Problem) HTTPStatus() int {
 	return problem.Status
 }

@@ -8,6 +8,8 @@ import (
 )
 
 func TestItCanCreateAESEncrypter(t *testing.T) {
+	t.Parallel()
+
 	key := []byte("12345678901234567890123456789012")
 	_, err := crypto.NewAES(key)
 
@@ -15,6 +17,8 @@ func TestItCanCreateAESEncrypter(t *testing.T) {
 }
 
 func TestItCanEncryptAES(t *testing.T) {
+	t.Parallel()
+
 	key := []byte("12345678901234567890123456789012")
 	e, err := crypto.NewAES(key)
 
@@ -27,10 +31,18 @@ func TestItCanEncryptAES(t *testing.T) {
 }
 
 func TestItCanDecryptAES(t *testing.T) {
+	t.Parallel()
+
 	key := []byte("12345678901234567890123456789012")
-	e, _ := crypto.NewAES(key)
+	e, err := crypto.NewAES(key)
+
+	require.NoError(t, err)
+
 	plain := []byte("Hello, World!")
-	cypher, _ := e.Encrypt(plain)
+	cypher, err := e.Encrypt(plain)
+
+	require.NoError(t, err)
+
 	res, err := e.Decrypt(cypher)
 
 	require.NoError(t, err)

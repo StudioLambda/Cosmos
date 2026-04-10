@@ -24,7 +24,7 @@ var ErrFailedRecovering = errors.New("failed recovering from unexpected error")
 //   - error types are returned as-is
 //   - string values are wrapped in errors.New()
 //   - fmt.Stringer implementations use their String() method
-//   - all other types are formatted using fmt.Sprintf and joined with ErrRecoverUnexpectedError
+//   - all other types are formatted using fmt.Sprintf and joined with ErrRecoverUnexpected
 //
 // Parameters:
 //   - value: The value recovered from a panic
@@ -65,7 +65,7 @@ func defaultRecoverHandler(value any) error {
 // through the normal error handling middleware chain.
 //
 // The default handler converts common panic types (errors, strings, fmt.Stringers)
-// into appropriate error values. For unknown types, it returns ErrRecoverUnexpectedError
+// into appropriate error values. For unknown types, it returns ErrRecoverUnexpected
 // joined with a formatted representation of the panic value.
 //
 // Returns a middleware function that catches panics and converts them to errors.

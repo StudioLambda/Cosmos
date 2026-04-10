@@ -209,7 +209,7 @@ func NewNATSBrokerFrom(conn *nats.Conn) *NATSBroker {
 //
 // Returns an error if JSON encoding fails or if the publish operation fails.
 // The context is used for operation timeout and cancellation.
-func (b *NATSBroker) Publish(
+func (broker *NATSBroker) Publish(
 	ctx context.Context,
 	event string,
 	payload any,
@@ -220,7 +220,7 @@ func (b *NATSBroker) Publish(
 		return err
 	}
 
-	return b.conn.Publish(event, encoded)
+	return broker.conn.Publish(event, encoded)
 }
 
 // Subscribe registers a handler for events matching the given pattern.
@@ -234,14 +234,14 @@ func (b *NATSBroker) Publish(
 // Returns an unsubscribe function that removes this specific handler.
 // The context is used only for the subscription setup, not for the handler
 // lifecycle.
-func (b *NATSBroker) Subscribe(
+func (broker *NATSBroker) Subscribe(
 	ctx context.Context,
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
-	subject := b.convertSubject(event)
+	subject := convertSubject(event)
 
-	sub, err := b.conn.Subscribe(subject, func(msg *nats.Msg) {
+	sub, err := broker.conn.Subscribe(subject, func(msg *nats.Msg) {
 		handler(func(dest any) error {
 			return json.Unmarshal(msg.Data, dest)
 		})
@@ -260,12 +260,12 @@ func (b *NATSBroker) Subscribe(
 // It drains all pending messages before closing, ensuring no messages are
 // lost.
 // After Close is called, the broker cannot be reused.
-func (b *NATSBroker) Close() error {
-	if err := b.conn.Drain(); err != nil {
+func (broker *NATSBroker) Close() error {
+	if err := broker.conn.Drain(); err != nil {
 		return err
 	}
 
-	b.conn.Close()
+	broker.conn.Close()
 
 	return nil
 }
@@ -273,6 +273,6 @@ func (b *NATSBroker) Close() error {
 // convertSubject converts event patterns to NATS subject format.
 // It replaces the multi-level wildcard "#" with NATS's ">" wildcard.
 // Single-level wildcards "*" are already compatible with NATS.
-func (b *NATSBroker) convertSubject(event string) string {
+func convertSubject(event string) string {
 	return strings.ReplaceAll(event, "#", ">")
 }

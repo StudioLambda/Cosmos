@@ -8,6 +8,8 @@ import (
 )
 
 func TestAcceptAccepts(t *testing.T) {
+	t.Parallel()
+
 	request, err := http.NewRequest("GET", "/", nil)
 
 	if err != nil {
@@ -36,6 +38,8 @@ func TestAcceptAccepts(t *testing.T) {
 }
 
 func TestAcceptAcceptsWithMultipleHeaderValues(t *testing.T) {
+	t.Parallel()
+
 	request, err := http.NewRequest("GET", "/", nil)
 
 	if err != nil {
@@ -65,6 +69,8 @@ func TestAcceptAcceptsWithMultipleHeaderValues(t *testing.T) {
 }
 
 func TestAcceptOrder(t *testing.T) {
+	t.Parallel()
+
 	request, err := http.NewRequest("GET", "/", nil)
 
 	if err != nil {

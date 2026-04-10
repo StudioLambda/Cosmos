@@ -8,6 +8,8 @@ import (
 )
 
 func TestItCanHashBcryptPasswords(t *testing.T) {
+	t.Parallel()
+
 	h := hash.NewBcrypt()
 	content := []byte("hello, world")
 
@@ -18,10 +20,15 @@ func TestItCanHashBcryptPasswords(t *testing.T) {
 }
 
 func TestItCanCheckHashedBcryptHashes(t *testing.T) {
+	t.Parallel()
+
 	h := hash.NewBcrypt()
 	content := []byte("hello, world")
 
-	r, _ := h.Hash(content)
+	r, err := h.Hash(content)
+
+	require.NoError(t, err)
+
 	ok, err := h.Check(content, r)
 
 	require.NoError(t, err)

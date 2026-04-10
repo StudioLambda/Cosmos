@@ -7,16 +7,17 @@ import (
 	"github.com/studiolambda/cosmos/problem"
 )
 
+// ErrNoHooksMiddleware is the problem returned when attempting to
+// access hooks from a request that lacks the hooks middleware.
 var ErrNoHooksMiddleware = problem.Problem{
 	Title:  "No hooks context",
 	Detail: "Unable to resolve hooks as there's no context value",
 	Status: http.StatusInternalServerError,
 }
 
-// Hooks return the hooks struct to attach callbacks
-// to certain lifecycle events. It panics if no context
-// value is found. Make sure you use the hooks middleware
-// before using this method.
+// Hooks returns the hooks instance used to attach callbacks
+// to lifecycle events. It panics if the hooks middleware has
+// not been applied to the request's context.
 func Hooks(r *http.Request) contract.Hooks {
 	if hooks, ok := r.Context().Value(contract.HooksKey).(contract.Hooks); ok {
 		return hooks

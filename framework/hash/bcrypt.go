@@ -6,30 +6,43 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// Bcrypt implements contract.Hasher using the bcrypt algorithm.
+// It is an acceptable alternative to Argon2 when compatibility
+// with existing bcrypt hashes is required.
 type Bcrypt struct {
 	options BcryptOptions
 }
 
+// BcryptOptions configures the bcrypt hasher. The cost parameter
+// controls the computational expense of hashing; higher values
+// are more secure but slower.
 type BcryptOptions struct {
 	cost int
 }
 
+// DefaultBcryptCost is the default bcrypt cost factor, matching
+// the bcrypt library's own default of 10.
 const DefaultBcryptCost = 10
 
+// NewBcrypt creates a Bcrypt hasher with the default cost factor.
 func NewBcrypt() *Bcrypt {
 	return NewBcryptWith(BcryptOptions{
 		cost: DefaultBcryptCost,
 	})
 }
 
+// NewBcryptWith creates a Bcrypt hasher with the given options,
+// allowing a custom cost factor.
 func NewBcryptWith(options BcryptOptions) *Bcrypt {
 	return &Bcrypt{
 		options: options,
 	}
 }
 
-func (h *Bcrypt) Hash(value []byte) ([]byte, error) {
-	hash, err := bcrypt.GenerateFromPassword(value, h.options.cost)
+// Hash produces a bcrypt hash of the given value using the
+// configured cost factor.
+func (hasher *Bcrypt) Hash(value []byte) ([]byte, error) {
+	hash, err := bcrypt.GenerateFromPassword(value, hasher.options.cost)
 
 	if err != nil {
 		return nil, err
@@ -38,7 +51,10 @@ func (h *Bcrypt) Hash(value []byte) ([]byte, error) {
 	return hash, nil
 }
 
-func (h *Bcrypt) Check(value []byte, hash []byte) (bool, error) {
+// Check verifies that the given plaintext value matches the
+// bcrypt hash. Returns (false, nil) on a mismatch and (false, err)
+// on an unexpected error.
+func (hasher *Bcrypt) Check(value []byte, hash []byte) (bool, error) {
 	err := bcrypt.CompareHashAndPassword(hash, value)
 
 	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {

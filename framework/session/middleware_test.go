@@ -14,6 +14,8 @@ import (
 )
 
 func TestMiddlewareCookieExists(t *testing.T) {
+	t.Parallel()
+
 	handler := framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	})
@@ -32,5 +34,5 @@ func TestMiddlewareCookieExists(t *testing.T) {
 	require.Len(t, cookies, 1)
 	require.Len(t, cache.Calls, 1)
 	require.Equal(t, cache.Calls[0].Arguments.Get(1).(contract.Session).SessionID(), cookies[0].Value)
-	require.Equal(t, cookies[0].Name, session.DefaultCookie)
+	require.Equal(t, session.DefaultCookie, cookies[0].Name)
 }
