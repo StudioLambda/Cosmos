@@ -34,6 +34,10 @@ func SessionKeyed(r *http.Request, key any) (contract.Session, bool) {
 // MustSessionKeyed retrieves the session from the request context
 // using the provided key. It panics with [ErrSessionNotFound] if
 // no session is found.
+//
+// WARNING: This function panics when the session is missing. Use
+// [SessionKeyed] for a non-panicking alternative, or ensure the
+// [framework.Recover] middleware is in place.
 func MustSessionKeyed(r *http.Request, key any) contract.Session {
 	if s, ok := SessionKeyed(r, key); ok {
 		return s
@@ -45,6 +49,10 @@ func MustSessionKeyed(r *http.Request, key any) contract.Session {
 // MustSession retrieves the session from the request context using
 // the default [contract.SessionKey]. It panics with [ErrSessionNotFound]
 // if no session is found.
+//
+// WARNING: This function panics when the session is missing. Use
+// [Session] for a non-panicking alternative, or ensure the
+// [framework.Recover] middleware is in place.
 func MustSession(r *http.Request) contract.Session {
 	return MustSessionKeyed(r, contract.SessionKey)
 }
