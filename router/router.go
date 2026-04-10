@@ -82,7 +82,15 @@ func New[H http.Handler]() *Router[H] {
 // sub-router will also have the given pattern prefixed.
 //
 // Keep in mind this can be nested as well, meaning that
-// many sub-routers may be grouped, creating complex patterns.
+// many sub-routers may be grouped, creating complex
+// patterns.
+//
+// WARNING: The pattern is joined with the parent
+// pattern using [path.Join], which normalizes the
+// resulting path. This means ".." segments are resolved
+// and collapsed. Callers should not rely on literal
+// ".." segments in route patterns, as they will be
+// cleaned away during path joining.
 func (router *Router[H]) Group(pattern string, subrouter func(*Router[H])) {
 	subrouter(&Router[H]{
 		native:      nil, // parent's native will be used
@@ -180,19 +188,29 @@ func (router *Router[H]) registerTrailing(method string, pattern string, handler
 	router.register(method, pattern, handler)
 }
 
-// registerPair registers both a pattern and its trailing-slash
-// counterpart to ensure routes match with or without a trailing slash.
+// registerPair registers both a pattern and its
+// trailing-slash counterpart to ensure routes match with
+// or without a trailing slash.
 //
 // Possible scenarios are:
 //  1. The path ends in anonymous wildcard: '/'
 //     - Must register the pattern
-//     - Must register the same without the last '/' (sometimes)
+//     - Must register the same without the last '/'
+//     (sometimes)
 //  2. The path ends in wildcard match all: '...':
 //     - Must register the pattern
-//     - Must register the same without wildcard and slash: '/{abc...}'
+//     - Must register the same without wildcard and
+//     slash: '/{abc...}'
 //  3. The path does not end in '/' nor '...':
 //     - Must register the pattern
 //     - Must register the pattern + '/'
+//
+// Note that catch-all routes (e.g., "/files/{path...}")
+// also match their base path (e.g., "/files/") because
+// both the catch-all pattern and the base path without
+// the wildcard segment are registered. Handlers should
+// account for the catch-all value being empty when the
+// base path is matched directly.
 func (router *Router[H]) registerPair(method string, pattern string, handler H) {
 	// In all cases we always register the pattern, so let's do this first.
 	router.register(method, pattern, handler)
@@ -228,19 +246,28 @@ func (router *Router[H]) registerPair(method string, pattern string, handler H) 
 	router.registerTrailing(method, pattern, handler)
 }
 
-// Method registers a new handler to the router with the given
-// method and pattern. This is useful if you need to dynamically
-// register a route to the router using a string as the method.
+// Method registers a new handler to the router with the
+// given method and pattern. This is useful if you need to
+// dynamically register a route to the router using a string
+// as the method.
 //
-// A notable difference is that the patterns's ending slash "/" is
-// not treated as an anonymous catch-all "{...}" and is instead treated
-// as if it finished with "/{$}", making a specific route only.
+// A notable difference is that the pattern's ending slash
+// "/" is not treated as an anonymous catch-all "{...}" and
+// is instead treated as if it finished with "/{$}", making
+// a specific route only.
 //
-// If the route does not finish in "/", one will be added automatically and
-// then the paragraph above will apply unless the route finishes in a catch-all
-// parameter "...}"
+// If the route does not finish in "/", one will be added
+// automatically and then the paragraph above will apply
+// unless the route finishes in a catch-all parameter "...}"
 //
-// Typically, the method string should be one of the following:
+// WARNING: The pattern is joined with the router's base
+// pattern using [path.Join], which normalizes the resulting
+// path. This means ".." segments are resolved and collapsed.
+// Callers should not rely on literal ".." segments in route
+// patterns.
+//
+// Typically, the method string should be one of the
+// following:
 //   - [http.MethodGet]
 //   - [http.MethodHead]
 //   - [http.MethodPost]
