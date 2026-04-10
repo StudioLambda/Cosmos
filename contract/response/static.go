@@ -3,6 +3,7 @@ package response
 import (
 	"encoding/json"
 	"encoding/xml"
+	htmltemplate "html/template"
 	"net/http"
 	"text/template"
 )
@@ -93,23 +94,24 @@ func StringTemplate(w http.ResponseWriter, status int, tmpl template.Template, d
 //   - status: The HTTP status code to set
 //   - data: The HTML string to write to the response
 func HTML(w http.ResponseWriter, status int, data string) error {
-	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 	return Raw(w, status, []byte(data))
 }
 
 // HTMLTemplate executes an HTML template with the provided data and writes
 // the result as HTML to the response writer. The Content-Type is set to
-// text/html. This is the standard way to serve dynamic HTML pages in web
-// applications using Go's html/template package.
+// text/html; charset=utf-8. This is the standard way to serve dynamic
+// HTML pages in web applications using Go's html/template package, which
+// provides context-aware escaping to prevent XSS attacks.
 //
 // Parameters:
 //   - w: The HTTP response writer
 //   - status: The HTTP status code to set (note: this is set after template execution)
-//   - tmpl: The HTML template to execute
+//   - tmpl: The HTML template to execute (must be html/template for XSS safety)
 //   - data: The data to pass to the template for execution
-func HTMLTemplate(w http.ResponseWriter, status int, tmpl template.Template, data any) error {
-	w.Header().Set("Content-Type", "text/html")
+func HTMLTemplate(w http.ResponseWriter, status int, tmpl htmltemplate.Template, data any) error {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 
 	return tmpl.Execute(w, data)
