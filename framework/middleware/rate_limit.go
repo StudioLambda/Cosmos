@@ -50,24 +50,24 @@ var DefaultRateLimitOptions = RateLimitOptions{
 
 // withDefaults returns a copy of the options with zero values
 // replaced by the corresponding [DefaultRateLimitOptions] fields.
-func (o RateLimitOptions) withDefaults() RateLimitOptions {
-	if o.RequestsPerSecond == 0 {
-		o.RequestsPerSecond = DefaultRateLimitOptions.RequestsPerSecond
+func (options RateLimitOptions) withDefaults() RateLimitOptions {
+	if options.RequestsPerSecond == 0 {
+		options.RequestsPerSecond = DefaultRateLimitOptions.RequestsPerSecond
 	}
 
-	if o.Burst == 0 {
-		o.Burst = DefaultRateLimitOptions.Burst
+	if options.Burst == 0 {
+		options.Burst = DefaultRateLimitOptions.Burst
 	}
 
-	if o.KeyFunc == nil {
-		o.KeyFunc = DefaultRateLimitOptions.KeyFunc
+	if options.KeyFunc == nil {
+		options.KeyFunc = DefaultRateLimitOptions.KeyFunc
 	}
 
-	if o.ErrorResponse.Status == 0 {
-		o.ErrorResponse = DefaultRateLimitOptions.ErrorResponse
+	if options.ErrorResponse.Status == 0 {
+		options.ErrorResponse = DefaultRateLimitOptions.ErrorResponse
 	}
 
-	return o
+	return options
 }
 
 // rateLimitRegistry manages per-key token bucket rate limiters.
@@ -101,16 +101,16 @@ func newRateLimitRegistry(rps float64, burst int) *rateLimitRegistry {
 
 // get returns the limiter for key, creating one if it does not
 // already exist.
-func (r *rateLimitRegistry) get(key string) *rate.Limiter {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (registry *rateLimitRegistry) get(key string) *rate.Limiter {
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
 
-	if limiter, ok := r.limiters[key]; ok {
+	if limiter, ok := registry.limiters[key]; ok {
 		return limiter
 	}
 
-	limiter := rate.NewLimiter(rate.Limit(r.rps), r.burst)
-	r.limiters[key] = limiter
+	limiter := rate.NewLimiter(rate.Limit(registry.rps), registry.burst)
+	registry.limiters[key] = limiter
 
 	return limiter
 }

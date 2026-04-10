@@ -47,28 +47,28 @@ var DefaultServerOptions = ServerOptions{
 
 // withDefaults returns a copy of the options with zero values
 // replaced by the corresponding [DefaultServerOptions] fields.
-func (o ServerOptions) withDefaults() ServerOptions {
-	if o.ReadHeaderTimeout == 0 {
-		o.ReadHeaderTimeout = DefaultServerOptions.ReadHeaderTimeout
+func (options ServerOptions) withDefaults() ServerOptions {
+	if options.ReadHeaderTimeout == 0 {
+		options.ReadHeaderTimeout = DefaultServerOptions.ReadHeaderTimeout
 	}
 
-	if o.ReadTimeout == 0 {
-		o.ReadTimeout = DefaultServerOptions.ReadTimeout
+	if options.ReadTimeout == 0 {
+		options.ReadTimeout = DefaultServerOptions.ReadTimeout
 	}
 
-	if o.WriteTimeout == 0 {
-		o.WriteTimeout = DefaultServerOptions.WriteTimeout
+	if options.WriteTimeout == 0 {
+		options.WriteTimeout = DefaultServerOptions.WriteTimeout
 	}
 
-	if o.IdleTimeout == 0 {
-		o.IdleTimeout = DefaultServerOptions.IdleTimeout
+	if options.IdleTimeout == 0 {
+		options.IdleTimeout = DefaultServerOptions.IdleTimeout
 	}
 
-	if o.MaxHeaderBytes == 0 {
-		o.MaxHeaderBytes = DefaultServerOptions.MaxHeaderBytes
+	if options.MaxHeaderBytes == 0 {
+		options.MaxHeaderBytes = DefaultServerOptions.MaxHeaderBytes
 	}
 
-	return o
+	return options
 }
 
 // NewServer creates an [http.Server] with secure timeout defaults

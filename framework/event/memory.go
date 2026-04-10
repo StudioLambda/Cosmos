@@ -111,7 +111,7 @@ func (broker *MemoryBroker) Publish(
 	defer broker.mu.RUnlock()
 
 	for pattern, patternHandlers := range broker.handlers {
-		if !matchEvent(pattern, event) {
+		if !isMatchingEvent(pattern, event) {
 			continue
 		}
 
@@ -218,11 +218,11 @@ func (broker *MemoryBroker) deliverToHandler(
 	})
 }
 
-// matchEvent checks if a subscription pattern matches an event name.
-// It supports dot-separated tokens with wildcards:
+// isMatchingEvent checks if a subscription pattern matches an
+// event name. It supports dot-separated tokens with wildcards:
 //   - "*" matches exactly one token
 //   - "#" matches zero or more tokens
-func matchEvent(pattern, event string) bool {
+func isMatchingEvent(pattern, event string) bool {
 	if pattern == event {
 		return true
 	}
@@ -230,13 +230,13 @@ func matchEvent(pattern, event string) bool {
 	patternParts := strings.Split(pattern, ".")
 	eventParts := strings.Split(event, ".")
 
-	return matchEventParts(patternParts, eventParts)
+	return isMatchingEventParts(patternParts, eventParts)
 }
 
-// matchEventParts recursively matches event parts against pattern parts
-// with wildcard support.
-// It handles "*" for single-token and "#" for multi-token matching.
-func matchEventParts(pattern, event []string) bool {
+// isMatchingEventParts recursively matches event parts against
+// pattern parts with wildcard support. It handles "*" for
+// single-token and "#" for multi-token matching.
+func isMatchingEventParts(pattern, event []string) bool {
 	if len(pattern) == 0 {
 		return len(event) == 0
 	}
@@ -250,7 +250,7 @@ func matchEventParts(pattern, event []string) bool {
 	}
 
 	if pattern[0] == "*" || pattern[0] == event[0] {
-		return matchEventParts(pattern[1:], event[1:])
+		return isMatchingEventParts(pattern[1:], event[1:])
 	}
 
 	return false
