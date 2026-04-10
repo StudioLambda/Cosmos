@@ -351,9 +351,12 @@ func (broker *MQTTBroker) Subscribe(
 		broker.mu.Unlock()
 
 		if shouldUnsubscribe {
-			_, err := broker.client.Unsubscribe(ctx, &paho.Unsubscribe{
-				Topics: []string{topic},
-			})
+			_, err := broker.client.Unsubscribe(
+				context.WithoutCancel(ctx),
+				&paho.Unsubscribe{
+					Topics: []string{topic},
+				},
+			)
 
 			return err
 		}
