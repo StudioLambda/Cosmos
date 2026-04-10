@@ -33,18 +33,42 @@ type ServerOptions struct {
 	MaxHeaderBytes int
 }
 
-// DefaultServerOptions returns secure timeout defaults suitable
+// DefaultServerOptions holds secure timeout defaults suitable
 // for production deployments. These protect against Slowloris
 // and other connection-exhaustion attacks.
-func DefaultServerOptions() ServerOptions {
-	return ServerOptions{
-		Addr:              ":8080",
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      60 * time.Second,
-		IdleTimeout:       120 * time.Second,
-		MaxHeaderBytes:    1 << 20, // 1 MB
+var DefaultServerOptions = ServerOptions{
+	Addr:              ":8080",
+	ReadHeaderTimeout: 10 * time.Second,
+	ReadTimeout:       30 * time.Second,
+	WriteTimeout:      60 * time.Second,
+	IdleTimeout:       120 * time.Second,
+	MaxHeaderBytes:    1 << 20, // 1 MB
+}
+
+// withDefaults returns a copy of the options with zero values
+// replaced by the corresponding [DefaultServerOptions] fields.
+func (o ServerOptions) withDefaults() ServerOptions {
+	if o.ReadHeaderTimeout == 0 {
+		o.ReadHeaderTimeout = DefaultServerOptions.ReadHeaderTimeout
 	}
+
+	if o.ReadTimeout == 0 {
+		o.ReadTimeout = DefaultServerOptions.ReadTimeout
+	}
+
+	if o.WriteTimeout == 0 {
+		o.WriteTimeout = DefaultServerOptions.WriteTimeout
+	}
+
+	if o.IdleTimeout == 0 {
+		o.IdleTimeout = DefaultServerOptions.IdleTimeout
+	}
+
+	if o.MaxHeaderBytes == 0 {
+		o.MaxHeaderBytes = DefaultServerOptions.MaxHeaderBytes
+	}
+
+	return o
 }
 
 // NewServer creates an [http.Server] with secure timeout defaults
@@ -53,7 +77,7 @@ func DefaultServerOptions() ServerOptions {
 // attacks that are possible when using [http.ListenAndServe]
 // directly (which sets all timeouts to zero/infinite).
 func NewServer(addr string, handler http.Handler) *http.Server {
-	opts := DefaultServerOptions()
+	opts := DefaultServerOptions
 	opts.Addr = addr
 
 	return NewServerWith(opts, handler)
@@ -63,27 +87,7 @@ func NewServer(addr string, handler http.Handler) *http.Server {
 // options and handler. Zero-valued timeout fields are replaced
 // with their secure defaults from [DefaultServerOptions].
 func NewServerWith(opts ServerOptions, handler http.Handler) *http.Server {
-	defaults := DefaultServerOptions()
-
-	if opts.ReadHeaderTimeout == 0 {
-		opts.ReadHeaderTimeout = defaults.ReadHeaderTimeout
-	}
-
-	if opts.ReadTimeout == 0 {
-		opts.ReadTimeout = defaults.ReadTimeout
-	}
-
-	if opts.WriteTimeout == 0 {
-		opts.WriteTimeout = defaults.WriteTimeout
-	}
-
-	if opts.IdleTimeout == 0 {
-		opts.IdleTimeout = defaults.IdleTimeout
-	}
-
-	if opts.MaxHeaderBytes == 0 {
-		opts.MaxHeaderBytes = defaults.MaxHeaderBytes
-	}
+	opts = opts.withDefaults()
 
 	return &http.Server{
 		Addr:              opts.Addr,

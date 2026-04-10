@@ -37,70 +37,101 @@ type RateLimitOptions struct {
 	ErrorResponse problem.Problem
 }
 
-// DefaultRateLimitOptions returns sensible defaults: 10 req/s
+// DefaultRateLimitOptions holds sensible defaults: 10 req/s
 // sustained with a burst of 20, keyed by remote address.
-func DefaultRateLimitOptions() RateLimitOptions {
-	return RateLimitOptions{
-		RequestsPerSecond: 10,
-		Burst:             20,
-		KeyFunc: func(r *http.Request) string {
-			return r.RemoteAddr
-		},
-		ErrorResponse: ErrRateLimited,
+var DefaultRateLimitOptions = RateLimitOptions{
+	RequestsPerSecond: 10,
+	Burst:             20,
+	KeyFunc: func(r *http.Request) string {
+		return r.RemoteAddr
+	},
+	ErrorResponse: ErrRateLimited,
+}
+
+// withDefaults returns a copy of the options with zero values
+// replaced by the corresponding [DefaultRateLimitOptions] fields.
+func (o RateLimitOptions) withDefaults() RateLimitOptions {
+	if o.RequestsPerSecond == 0 {
+		o.RequestsPerSecond = DefaultRateLimitOptions.RequestsPerSecond
 	}
+
+	if o.Burst == 0 {
+		o.Burst = DefaultRateLimitOptions.Burst
+	}
+
+	if o.KeyFunc == nil {
+		o.KeyFunc = DefaultRateLimitOptions.KeyFunc
+	}
+
+	if o.ErrorResponse.Status == 0 {
+		o.ErrorResponse = DefaultRateLimitOptions.ErrorResponse
+	}
+
+	return o
+}
+
+// rateLimitRegistry manages per-key token bucket rate limiters.
+// Each unique key gets its own [rate.Limiter] instance, created
+// on first access and reused for subsequent requests.
+type rateLimitRegistry struct {
+	// mu protects concurrent access to the limiters map.
+	mu sync.Mutex
+
+	// limiters maps rate-limit keys to their token bucket.
+	limiters map[string]*rate.Limiter
+
+	// rps is the sustained requests-per-second rate for
+	// newly created limiters.
+	rps float64
+
+	// burst is the maximum burst size for newly created
+	// limiters.
+	burst int
+}
+
+// newRateLimitRegistry creates a registry that produces limiters
+// with the given sustained rate and burst size.
+func newRateLimitRegistry(rps float64, burst int) *rateLimitRegistry {
+	return &rateLimitRegistry{
+		limiters: make(map[string]*rate.Limiter),
+		rps:      rps,
+		burst:    burst,
+	}
+}
+
+// get returns the limiter for key, creating one if it does not
+// already exist.
+func (r *rateLimitRegistry) get(key string) *rate.Limiter {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if limiter, ok := r.limiters[key]; ok {
+		return limiter
+	}
+
+	limiter := rate.NewLimiter(rate.Limit(r.rps), r.burst)
+	r.limiters[key] = limiter
+
+	return limiter
 }
 
 // RateLimit returns middleware that limits requests to 10 req/s
 // per IP with a burst of 20 using [DefaultRateLimitOptions].
 func RateLimit() framework.Middleware {
-	return RateLimitWith(DefaultRateLimitOptions())
+	return RateLimitWith(DefaultRateLimitOptions)
 }
 
 // RateLimitWith returns middleware that limits requests using
 // the provided options. It uses a per-key token bucket algorithm
 // backed by [golang.org/x/time/rate].
 func RateLimitWith(opts RateLimitOptions) framework.Middleware {
-	defaults := DefaultRateLimitOptions()
-
-	if opts.RequestsPerSecond == 0 {
-		opts.RequestsPerSecond = defaults.RequestsPerSecond
-	}
-
-	if opts.Burst == 0 {
-		opts.Burst = defaults.Burst
-	}
-
-	if opts.KeyFunc == nil {
-		opts.KeyFunc = defaults.KeyFunc
-	}
-
-	if opts.ErrorResponse.Status == 0 {
-		opts.ErrorResponse = defaults.ErrorResponse
-	}
-
-	var (
-		mu       sync.Mutex
-		limiters = make(map[string]*rate.Limiter)
-	)
-
-	getLimiter := func(key string) *rate.Limiter {
-		mu.Lock()
-		defer mu.Unlock()
-
-		if limiter, ok := limiters[key]; ok {
-			return limiter
-		}
-
-		limiter := rate.NewLimiter(rate.Limit(opts.RequestsPerSecond), opts.Burst)
-		limiters[key] = limiter
-
-		return limiter
-	}
+	opts = opts.withDefaults()
+	registry := newRateLimitRegistry(opts.RequestsPerSecond, opts.Burst)
 
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
 			key := opts.KeyFunc(r)
-			limiter := getLimiter(key)
+			limiter := registry.get(key)
 
 			if !limiter.Allow() {
 				return opts.ErrorResponse

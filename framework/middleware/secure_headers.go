@@ -44,16 +44,14 @@ type SecureHeadersOptions struct {
 	PermissionsPolicy string
 }
 
-// DefaultSecureHeadersOptions returns safe default values for
+// DefaultSecureHeadersOptions holds safe default values for
 // all commonly recommended security headers.
-func DefaultSecureHeadersOptions() SecureHeadersOptions {
-	return SecureHeadersOptions{
-		ContentTypeOptions:      "nosniff",
-		FrameOptions:            "DENY",
-		ReferrerPolicy:          "strict-origin-when-cross-origin",
-		XSSProtection:           "1; mode=block",
-		StrictTransportSecurity: "max-age=63072000; includeSubDomains",
-	}
+var DefaultSecureHeadersOptions = SecureHeadersOptions{
+	ContentTypeOptions:      "nosniff",
+	FrameOptions:            "DENY",
+	ReferrerPolicy:          "strict-origin-when-cross-origin",
+	XSSProtection:           "1; mode=block",
+	StrictTransportSecurity: "max-age=63072000; includeSubDomains",
 }
 
 // SecureHeaders returns middleware that sets standard HTTP
@@ -61,7 +59,7 @@ func DefaultSecureHeadersOptions() SecureHeadersOptions {
 // This protects against MIME sniffing, clickjacking, referrer
 // leakage, and protocol downgrade attacks.
 func SecureHeaders() framework.Middleware {
-	return SecureHeadersWith(DefaultSecureHeadersOptions())
+	return SecureHeadersWith(DefaultSecureHeadersOptions)
 }
 
 // SecureHeadersWith returns middleware that sets HTTP security
