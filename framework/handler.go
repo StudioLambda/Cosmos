@@ -3,6 +3,7 @@ package framework
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 
@@ -104,7 +105,18 @@ func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, callback := range hooks.AfterResponseFuncs() {
-		callback(err)
+		func() {
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					slog.Error(
+						"after response hook panicked",
+						"error", recovered,
+					)
+				}
+			}()
+
+			callback(err)
+		}()
 	}
 }
 
