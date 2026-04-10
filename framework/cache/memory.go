@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -28,14 +27,15 @@ func NewMemory(expiration time.Duration, cleanup time.Duration) *Memory {
 	}
 }
 
-// Get retrieves the value for the given key from the in-memory store.
-// Returns contract.ErrCacheKeyNotFound wrapped with the key name
-// when the key does not exist or has expired.
+// Get retrieves the value for the given key from the in-memory
+// store. Returns contract.ErrCacheKeyNotFound when the key does
+// not exist or has expired. The key is intentionally omitted from
+// the error to prevent cache key enumeration attacks.
 func (memory *Memory) Get(_ context.Context, key string) (any, error) {
 	val, found := memory.store.Get(key)
 
 	if !found {
-		return nil, fmt.Errorf("%w: %s", contract.ErrCacheKeyNotFound, key)
+		return nil, contract.ErrCacheKeyNotFound
 	}
 
 	return val, nil
@@ -98,7 +98,7 @@ func (memory *Memory) Increment(ctx context.Context, key string, by int64) (int6
 	defer memory.mux.Unlock()
 
 	if found, _ := memory.Has(ctx, key); !found {
-		return 0, fmt.Errorf("%w: %s", contract.ErrCacheKeyNotFound, key)
+		return 0, contract.ErrCacheKeyNotFound
 	}
 
 	return memory.store.IncrementInt64(key, by)
@@ -112,7 +112,7 @@ func (memory *Memory) Decrement(ctx context.Context, key string, by int64) (int6
 	defer memory.mux.Unlock()
 
 	if found, _ := memory.Has(ctx, key); !found {
-		return 0, fmt.Errorf("%w: %s", contract.ErrCacheKeyNotFound, key)
+		return 0, contract.ErrCacheKeyNotFound
 	}
 
 	return memory.store.DecrementInt64(key, by)
