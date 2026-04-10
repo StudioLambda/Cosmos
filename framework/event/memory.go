@@ -49,9 +49,9 @@ type MemoryBroker struct {
 	// to enable precise unsubscribe operations.
 	nextID atomic.Uint64
 
-	// isClosed indicates whether the broker has been closed.
+	// closed indicates whether the broker has been closed.
 	// Once closed, all operations return ErrBrokerClosed.
-	isClosed atomic.Bool
+	closed atomic.Bool
 
 	// sem limits the number of concurrent delivery goroutines to
 	// prevent resource exhaustion under high throughput.
@@ -93,7 +93,7 @@ func (broker *MemoryBroker) Publish(
 	event string,
 	payload any,
 ) error {
-	if broker.isClosed.Load() {
+	if broker.closed.Load() {
 		return ErrBrokerClosed
 	}
 
@@ -152,7 +152,7 @@ func (broker *MemoryBroker) Subscribe(
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
-	if broker.isClosed.Load() {
+	if broker.closed.Load() {
 		return nil, ErrBrokerClosed
 	}
 
@@ -188,7 +188,7 @@ func (broker *MemoryBroker) Subscribe(
 // broker cannot be reused.
 // Close waits for all in-flight deliveries to complete before returning.
 func (broker *MemoryBroker) Close() error {
-	broker.isClosed.Store(true)
+	broker.closed.Store(true)
 
 	broker.wg.Wait()
 
@@ -209,7 +209,7 @@ func (broker *MemoryBroker) deliverToHandler(
 	encoded []byte,
 ) {
 	defer func() {
-		if r := recover(); r != nil {
+		if recovered := recover(); recovered != nil {
 		}
 	}()
 

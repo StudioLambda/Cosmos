@@ -62,10 +62,10 @@ func currentSession(r *http.Request, driver contract.SessionDriver, options Midd
 	id := request.CookieValue(r, options.Name)
 
 	if id != "" {
-		if s, err := driver.Get(r.Context(), id); err == nil {
-			s.MarkAsUnchanged()
+		if session, err := driver.Get(r.Context(), id); err == nil {
+			session.MarkAsUnchanged()
 
-			return s, nil
+			return session, nil
 		}
 	}
 
@@ -80,7 +80,7 @@ func currentSession(r *http.Request, driver contract.SessionDriver, options Midd
 func MiddlewareWith(driver contract.SessionDriver, options MiddlewareOptions) framework.Middleware {
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
-			s, err := currentSession(r, driver, options)
+			session, err := currentSession(r, driver, options)
 
 			if err != nil {
 				return err
@@ -88,31 +88,31 @@ func MiddlewareWith(driver contract.SessionDriver, options MiddlewareOptions) fr
 
 			hooks := request.Hooks(r)
 			hooks.BeforeWriteHeader(func(w http.ResponseWriter, status int) {
-				if s.HasExpired() {
-					_ = s.Regenerate()
-					s.Extend(time.Now().Add(options.TTL))
+				if session.HasExpired() {
+					_ = session.Regenerate()
+					session.Extend(time.Now().Add(options.TTL))
 				}
 
-				if s.ExpiresSoon(options.ExpirationDelta) {
-					s.Extend(time.Now().Add(options.TTL))
+				if session.ExpiresSoon(options.ExpirationDelta) {
+					session.Extend(time.Now().Add(options.TTL))
 				}
 
-				if s.HasRegenerated() {
-					_ = driver.Delete(r.Context(), s.OriginalSessionID())
+				if session.HasRegenerated() {
+					_ = driver.Delete(r.Context(), session.OriginalSessionID())
 				}
 
-				if s.HasChanged() {
-					expiration := time.Until(s.ExpiresAt())
+				if session.HasChanged() {
+					ttl := time.Until(session.ExpiresAt())
 
-					_ = driver.Save(r.Context(), s, expiration)
+					_ = driver.Save(r.Context(), session, ttl)
 
 					http.SetCookie(w, &http.Cookie{
 						Name:        options.Name,
-						Value:       s.SessionID(), // Will contain the new id if regenerated
+						Value:       session.SessionID(), // Will contain the new id if regenerated
 						Path:        options.Path,
 						Domain:      options.Domain,
-						Expires:     s.ExpiresAt(),             // Will be prior date if expired.
-						MaxAge:      int(expiration.Seconds()), // Will be negative if expired.
+						Expires:     session.ExpiresAt(), // Will be prior date if expired.
+						MaxAge:      int(ttl.Seconds()),  // Will be negative if expired.
 						Secure:      options.Secure,
 						HttpOnly:    true,
 						SameSite:    options.SameSite,
@@ -121,7 +121,7 @@ func MiddlewareWith(driver contract.SessionDriver, options MiddlewareOptions) fr
 				}
 			})
 
-			ctx := context.WithValue(r.Context(), options.Key, s)
+			ctx := context.WithValue(r.Context(), options.Key, session)
 
 			return next(w, r.WithContext(ctx))
 		}

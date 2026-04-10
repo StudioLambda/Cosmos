@@ -82,9 +82,9 @@ func (session *Session) Get(key string) (any, bool) {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	v, ok := session.storage[key]
+	value, ok := session.storage[key]
 
-	return v, ok
+	return value, ok
 }
 
 // Put stores a value in the session storage associated with the given key. If the key

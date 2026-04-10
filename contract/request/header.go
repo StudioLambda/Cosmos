@@ -17,12 +17,12 @@ func Header(r *http.Request, key string) string {
 
 // HeaderOr returns the first value for the given header key, falling
 // back to the provided default value if the header is missing or empty.
-func HeaderOr(r *http.Request, key string, def string) string {
-	if h := Header(r, key); h != "" {
-		return h
+func HeaderOr(r *http.Request, key string, fallback string) string {
+	if value := Header(r, key); value != "" {
+		return value
 	}
 
-	return def
+	return fallback
 }
 
 // HeaderValues returns all values associated with the given header
