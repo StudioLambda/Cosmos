@@ -96,7 +96,7 @@ func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := handler(wrapped, r.WithContext(ctx))
 
 	if err != nil {
-		handleError(w, r, err)
+		handleError(wrapped, r, err)
 	}
 
 	if !wrapped.WriteHeaderCalled() {
