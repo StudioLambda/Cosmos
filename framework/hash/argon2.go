@@ -10,6 +10,11 @@ type Argon2Config = argon2.Config
 // Argon2 implements contract.Hasher using the Argon2id algorithm.
 // It is the recommended hasher for password storage due to its
 // resistance to GPU and side-channel attacks.
+//
+// WARNING: Argon2 hash operations are intentionally CPU and memory
+// intensive. Endpoints that trigger hashing (login, registration,
+// password change) should implement rate limiting to prevent
+// denial-of-service attacks through hash computation abuse.
 type Argon2 struct {
 	config argon2.Config
 }

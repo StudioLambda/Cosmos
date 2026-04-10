@@ -9,6 +9,11 @@ import (
 // Bcrypt implements contract.Hasher using the bcrypt algorithm.
 // It is an acceptable alternative to Argon2 when compatibility
 // with existing bcrypt hashes is required.
+//
+// WARNING: Bcrypt hash operations are intentionally CPU intensive.
+// Endpoints that trigger hashing (login, registration, password
+// change) should implement rate limiting to prevent
+// denial-of-service attacks through hash computation abuse.
 type Bcrypt struct {
 	options BcryptOptions
 }
