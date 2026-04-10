@@ -9,16 +9,10 @@ import (
 // implement the http.Flusher interface, which is required for streaming responses.
 var ErrNonFlushableWriter = errors.New("non-flushable response writer")
 
-// Stream sends data from a channel to an HTTP client in real-time using HTTP streaming.
-// It sets appropriate headers for streaming and flushes data as it becomes available.
-// The function returns when the channel is closed (graceful shutdown) or when the
-// request context is canceled. If the ResponseWriter doesn't support flushing,
-// it returns ErrNonFlushableWriter.
-//
-// Parameters:
-//   - w: The HTTP response writer
-//   - r: The HTTP request (used for context cancellation)
-//   - c: A receive-only channel providing byte slices to stream
+// Stream sends data from a channel to an HTTP client using streaming.
+// It flushes data as it becomes available and returns when the channel
+// is closed or the request context is canceled. Returns
+// [ErrNonFlushableWriter] if the writer does not support flushing.
 func Stream(w http.ResponseWriter, r *http.Request, c <-chan []byte) error {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -43,22 +37,18 @@ func Stream(w http.ResponseWriter, r *http.Request, c <-chan []byte) error {
 				return nil
 			}
 
-			w.Write(v)
+			if _, err := w.Write(v); err != nil {
+				return err
+			}
+
 			f.Flush()
 		}
 	}
 }
 
-// SSE (Server-Sent Events) sends data from a channel to an HTTP client using
-// the Server-Sent Events protocol. It sets the appropriate Content-Type header
-// for SSE and delegates to the Stream function for the actual streaming logic.
-// This is useful for implementing real-time updates to web browsers that support
-// the EventSource API.
-//
-// Parameters:
-//   - w: The HTTP response writer
-//   - r: The HTTP request (used for context cancellation)
-//   - c: A receive-only channel providing byte slices to stream as SSE data
+// SSE sends data from a channel to an HTTP client using the Server-Sent
+// Events protocol. It sets the appropriate Content-Type header and
+// delegates to [Stream] for the actual streaming logic.
 func SSE(w http.ResponseWriter, r *http.Request, c <-chan []byte) error {
 	w.Header().Set("Content-Type", "text/event-stream")
 
