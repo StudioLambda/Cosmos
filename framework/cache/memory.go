@@ -118,9 +118,16 @@ func (memory *Memory) Decrement(ctx context.Context, key string, by int64) (int6
 	return memory.store.DecrementInt64(key, by)
 }
 
-// Remember retrieves the cached value for the given key, or computes
-// and stores it if the key is not found. The compute function is only
-// called on a cache miss.
+// Remember retrieves the cached value for the given key, or
+// computes and stores it if the key is not found. The compute
+// function is only called on a cache miss.
+//
+// WARNING: This method is not protected against thundering herd
+// (cache stampede). Under high concurrency, multiple goroutines
+// may observe a cache miss simultaneously and all invoke the
+// compute function. For expensive computations, callers should
+// use golang.org/x/sync/singleflight to deduplicate concurrent
+// calls for the same key.
 func (memory *Memory) Remember(ctx context.Context, key string, ttl time.Duration, compute func() (any, error)) (any, error) {
 	val, err := memory.Get(ctx, key)
 

@@ -8,16 +8,24 @@ import (
 	"github.com/studiolambda/cosmos/framework"
 )
 
-// Logger creates middleware that provides comprehensive request logging for Cosmos
-// applications. It captures HTTP status codes, logs requests that result in errors
-// or server errors (5xx status codes), and provides structured logging with
-// contextual information about each request.
+// Logger creates middleware that provides comprehensive request
+// logging for Cosmos applications. It captures HTTP status codes,
+// logs requests that result in errors or server errors (5xx status
+// codes), and provides structured logging with contextual
+// information about each request.
 //
 // The middleware logs the following information for failed requests:
 //   - HTTP method (GET, POST, etc.)
 //   - Full request URL
 //   - HTTP status code returned
 //   - Any error returned by the handler
+//
+// WARNING: The logged request URL and error values may contain
+// sensitive data such as authentication tokens in query parameters,
+// PII, or internal implementation details. Ensure log storage is
+// appropriately secured and consider using a sanitisation layer
+// (e.g., redacting query parameters) before sending logs to
+// external systems.
 //
 // Logging is triggered when:
 //   - A handler returns an error (regardless of status code)

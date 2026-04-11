@@ -10,8 +10,16 @@ import (
 )
 
 // CacheDriver implements contract.SessionDriver by storing sessions
-// in any contract.Cache backend. Sessions are keyed with a configurable
-// prefix to avoid collisions with other cached data.
+// in any contract.Cache backend. Sessions are keyed with a
+// configurable prefix to avoid collisions with other cached data.
+//
+// WARNING: Session data is stored as-is without encryption. When
+// using a remote backend such as Redis, session contents are
+// transmitted and persisted in plaintext. For applications that
+// store sensitive data in sessions, callers should either encrypt
+// values before calling Put or use a cache backend that provides
+// transport and at-rest encryption (e.g., Redis with TLS and disk
+// encryption).
 type CacheDriver struct {
 	cache   contract.Cache
 	options CacheDriverOptions

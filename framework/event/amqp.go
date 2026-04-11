@@ -227,8 +227,6 @@ func (broker *AMQPBroker) Subscribe(
 	wg := sync.WaitGroup{}
 
 	wg.Go(func() {
-		defer wg.Done()
-
 		for delivery := range deliveries {
 			handler(func(dest any) error {
 				return json.Unmarshal(delivery.Body, dest)

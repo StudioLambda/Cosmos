@@ -31,17 +31,9 @@ cd contract && go generate ./...
 
 Always run tests from workspace root for proper module resolution. Each module has its own go.mod. Use full import paths: `github.com/studiolambda/cosmos/contract`
 
-## Code Style
+## Framework Patterns
 
-- Standard Go formatting with gofmt
-- Descriptive names, early returns, single-purpose functions
-- Doc comments starting with name being documented
-- Always check errors with errors.Is() and errors.As()
-- Table-driven tests with testify assertions
-
-### Framework Patterns
-
-Error-returning handlers:
+Error-returning handlers (unlike stdlib, Cosmos handlers return errors):
 ```go
 func handler(w http.ResponseWriter, r *http.Request) error {
     return response.JSON(w, http.StatusOK, data)

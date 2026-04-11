@@ -66,15 +66,39 @@ func LimitedString(r *http.Request, maxSize int64) (string, error) {
 	return string(body), nil
 }
 
-// JSON decodes JSON data from the request body into a value of type T.
-// It uses a streaming decoder for memory efficiency. The type parameter
-// T should match the expected JSON structure.
+// JSON decodes JSON data from the request body into a value of
+// type T. It uses a streaming decoder for memory efficiency. The
+// type parameter T should match the expected JSON structure.
+//
+// Unknown fields in the JSON input are silently ignored. Use
+// [StrictJSON] if unknown fields should cause an error.
 //
 // WARNING: This function decodes without any body size limit.
 // Prefer [LimitedJSON] or apply [http.MaxBytesReader] in a
 // middleware to prevent memory exhaustion from oversized requests.
 func JSON[T any](r *http.Request) (value T, err error) {
 	if err := json.NewDecoder(r.Body).Decode(&value); err != nil {
+		return value, err
+	}
+
+	return value, nil
+}
+
+// StrictJSON decodes JSON data from the request body into a value
+// of type T, rejecting any fields not present in T's definition.
+// This is useful for APIs that require exact schema compliance
+// and want to surface typos or unsupported fields to callers.
+//
+// For a lenient variant that ignores unknown fields, use [JSON].
+//
+// WARNING: This function decodes without any body size limit.
+// Prefer [StrictLimitedJSON] or apply [http.MaxBytesReader] in a
+// middleware to prevent memory exhaustion from oversized requests.
+func StrictJSON[T any](r *http.Request) (value T, err error) {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(&value); err != nil {
 		return value, err
 	}
 
@@ -93,6 +117,25 @@ func LimitedJSON[T any](r *http.Request, maxSize int64) (value T, err error) {
 	limited := io.LimitReader(r.Body, maxSize+1)
 
 	if err := json.NewDecoder(limited).Decode(&value); err != nil {
+		return value, err
+	}
+
+	return value, nil
+}
+
+// StrictLimitedJSON decodes JSON data from the request body into
+// a value of type T, reading at most maxSize bytes and rejecting
+// unknown fields. Pass -1 to use [DefaultMaxBodySize].
+func StrictLimitedJSON[T any](r *http.Request, maxSize int64) (value T, err error) {
+	if maxSize < 0 {
+		maxSize = DefaultMaxBodySize
+	}
+
+	limited := io.LimitReader(r.Body, maxSize+1)
+	decoder := json.NewDecoder(limited)
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(&value); err != nil {
 		return value, err
 	}
 

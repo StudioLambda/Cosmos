@@ -3,6 +3,7 @@ package framework
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 
@@ -78,21 +79,38 @@ func handleError(w http.ResponseWriter, r *http.Request, err error) {
 // ServeHTTP implements the http.Handler interface, bridging Cosmos's
 // error-returning handlers with Go's standard handler contract.
 //
-// It wraps the response writer with lifecycle hooks, calls the handler,
-// and delegates error rendering to handleError when the handler fails.
-// Errors implementing [HTTPStatus] get their custom status code, and
-// errors implementing [http.Handler] render themselves directly.
-// If no status code has been written after the handler returns, a
-// 204 No Content is sent as the default. AfterResponse hooks run
-// last, regardless of success or failure.
-func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// It wraps the response writer with lifecycle hooks, calls the
+// handler, and delegates error rendering to handleError when the
+// handler fails. If the handler already started writing the
+// response (WriteHeader was called), the error is logged instead
+// of attempting a second write which would corrupt the response.
+//
+// Errors implementing [HTTPStatus] get their custom status code,
+// and errors implementing [http.Handler] render themselves
+// directly. If no status code has been written after the handler
+// returns, a 204 No Content is sent as the default.
+// AfterResponse hooks run last, regardless of success or failure.
+func (handler Handler) ServeHTTP(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	hooks := NewHooks()
 	wrapped := NewResponseWriter(w, hooks)
 	ctx := context.WithValue(r.Context(), contract.HooksKey, hooks)
 	err := handler(wrapped, r.WithContext(ctx))
 
 	if err != nil {
-		handleError(wrapped, r, err)
+		if wrapped.WriteHeaderCalled() {
+			slog.ErrorContext(
+				r.Context(),
+				"handler error after partial response write",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"err", err,
+			)
+		} else {
+			handleError(wrapped, r, err)
+		}
 	}
 
 	if !wrapped.WriteHeaderCalled() {
