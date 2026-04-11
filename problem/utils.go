@@ -16,10 +16,10 @@ func stackTrace(err error) []error {
 		Unwrap() []error
 	}
 
-	var j joined
+	var target joined
 
-	if errors.As(err, &j) {
-		for _, err := range j.Unwrap() {
+	if errors.As(err, &target) {
+		for _, err := range target.Unwrap() {
 			result = append(result, stackTrace(err)...)
 		}
 

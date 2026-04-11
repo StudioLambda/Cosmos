@@ -25,9 +25,16 @@ type SQL struct {
 	raw *sqlx.DB // needed for transactions
 }
 
-// NewSQL connects to the database using the given driver name and DSN,
-// returning a ready-to-use SQL instance or an error if the connection
-// cannot be established.
+// NewSQL connects to the database using the given driver name and
+// DSN, returning a ready-to-use SQL instance or an error if the
+// connection cannot be established.
+//
+// WARNING: No default query timeout is applied. Long-running or
+// runaway queries will block indefinitely unless the caller
+// passes a context.Context with a deadline or timeout. For
+// production use, configure statement timeouts at the database
+// driver level (e.g., statement_timeout for PostgreSQL) or wrap
+// all query contexts with context.WithTimeout.
 func NewSQL(driver string, dsn string) (*SQL, error) {
 	db, err := sqlx.Connect(driver, dsn)
 
@@ -41,6 +48,9 @@ func NewSQL(driver string, dsn string) (*SQL, error) {
 // NewSQLFrom wraps an existing sqlx.DB connection in a SQL instance.
 // This is useful when you need to configure the connection pool or
 // driver options before handing it to the framework.
+//
+// WARNING: No default query timeout is applied. See [NewSQL] for
+// recommendations on configuring query timeouts.
 func NewSQLFrom(db *sqlx.DB) *SQL {
 	return &SQL{db: db, raw: db}
 }
@@ -55,13 +65,15 @@ func (database *SQL) Ping(ctx context.Context) error {
 // UPDATE, DELETE) using positional arguments. It returns the number
 // of rows affected.
 func (database *SQL) Exec(ctx context.Context, query string, args ...any) (int64, error) {
-	q, err := database.db.PreparexContext(ctx, query)
+	stmt, err := database.db.PreparexContext(ctx, query)
 
 	if err != nil {
 		return 0, err
 	}
 
-	result, err := q.ExecContext(ctx, args...)
+	defer stmt.Close()
+
+	result, err := stmt.ExecContext(ctx, args...)
 
 	if err != nil {
 		return 0, err
@@ -73,13 +85,15 @@ func (database *SQL) Exec(ctx context.Context, query string, args ...any) (int64
 // ExecNamed prepares and executes a query that modifies data using
 // a named parameter struct or map. It returns the number of rows affected.
 func (database *SQL) ExecNamed(ctx context.Context, query string, arg any) (int64, error) {
-	q, err := database.db.PrepareNamedContext(ctx, query)
+	stmt, err := database.db.PrepareNamedContext(ctx, query)
 
 	if err != nil {
 		return 0, err
 	}
 
-	result, err := q.ExecContext(ctx, arg)
+	defer stmt.Close()
+
+	result, err := stmt.ExecContext(ctx, arg)
 
 	if err != nil {
 		return 0, err
@@ -91,39 +105,45 @@ func (database *SQL) ExecNamed(ctx context.Context, query string, arg any) (int6
 // Select prepares and executes a query that returns multiple rows,
 // scanning the results into the dest slice using positional arguments.
 func (database *SQL) Select(ctx context.Context, query string, dest any, args ...any) error {
-	q, err := database.db.PreparexContext(ctx, query)
+	stmt, err := database.db.PreparexContext(ctx, query)
 
 	if err != nil {
 		return err
 	}
 
-	return q.Select(dest, args...)
+	defer stmt.Close()
+
+	return stmt.Select(dest, args...)
 }
 
 // SelectNamed prepares and executes a query that returns multiple rows,
 // scanning the results into the dest slice using a named parameter
 // struct or map.
 func (database *SQL) SelectNamed(ctx context.Context, query string, dest any, arg any) error {
-	q, err := database.db.PrepareNamedContext(ctx, query)
+	stmt, err := database.db.PrepareNamedContext(ctx, query)
 
 	if err != nil {
 		return err
 	}
 
-	return q.Select(dest, arg)
+	defer stmt.Close()
+
+	return stmt.Select(dest, arg)
 }
 
 // Find prepares and executes a query expected to return a single row,
 // scanning the result into dest. If no row is found, the returned
 // error wraps both sql.ErrNoRows and contract.ErrDatabaseNoRows.
 func (database *SQL) Find(ctx context.Context, query string, dest any, args ...any) error {
-	q, err := database.db.PreparexContext(ctx, query)
+	stmt, err := database.db.PreparexContext(ctx, query)
 
 	if err != nil {
 		return err
 	}
 
-	if err := q.GetContext(ctx, dest, args...); err != nil {
+	defer stmt.Close()
+
+	if err := stmt.GetContext(ctx, dest, args...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return errors.Join(err, contract.ErrDatabaseNoRows)
 		}
@@ -138,13 +158,15 @@ func (database *SQL) Find(ctx context.Context, query string, dest any, args ...a
 // row using a named parameter struct or map, scanning the result into
 // dest.
 func (database *SQL) FindNamed(ctx context.Context, query string, dest any, arg any) error {
-	q, err := database.db.PrepareNamedContext(ctx, query)
+	stmt, err := database.db.PrepareNamedContext(ctx, query)
 
 	if err != nil {
 		return err
 	}
 
-	return q.GetContext(ctx, dest, arg)
+	defer stmt.Close()
+
+	return stmt.GetContext(ctx, dest, arg)
 }
 
 // WithTransaction executes fn inside a database transaction. If fn

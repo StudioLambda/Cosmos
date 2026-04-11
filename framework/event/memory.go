@@ -21,12 +21,20 @@ var (
 	ErrBrokerClosed = errors.New("broker is closed")
 )
 
+// DefaultMaxConcurrentDeliveries is the maximum number of
+// concurrent handler goroutines allowed per MemoryBroker.
+// This prevents goroutine exhaustion under high event throughput
+// with slow handlers.
+const DefaultMaxConcurrentDeliveries = 1024
+
 // MemoryBroker implements the EventBroker interface using only in-memory
 // data structures with no external dependencies.
 // It provides a lightweight, zero-configuration broker ideal for testing,
 // local development, and single-instance applications.
 // All message delivery happens asynchronously in separate goroutines with
 // panic recovery to ensure one handler's failure doesn't affect others.
+// Concurrent deliveries are bounded by a semaphore to prevent goroutine
+// exhaustion.
 type MemoryBroker struct {
 	// mu protects concurrent access to the handlers map during
 	// subscribe and unsubscribe operations.
@@ -42,9 +50,17 @@ type MemoryBroker struct {
 	// to enable precise unsubscribe operations.
 	nextID atomic.Uint64
 
-	// isClosed indicates whether the broker has been closed.
+	// closed indicates whether the broker has been closed.
 	// Once closed, all operations return ErrBrokerClosed.
-	isClosed atomic.Bool
+	closed atomic.Bool
+
+	// sem limits the number of concurrent delivery goroutines to
+	// prevent resource exhaustion under high throughput.
+	sem chan struct{}
+
+	// wg tracks in-flight deliveries so [Close] can wait for
+	// them to complete.
+	wg sync.WaitGroup
 }
 
 // NewMemoryBroker creates a new in-memory event broker with no external
@@ -55,6 +71,7 @@ type MemoryBroker struct {
 func NewMemoryBroker() *MemoryBroker {
 	return &MemoryBroker{
 		handlers: make(map[string]map[string]contract.EventHandler),
+		sem:      make(chan struct{}, DefaultMaxConcurrentDeliveries),
 	}
 }
 
@@ -77,7 +94,7 @@ func (broker *MemoryBroker) Publish(
 	event string,
 	payload any,
 ) error {
-	if broker.isClosed.Load() {
+	if broker.closed.Load() {
 		return ErrBrokerClosed
 	}
 
@@ -100,7 +117,17 @@ func (broker *MemoryBroker) Publish(
 		}
 
 		for _, handler := range patternHandlers {
-			go broker.deliverToHandler(handler, encoded)
+			broker.wg.Add(1)
+			broker.sem <- struct{}{}
+
+			go func(h contract.EventHandler) {
+				defer func() {
+					<-broker.sem
+					broker.wg.Done()
+				}()
+
+				broker.deliverToHandler(h, encoded)
+			}(handler)
 		}
 	}
 
@@ -126,7 +153,7 @@ func (broker *MemoryBroker) Subscribe(
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
-	if broker.isClosed.Load() {
+	if broker.closed.Load() {
 		return nil, ErrBrokerClosed
 	}
 
@@ -160,9 +187,11 @@ func (broker *MemoryBroker) Subscribe(
 // Close shuts down the broker and removes all subscribed handlers.
 // After Close is called, all operations return ErrBrokerClosed and the
 // broker cannot be reused.
-// In-flight message deliveries may still complete after Close returns.
+// Close waits for all in-flight deliveries to complete before returning.
 func (broker *MemoryBroker) Close() error {
-	broker.isClosed.Store(true)
+	broker.closed.Store(true)
+
+	broker.wg.Wait()
 
 	broker.mu.Lock()
 	defer broker.mu.Unlock()
@@ -195,8 +224,8 @@ func (broker *MemoryBroker) deliverToHandler(
 	})
 }
 
-// matchEvent checks if a subscription pattern matches an event name.
-// It supports dot-separated tokens with wildcards:
+// matchEvent checks if a subscription pattern matches an
+// event name. It supports dot-separated tokens with wildcards:
 //   - "*" matches exactly one token
 //   - "#" matches zero or more tokens
 func matchEvent(pattern, event string) bool {
@@ -210,9 +239,9 @@ func matchEvent(pattern, event string) bool {
 	return matchEventParts(patternParts, eventParts)
 }
 
-// matchEventParts recursively matches event parts against pattern parts
-// with wildcard support.
-// It handles "*" for single-token and "#" for multi-token matching.
+// matchEventParts recursively matches event parts against
+// pattern parts with wildcard support. It handles "*" for
+// single-token and "#" for multi-token matching.
 func matchEventParts(pattern, event []string) bool {
 	if len(pattern) == 0 {
 		return len(event) == 0

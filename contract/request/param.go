@@ -13,12 +13,11 @@ import (
 //
 // Parameters:
 //   - r: The HTTP request containing the path parameters
-//   - k: The name of the path parameter to retrieve
+//   - name: The name of the path parameter to retrieve
 //
-// Returns the parameter value as a string, or empty string
-// if not found.
-func Param(r *http.Request, k string) string {
-	return r.PathValue(k)
+// Returns the parameter value as a string, or empty string if not found.
+func Param(r *http.Request, name string) string {
+	return r.PathValue(name)
 }
 
 // ParamOr retrieves a path parameter value by name,
@@ -29,18 +28,16 @@ func Param(r *http.Request, k string) string {
 //
 // Parameters:
 //   - r: The HTTP request containing the path parameters
-//   - k: The name of the path parameter to retrieve
-//   - d: The default value to return if the parameter is
-//     not found or empty
+//   - name: The name of the path parameter to retrieve
+//   - fallback: The default value to return if the parameter is not found or empty
 //
-// Returns the parameter value if found and non-empty,
-// otherwise the default value.
-func ParamOr(r *http.Request, k string, d string) string {
-	if p := Param(r, k); p != "" {
-		return p
+// Returns the parameter value if found and non-empty, otherwise the default value.
+func ParamOr(r *http.Request, name string, fallback string) string {
+	if value := Param(r, name); value != "" {
+		return value
 	}
 
-	return d
+	return fallback
 }
 
 // ParamInt retrieves a path parameter by name and parses

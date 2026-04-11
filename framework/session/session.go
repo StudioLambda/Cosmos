@@ -7,31 +7,42 @@ import (
 	"time"
 )
 
-// Session represents an HTTP session with data storage, expiration management, and change tracking.
-// It maintains the current and original session IDs, supports key-value storage, and tracks
-// modifications for persistence decisions. Access to the session is protected by a mutex
-// to ensure thread-safe operations.
+// Session represents an HTTP session with data storage, expiration
+// management, and change tracking. It maintains the current and
+// original session IDs, supports key-value storage, and tracks
+// modifications for persistence decisions. Access to the session
+// is protected by a mutex to ensure thread-safe operations.
 type Session struct {
-	// originalID is the session ID assigned when the session was first created.
-	// This value remains constant even if the session is regenerated.
+	// originalID is the session ID assigned when the session was
+	// first created. This value remains constant even if the
+	// session is regenerated.
 	originalID string
 
-	// id is the current session identifier. This may differ from OriginalID if the session
-	// has been regenerated (e.g., for security purposes after authentication).
+	// id is the current session identifier. This may differ from
+	// OriginalID if the session has been regenerated (e.g., for
+	// security purposes after authentication).
 	id string
 
-	// expiration is the time at which the session will expire and be considered invalid.
-	expiration time.Time
+	// createdAt records the absolute time the session was first
+	// created. This timestamp is immutable and used by the
+	// middleware to enforce a maximum absolute session lifetime,
+	// preventing indefinite session extension through activity.
+	createdAt time.Time
 
-	// storage holds the session data as key-value pairs. Keys are strings and values
-	// can be of any type.
+	// expiresAt is the time at which the session will expire
+	// and be considered invalid.
+	expiresAt time.Time
+
+	// storage holds the session data as key-value pairs. Keys
+	// are strings and values can be of any type.
 	storage map[string]any
 
 	// mutex protects concurrent access to the session fields.
 	mutex sync.Mutex
 
-	// changed tracks whether the session data has been modified since it was loaded,
-	// indicating whether it needs to be persisted.
+	// changed tracks whether the session data has been modified
+	// since it was loaded, indicating whether it needs to be
+	// persisted.
 	changed bool
 }
 
@@ -71,7 +82,8 @@ func NewSession(expiresAt time.Time, storage map[string]any) (*Session, error) {
 	return &Session{
 		originalID: id,
 		id:         id,
-		expiration: expiresAt,
+		createdAt:  time.Now(),
+		expiresAt:  expiresAt,
 		storage:    storage,
 		mutex:      sync.Mutex{},
 		changed:    true, // this will make sure first time its saved
@@ -102,13 +114,22 @@ func (session *Session) Get(key string) (any, bool) {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	v, ok := session.storage[key]
+	value, ok := session.storage[key]
 
-	return v, ok
+	return value, ok
 }
 
-// Put stores a value in the session storage associated with the given key. If the key
-// already exists, its value is overwritten. This operation marks the session as changed.
+// Put stores a value in the session storage associated with the
+// given key. If the key already exists, its value is overwritten.
+// This operation marks the session as changed.
+//
+// WARNING: When storing authentication-related state (e.g.,
+// user IDs, roles, or privilege levels), callers MUST call
+// [Session.Regenerate] immediately after to prevent session
+// fixation attacks. Failing to regenerate the session ID
+// after authentication changes allows an attacker who knows
+// the pre-authentication session ID to hijack the elevated
+// session.
 func (session *Session) Put(key string, value any) {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
@@ -134,15 +155,21 @@ func (session *Session) Extend(expiresAt time.Time) {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	session.expiration = expiresAt
+	session.expiresAt = expiresAt
 	session.changed = true
 }
 
-// Regenerate generates a new session ID and updates the expiration time. This is
-// commonly used for security purposes such as preventing session fixation attacks
-// after user authentication. The original session ID is preserved and can be retrieved
-// via OriginalSessionID. This operation marks the session as changed. It returns an
-// error if ID generation fails.
+// Regenerate generates a new session ID and updates the expiration
+// time. This is commonly used for security purposes such as
+// preventing session fixation attacks after user authentication.
+// The original session ID is preserved and can be retrieved via
+// OriginalSessionID. This operation marks the session as changed.
+// It returns an error if ID generation fails.
+//
+// WARNING: This method MUST be called after any authentication
+// state change (login, logout, privilege escalation). Without
+// regeneration, an attacker who obtained the session ID before
+// authentication can use it to access the authenticated session.
 func (session *Session) Regenerate() error {
 	id, err := generateSessionID()
 
@@ -170,12 +197,24 @@ func (session *Session) Clear() {
 	session.changed = true
 }
 
-// ExpiresAt returns the time at which the session will expire and be considered invalid.
+// ExpiresAt returns the time at which the session will expire
+// and be considered invalid.
 func (session *Session) ExpiresAt() time.Time {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	return session.expiration
+	return session.expiresAt
+}
+
+// CreatedAt returns the absolute time the session was first
+// created. This value never changes, even if the session is
+// regenerated or extended. It is used by the middleware to
+// enforce [MiddlewareOptions.MaxLifetime].
+func (session *Session) CreatedAt() time.Time {
+	session.mutex.Lock()
+	defer session.mutex.Unlock()
+
+	return session.createdAt
 }
 
 // HasExpired checks whether the session has already expired by comparing the current
@@ -184,7 +223,7 @@ func (session *Session) HasExpired() bool {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	return time.Now().After(session.expiration)
+	return time.Now().After(session.expiresAt)
 }
 
 // ExpiresSoon checks whether the session will expire within the specified duration
@@ -195,9 +234,9 @@ func (session *Session) ExpiresSoon(delta time.Duration) bool {
 	defer session.mutex.Unlock()
 
 	now := time.Now()
-	warningTime := session.expiration.Add(-delta)
+	warningTime := session.expiresAt.Add(-delta)
 
-	return now.After(warningTime) && now.Before(session.expiration)
+	return now.After(warningTime) && now.Before(session.expiresAt)
 }
 
 // HasChanged returns true if the session data has been modified since it was loaded.

@@ -21,6 +21,13 @@ import (
 //   - HTTP status code returned
 //   - Any error returned by the handler
 //
+// WARNING: The logged request URL and error values may contain
+// sensitive data such as authentication tokens in query parameters,
+// PII, or internal implementation details. Ensure log storage is
+// appropriately secured and consider using a sanitisation layer
+// (e.g., redacting query parameters) before sending logs to
+// external systems.
+//
 // Logging is triggered when:
 //   - A handler returns an error (regardless of status code)
 //   - The response has a 5xx server error status code

@@ -104,6 +104,13 @@ type NATSBrokerOptions struct {
 
 	// TLSConfig enables TLS encryption for the NATS connection.
 	// When set, all communication with the NATS server is encrypted.
+	//
+	// WARNING: Setting InsecureSkipVerify to true disables
+	// certificate verification, making the connection vulnerable
+	// to man-in-the-middle attacks. This should only be used in
+	// development and testing environments. Production deployments
+	// MUST use proper certificate validation with RootCAs
+	// configured.
 	TLSConfig *tls.Config
 
 	// RootCAs is a list of paths to root CA certificate files.

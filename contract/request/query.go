@@ -12,14 +12,12 @@ import (
 // name matches the provided key.
 //
 // Parameters:
-//   - r: The HTTP request containing the URL with query
-//     parameters
-//   - k: The name of the query parameter to retrieve
+//   - r: The HTTP request containing the URL with query parameters
+//   - name: The name of the query parameter to retrieve
 //
-// Returns the first value associated with the key, or empty
-// string if not found.
-func Query(r *http.Request, k string) string {
-	return r.URL.Query().Get(k)
+// Returns the first value associated with the key, or empty string if not found.
+func Query(r *http.Request, name string) string {
+	return r.URL.Query().Get(name)
 }
 
 // HasQuery checks if a query parameter exists in the HTTP
@@ -28,14 +26,12 @@ func Query(r *http.Request, k string) string {
 // one that exists but has an empty value.
 //
 // Parameters:
-//   - r: The HTTP request containing the URL with query
-//     parameters
-//   - k: The name of the query parameter to check for
+//   - r: The HTTP request containing the URL with query parameters
+//   - name: The name of the query parameter to check for
 //
-// Returns true if the parameter exists in the query string,
-// false otherwise.
-func HasQuery(r *http.Request, k string) bool {
-	return r.URL.Query().Has(k)
+// Returns true if the parameter exists in the query string, false otherwise.
+func HasQuery(r *http.Request, name string) bool {
+	return r.URL.Query().Has(name)
 }
 
 // QueryOr retrieves a query parameter value by name,
@@ -46,20 +42,17 @@ func HasQuery(r *http.Request, k string) bool {
 // parameters.
 //
 // Parameters:
-//   - r: The HTTP request containing the URL with query
-//     parameters
-//   - k: The name of the query parameter to retrieve
-//   - d: The default value to return if the parameter
-//     doesn't exist
+//   - r: The HTTP request containing the URL with query parameters
+//   - name: The name of the query parameter to retrieve
+//   - fallback: The default value to return if the parameter doesn't exist
 //
-// Returns the parameter value if it exists, otherwise the
-// default value.
-func QueryOr(r *http.Request, k string, d string) string {
-	if HasQuery(r, k) {
-		return Query(r, k)
+// Returns the parameter value if it exists, otherwise the default value.
+func QueryOr(r *http.Request, name string, fallback string) string {
+	if HasQuery(r, name) {
+		return Query(r, name)
 	}
 
-	return d
+	return fallback
 }
 
 // QueryInt retrieves a query parameter by name and parses

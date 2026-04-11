@@ -285,11 +285,7 @@ func (problem Problem) Defaulted(request *http.Request) Problem {
 	}
 
 	if problem.Instance == "" {
-		problem.Instance = request.URL.String()
-	}
-
-	if traces := problem.Errors(); problem.Detail == "" && len(traces) > 0 {
-		problem.Detail = traces[0].Error()
+		problem.Instance = request.URL.Path
 	}
 
 	return problem
@@ -340,6 +336,11 @@ func (problem Problem) jsonProblemHandler(w http.ResponseWriter, r *http.Request
 // ServeHTTPDev serves the problem as an HTTP response with the full
 // stack trace included. This is intended for development environments
 // where detailed error information is useful.
+//
+// WARNING: This method MUST NEVER be used in production. It exposes
+// full error stack traces to clients, which can reveal internal
+// implementation details, file paths, and sensitive debugging
+// information to attackers.
 func (problem Problem) ServeHTTPDev(w http.ResponseWriter, r *http.Request) {
 	problem.WithStackTrace().ServeHTTP(w, r)
 }

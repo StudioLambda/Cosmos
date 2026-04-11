@@ -36,7 +36,7 @@ func NewRedisFrom(client *redis.Client) *RedisClient {
 // The key is intentionally omitted from the error to prevent
 // cache key enumeration attacks.
 func (client *RedisClient) Get(ctx context.Context, key string) (any, error) {
-	v, err := (*redis.Client)(client).Get(ctx, key).Result()
+	value, err := (*redis.Client)(client).Get(ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
 		return nil, contract.ErrCacheKeyNotFound
@@ -46,7 +46,7 @@ func (client *RedisClient) Get(ctx context.Context, key string) (any, error) {
 		return nil, err
 	}
 
-	return v, nil
+	return value, nil
 }
 
 // Put stores a value with the given TTL. A zero TTL means the key
@@ -62,18 +62,18 @@ func (client *RedisClient) Delete(ctx context.Context, key string) error {
 
 // Has reports whether the key exists in Redis.
 func (client *RedisClient) Has(ctx context.Context, key string) (bool, error) {
-	n, err := (*redis.Client)(client).Exists(ctx, key).Result()
+	count, err := (*redis.Client)(client).Exists(ctx, key).Result()
 
 	if err != nil {
 		return false, err
 	}
 
-	return n > 0, nil
+	return count > 0, nil
 }
 
 // Pull atomically retrieves and deletes a key using Redis GETDEL.
 // The stored value is JSON-decoded into the return value.
-func (client *RedisClient) Pull(ctx context.Context, key string) (v any, e error) {
+func (client *RedisClient) Pull(ctx context.Context, key string) (value any, err error) {
 	encoded, err := (*redis.Client)(client).GetDel(ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
@@ -84,11 +84,11 @@ func (client *RedisClient) Pull(ctx context.Context, key string) (v any, e error
 		return nil, err
 	}
 
-	if err := json.Unmarshal([]byte(encoded), &v); err != nil {
+	if err := json.Unmarshal([]byte(encoded), &value); err != nil {
 		return nil, err
 	}
 
-	return v, nil
+	return value, nil
 }
 
 // Forever stores a value with no expiration.
@@ -106,9 +106,17 @@ func (client *RedisClient) Decrement(ctx context.Context, key string, by int64) 
 	return (*redis.Client)(client).DecrBy(ctx, key, by).Result()
 }
 
-// Remember retrieves the cached value for key, or computes and stores
-// it with the given TTL on a cache miss. Non-"key not found" errors
-// from Get are returned immediately without calling compute.
+// Remember retrieves the cached value for key, or computes and
+// stores it with the given TTL on a cache miss. Non-"key not
+// found" errors from Get are returned immediately without calling
+// compute.
+//
+// WARNING: This method is not protected against thundering herd
+// (cache stampede). Under high concurrency, multiple goroutines
+// may observe a cache miss simultaneously and all invoke the
+// compute function. For expensive computations, callers should
+// use golang.org/x/sync/singleflight to deduplicate concurrent
+// calls for the same key.
 func (client *RedisClient) Remember(ctx context.Context, key string, ttl time.Duration, compute func() (any, error)) (any, error) {
 	val, err := client.Get(ctx, key)
 
