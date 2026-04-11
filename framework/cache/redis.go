@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -32,13 +31,15 @@ func NewRedisFrom(client *redis.Client) *RedisClient {
 	return (*RedisClient)(client)
 }
 
-// Get retrieves a value by key. Returns contract.ErrCacheKeyNotFound
-// wrapped with the key name when the key does not exist.
+// Get retrieves a value by key. Returns
+// contract.ErrCacheKeyNotFound when the key does not exist.
+// The key is intentionally omitted from the error to prevent
+// cache key enumeration attacks.
 func (client *RedisClient) Get(ctx context.Context, key string) (any, error) {
 	value, err := (*redis.Client)(client).Get(ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
-		return nil, fmt.Errorf("%w: %s", contract.ErrCacheKeyNotFound, key)
+		return nil, contract.ErrCacheKeyNotFound
 	}
 
 	if err != nil {
@@ -76,7 +77,7 @@ func (client *RedisClient) Pull(ctx context.Context, key string) (value any, err
 	encoded, err := (*redis.Client)(client).GetDel(ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
-		return nil, fmt.Errorf("%w: %s", contract.ErrCacheKeyNotFound, key)
+		return nil, contract.ErrCacheKeyNotFound
 	}
 
 	if err != nil {

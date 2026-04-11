@@ -11,16 +11,21 @@ import (
 	"text/template"
 )
 
-// Raw writes raw byte data to the response writer with the specified status code.
-// It does not set any Content-Type header, allowing the caller full control over
-// the response format. This is the most basic response function that other
-// response functions build upon.
+// Raw writes raw byte data to the response writer with
+// the specified status code. If no Content-Type header has
+// been explicitly set on the response writer, it defaults
+// to application/octet-stream to ensure a safe default
+// content type is always present.
 //
 // Parameters:
 //   - w: The HTTP response writer
 //   - status: The HTTP status code to set
 //   - data: The raw byte data to write to the response
 func Raw(w http.ResponseWriter, status int, data []byte) error {
+	if w.Header().Get("Content-Type") == "" {
+		w.Header().Set("Content-Type", "application/octet-stream")
+	}
+
 	w.WriteHeader(status)
 
 	_, err := w.Write(data)
@@ -88,9 +93,11 @@ func StringTemplate(w http.ResponseWriter, status int, tmpl template.Template, d
 	return tmpl.Execute(w, data)
 }
 
-// HTML writes HTML content to the response writer with the appropriate
-// Content-Type header for HTML (text/html). This is used for serving
-// static HTML content or HTML strings that have been pre-generated.
+// HTML writes HTML content to the response writer with the
+// appropriate Content-Type header for HTML content
+// (text/html; charset=utf-8). The charset is explicitly
+// set to prevent XSS attacks via charset sniffing in
+// older browsers that may otherwise guess the encoding.
 //
 // Parameters:
 //   - w: The HTTP response writer

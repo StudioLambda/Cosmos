@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/studiolambda/cosmos/contract"
@@ -81,12 +82,37 @@ const (
 	DefaultMaxLifetime = 24 * time.Hour
 )
 
+// expectedSessionIDLength is the expected length of a valid
+// session ID string. A 32-byte random value encoded with
+// base64url (no padding) produces exactly 43 characters.
+const expectedSessionIDLength = 43
+
+// validSessionIDPattern matches exactly 43 base64url characters
+// (A-Z, a-z, 0-9, hyphen, underscore) with no padding.
+var validSessionIDPattern = regexp.MustCompile(
+	`^[A-Za-z0-9_-]{43}$`,
+)
+
+// validSessionID reports whether the given ID has the expected
+// format for a session identifier: exactly 43 characters using
+// only the base64url alphabet. This prevents cache key injection
+// and avoids unnecessary cache lookups for malformed IDs.
+func validSessionID(id string) bool {
+	if len(id) != expectedSessionIDLength {
+		return false
+	}
+
+	return validSessionIDPattern.MatchString(id)
+}
+
 // currentSession loads an existing session from the cookie-provided
-// ID or creates a fresh one when no valid session is found.
+// ID or creates a fresh one when no valid session is found. The
+// cookie value is validated against the expected session ID format
+// before performing a cache lookup.
 func currentSession(r *http.Request, driver contract.SessionDriver, options MiddlewareOptions) (contract.Session, error) {
 	id := request.CookieValue(r, options.Name)
 
-	if id != "" {
+	if id != "" && validSessionID(id) {
 		if session, err := driver.Get(r.Context(), id); err == nil {
 			session.MarkAsUnchanged()
 
@@ -95,6 +121,44 @@ func currentSession(r *http.Request, driver contract.SessionDriver, options Midd
 	}
 
 	return NewSession(time.Now().Add(options.TTL), map[string]any{})
+}
+
+// withDefaults returns a copy of the options with secure defaults
+// applied to any zero-valued fields. This ensures that callers who
+// construct a partial MiddlewareOptions still get secure cookie
+// attributes (Secure=true, SameSite=Lax, HttpOnly, Path="/") and
+// sensible session parameters (DefaultCookie name, DefaultTTL,
+// DefaultExpirationDelta, contract.SessionKey).
+func (options MiddlewareOptions) withDefaults() MiddlewareOptions {
+	if options.Name == "" {
+		options.Name = DefaultCookie
+	}
+
+	if options.Path == "" {
+		options.Path = "/"
+	}
+
+	if !options.Secure {
+		options.Secure = true
+	}
+
+	if options.SameSite == 0 {
+		options.SameSite = http.SameSiteLaxMode
+	}
+
+	if options.TTL == 0 {
+		options.TTL = DefaultTTL
+	}
+
+	if options.ExpirationDelta == 0 {
+		options.ExpirationDelta = DefaultExpirationDelta
+	}
+
+	if options.Key == nil {
+		options.Key = contract.SessionKey
+	}
+
+	return options
 }
 
 // reportError invokes the configured error handler if set.
@@ -110,12 +174,15 @@ func reportError(options MiddlewareOptions, err error) {
 // given driver and options. It loads or creates a session per
 // request, attaches it to the context, and persists changes via a
 // BeforeWriteHeader hook that handles expiration, regeneration,
-// and cookie updates.
+// and cookie updates. Zero-valued option fields are replaced with
+// secure defaults via withDefaults.
 //
 // When MaxLifetime is set and the session's age (measured from
 // its CreatedAt timestamp) exceeds that duration, the session is
 // force-regenerated to prevent indefinite extension.
 func MiddlewareWith(driver contract.SessionDriver, options MiddlewareOptions) framework.Middleware {
+	options = options.withDefaults()
+
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
 			session, err := currentSession(r, driver, options)

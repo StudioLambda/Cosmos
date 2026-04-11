@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -200,16 +201,21 @@ func (broker *MemoryBroker) Close() error {
 	return nil
 }
 
-// deliverToHandler invokes a handler with the encoded payload in a
-// goroutine with panic recovery.
-// This ensures that a panic in one handler doesn't affect other handlers
-// or the broker itself.
+// deliverToHandler invokes a handler with the encoded payload
+// in a goroutine with panic recovery. Recovered panics are
+// logged via slog so they remain visible for debugging.
+// This ensures that a panic in one handler doesn't affect
+// other handlers or the broker itself.
 func (broker *MemoryBroker) deliverToHandler(
 	handler contract.EventHandler,
 	encoded []byte,
 ) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
+			slog.Error(
+				"event handler panicked",
+				"error", recovered,
+			)
 		}
 	}()
 

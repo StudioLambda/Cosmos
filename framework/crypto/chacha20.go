@@ -13,7 +13,21 @@ import (
 // authenticated encryption. The AEAD cipher is created once at
 // construction time and reused for every Encrypt/Decrypt call.
 type ChaCha20 struct {
+	// aead is the underlying ChaCha20-Poly1305 AEAD cipher.
 	aead cipher.AEAD
+
+	// key is the raw key material, retained so that Close
+	// can zero it from memory.
+	key []byte
+
+	// AdditionalData is optional additional authenticated data (AAD)
+	// passed to the AEAD Seal and Open operations. AAD is
+	// authenticated but not encrypted, which allows binding the
+	// ciphertext to a particular context (e.g. a user ID, resource
+	// path, or version) so that ciphertext cannot be transplanted
+	// between contexts. When set, the same AAD must be provided for
+	// both encryption and decryption or authentication will fail.
+	AdditionalData []byte
 }
 
 // ErrMismatchedChaCha20NonceSize is returned when the ciphertext
@@ -30,7 +44,7 @@ func NewChaCha20(key []byte) (*ChaCha20, error) {
 		return nil, err
 	}
 
-	return &ChaCha20{aead: aead}, nil
+	return &ChaCha20{aead: aead, key: key}, nil
 }
 
 // Encrypt encrypts the plaintext using ChaCha20-Poly1305 with a
@@ -43,7 +57,7 @@ func (encrypter *ChaCha20) Encrypt(value []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	return encrypter.aead.Seal(nonce, nonce, value, nil), nil
+	return encrypter.aead.Seal(nonce, nonce, value, encrypter.AdditionalData), nil
 }
 
 // Decrypt decrypts ChaCha20-Poly1305 ciphertext that has the nonce
@@ -57,11 +71,20 @@ func (encrypter *ChaCha20) Decrypt(value []byte) ([]byte, error) {
 	}
 
 	nonce, ciphertext := value[:nonceSize], value[nonceSize:]
-	plaintext, err := encrypter.aead.Open(nil, nonce, ciphertext, nil)
+	plaintext, err := encrypter.aead.Open(nil, nonce, ciphertext, encrypter.AdditionalData)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return plaintext, nil
+}
+
+// Close zeros the key material from memory. Callers should
+// defer Close immediately after creating the encrypter to
+// ensure key material does not linger in process memory.
+func (encrypter *ChaCha20) Close() {
+	for i := range encrypter.key {
+		encrypter.key[i] = 0
+	}
 }

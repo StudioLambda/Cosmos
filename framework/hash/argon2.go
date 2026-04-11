@@ -36,13 +36,19 @@ func NewArgon2With(config Argon2Config) *Argon2 {
 
 // Hash produces an Argon2id encoded hash of the given value.
 // The returned byte slice contains the full encoded string
-// including algorithm parameters and salt.
+// including algorithm parameters and salt. The plaintext value
+// is zeroed from memory after hashing completes.
 func (hasher *Argon2) Hash(value []byte) ([]byte, error) {
+	defer zeroBytes(value)
+
 	return hasher.config.HashEncoded(value)
 }
 
 // Check verifies that the given plaintext value matches the
-// previously hashed encoded output.
+// previously hashed encoded output. The plaintext value is
+// zeroed from memory after verification completes.
 func (hasher *Argon2) Check(value []byte, hash []byte) (bool, error) {
+	defer zeroBytes(value)
+
 	return argon2.VerifyEncoded(value, hash)
 }

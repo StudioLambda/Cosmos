@@ -199,3 +199,20 @@ func (database *SQL) WithTransaction(ctx context.Context, fn func(tx contract.Da
 func (database *SQL) Close() error {
 	return database.raw.Close()
 }
+
+// Configure exposes the underlying *sql.DB for connection pool
+// tuning. The provided function receives the raw *sql.DB so
+// callers can set pool parameters such as SetMaxOpenConns,
+// SetMaxIdleConns, and SetConnMaxLifetime without importing
+// database/sql directly.
+//
+// Example:
+//
+//	db.Configure(func(raw *sql.DB) {
+//	    raw.SetMaxOpenConns(25)
+//	    raw.SetMaxIdleConns(10)
+//	    raw.SetConnMaxLifetime(5 * time.Minute)
+//	})
+func (database *SQL) Configure(fn func(*sql.DB)) {
+	fn(database.raw.DB)
+}

@@ -33,6 +33,17 @@ type AMQPBroker struct {
 
 // AMQPBrokerOptions configures the creation of a new AMQPBroker,
 // allowing customization of the connection URL and exchange name.
+//
+// WARNING: The URL field typically contains credentials in the
+// format amqp://username:password@host:port/vhost. These are
+// stored as a plain string in memory for the lifetime of this
+// struct. Callers should:
+//  1. Always use TLS (amqps://) to protect credentials in
+//     transit.
+//  2. Load the connection URL from environment variables or a
+//     secret manager rather than hard-coding it.
+//  3. Consider short-lived credentials or external auth
+//     mechanisms where the broker supports them.
 type AMQPBrokerOptions struct {
 	// URL is the AMQP connection string in the format:
 	// amqp://username:password@host:port/vhost

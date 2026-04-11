@@ -25,9 +25,10 @@ type BcryptOptions struct {
 	cost int
 }
 
-// DefaultBcryptCost is the default bcrypt cost factor, matching
-// the bcrypt library's own default of 10.
-const DefaultBcryptCost = 10
+// DefaultBcryptCost is the default bcrypt cost factor.
+// OWASP recommends a minimum cost of 12 for password hashing
+// to provide adequate resistance against brute-force attacks.
+const DefaultBcryptCost = 12
 
 // NewBcrypt creates a Bcrypt hasher with the default cost factor.
 func NewBcrypt() *Bcrypt {
@@ -37,16 +38,25 @@ func NewBcrypt() *Bcrypt {
 }
 
 // NewBcryptWith creates a Bcrypt hasher with the given options,
-// allowing a custom cost factor.
+// allowing a custom cost factor. The cost is clamped to a minimum
+// of bcrypt.MinCost (4). Costs below 12 are not recommended for
+// production use per OWASP guidelines.
 func NewBcryptWith(options BcryptOptions) *Bcrypt {
+	if options.cost < bcrypt.MinCost {
+		options.cost = bcrypt.MinCost
+	}
+
 	return &Bcrypt{
 		options: options,
 	}
 }
 
 // Hash produces a bcrypt hash of the given value using the
-// configured cost factor.
+// configured cost factor. The plaintext value is zeroed from
+// memory after hashing completes.
 func (hasher *Bcrypt) Hash(value []byte) ([]byte, error) {
+	defer zeroBytes(value)
+
 	hash, err := bcrypt.GenerateFromPassword(value, hasher.options.cost)
 
 	if err != nil {
@@ -58,8 +68,11 @@ func (hasher *Bcrypt) Hash(value []byte) ([]byte, error) {
 
 // Check verifies that the given plaintext value matches the
 // bcrypt hash. Returns (false, nil) on a mismatch and (false, err)
-// on an unexpected error.
+// on an unexpected error. The plaintext value is zeroed from
+// memory after verification completes.
 func (hasher *Bcrypt) Check(value []byte, hash []byte) (bool, error) {
+	defer zeroBytes(value)
+
 	err := bcrypt.CompareHashAndPassword(hash, value)
 
 	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {

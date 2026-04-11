@@ -42,10 +42,20 @@ type NATSBroker struct {
 }
 
 // NATSBrokerOptions configures a NATS broker connection.
-// It provides comprehensive control over connection behavior, authentication,
-// and reliability features.
-// All fields are optional; sensible defaults are applied when using
-// NewNATSBrokerWith.
+// It provides comprehensive control over connection behavior,
+// authentication, and reliability features.
+// All fields are optional; sensible defaults are applied when
+// using NewNATSBrokerWith.
+//
+// WARNING: Credential fields (Username, Password, Token,
+// NKeySeed) are stored as plain strings in memory for the
+// lifetime of this struct. Callers should:
+//  1. Always use TLS (set TLSConfig) to protect credentials
+//     in transit.
+//  2. Load credentials from environment variables or a secret
+//     manager rather than hard-coding them.
+//  3. Prefer short-lived credentials or NKey/JWT auth via
+//     CredentialsFile where supported.
 type NATSBrokerOptions struct {
 	// URLs is a list of NATS server URLs to connect to.
 	// Multiple URLs enable automatic failover in clustered deployments.

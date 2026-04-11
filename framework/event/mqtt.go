@@ -54,6 +54,16 @@ type MQTTBroker struct {
 // MQTTBrokerOptions configures the creation of a new MQTTBroker,
 // allowing customization of connection URLs, QoS level, and
 // authentication credentials.
+//
+// WARNING: Credential fields (Username, Password) are stored
+// as plain strings in memory for the lifetime of this struct.
+// Callers should:
+//  1. Always use TLS (mqtts:// URLs) to protect credentials
+//     in transit.
+//  2. Load credentials from environment variables or a secret
+//     manager rather than hard-coding them.
+//  3. Consider short-lived or certificate-based credentials
+//     where the broker supports them.
 type MQTTBrokerOptions struct {
 	// URLs is a slice of MQTT broker URLs to connect to.
 	// Format: mqtt://host:port or mqtts://host:port for TLS.
