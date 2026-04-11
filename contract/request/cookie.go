@@ -8,11 +8,11 @@ import "net/http"
 //
 // Parameters:
 //   - r: The HTTP request to search for the cookie
-//   - k: The name of the cookie to retrieve
+//   - name: The name of the cookie to retrieve
 //
 // Returns the cookie object or nil if not found.
-func Cookie(r *http.Request, k string) *http.Cookie {
-	if cookie, err := r.Cookie(k); err == nil {
+func Cookie(r *http.Request, name string) *http.Cookie {
+	if cookie, err := r.Cookie(name); err == nil {
 		return cookie
 	}
 
@@ -25,12 +25,12 @@ func Cookie(r *http.Request, k string) *http.Cookie {
 //
 // Parameters:
 //   - r: The HTTP request to search for the cookie
-//   - k: The name of the cookie whose value to retrieve
+//   - name: The name of the cookie whose value to retrieve
 //
 // Returns the cookie value as a string, or empty string if not found.
-func CookieValue(r *http.Request, k string) string {
-	if c := Cookie(r, k); c != nil {
-		return c.Value
+func CookieValue(r *http.Request, name string) string {
+	if cookie := Cookie(r, name); cookie != nil {
+		return cookie.Value
 	}
 
 	return ""
@@ -42,14 +42,14 @@ func CookieValue(r *http.Request, k string) string {
 //
 // Parameters:
 //   - r: The HTTP request to search for the cookie
-//   - k: The name of the cookie whose value to retrieve
-//   - d: The default value to return if the cookie is not found or empty
+//   - name: The name of the cookie whose value to retrieve
+//   - fallback: The default value to return if the cookie is not found or empty
 //
 // Returns the cookie value if found and non-empty, otherwise the default value.
-func CookieValueOr(r *http.Request, k string, d string) string {
-	if v := CookieValue(r, k); v != "" {
-		return v
+func CookieValueOr(r *http.Request, name string, fallback string) string {
+	if value := CookieValue(r, name); value != "" {
+		return value
 	}
 
-	return d
+	return fallback
 }

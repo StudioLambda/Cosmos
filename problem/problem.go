@@ -288,10 +288,6 @@ func (problem Problem) Defaulted(request *http.Request) Problem {
 		problem.Instance = request.URL.Path
 	}
 
-	if traces := problem.Errors(); problem.Detail == "" && len(traces) > 0 {
-		problem.Detail = traces[0].Error()
-	}
-
 	return problem
 }
 

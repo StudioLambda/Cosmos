@@ -61,19 +61,15 @@ func handleError(w http.ResponseWriter, r *http.Request, err error) {
 		status = 499 // A non-standard status code: 499 Client Closed Request
 	}
 
-	var statusErr HTTPStatus
-
-	if errors.As(err, &statusErr) {
-		status = statusErr.HTTPStatus()
+	if target := (HTTPStatus)(nil); errors.As(err, &target) {
+		status = target.HTTPStatus()
 	}
 
 	// When the error itself implements http.Handler, delegate
 	// rendering entirely to it. This allows error types like
 	// problem.Problem to control their own HTTP response format.
-	var handlerErr http.Handler
-
-	if errors.As(err, &handlerErr) {
-		handlerErr.ServeHTTP(w, r)
+	if target := (http.Handler)(nil); errors.As(err, &target) {
+		target.ServeHTTP(w, r)
 		return
 	}
 
@@ -113,7 +109,7 @@ func (handler Handler) ServeHTTP(
 				"err", err,
 			)
 		} else {
-			handleError(w, r, err)
+			handleError(wrapped, r, err)
 		}
 	}
 

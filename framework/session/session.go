@@ -29,9 +29,9 @@ type Session struct {
 	// preventing indefinite session extension through activity.
 	createdAt time.Time
 
-	// expiration is the time at which the session will expire
+	// expiresAt is the time at which the session will expire
 	// and be considered invalid.
-	expiration time.Time
+	expiresAt time.Time
 
 	// storage holds the session data as key-value pairs. Keys
 	// are strings and values can be of any type.
@@ -65,7 +65,7 @@ func NewSession(
 		originalID: id.String(),
 		id:         id.String(),
 		createdAt:  time.Now(),
-		expiration: expiresAt,
+		expiresAt:  expiresAt,
 		storage:    storage,
 		mutex:      sync.Mutex{},
 		changed:    true, // this will make sure first time its saved
@@ -96,9 +96,9 @@ func (session *Session) Get(key string) (any, bool) {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	v, ok := session.storage[key]
+	value, ok := session.storage[key]
 
-	return v, ok
+	return value, ok
 }
 
 // Put stores a value in the session storage associated with the
@@ -137,7 +137,7 @@ func (session *Session) Extend(expiresAt time.Time) {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	session.expiration = expiresAt
+	session.expiresAt = expiresAt
 	session.changed = true
 }
 
@@ -185,7 +185,7 @@ func (session *Session) ExpiresAt() time.Time {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	return session.expiration
+	return session.expiresAt
 }
 
 // CreatedAt returns the absolute time the session was first
@@ -205,7 +205,7 @@ func (session *Session) HasExpired() bool {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	return time.Now().After(session.expiration)
+	return time.Now().After(session.expiresAt)
 }
 
 // ExpiresSoon checks whether the session will expire within the specified duration
@@ -216,9 +216,9 @@ func (session *Session) ExpiresSoon(delta time.Duration) bool {
 	defer session.mutex.Unlock()
 
 	now := time.Now()
-	warningTime := session.expiration.Add(-delta)
+	warningTime := session.expiresAt.Add(-delta)
 
-	return now.After(warningTime) && now.Before(session.expiration)
+	return now.After(warningTime) && now.Before(session.expiresAt)
 }
 
 // HasChanged returns true if the session data has been modified since it was loaded.

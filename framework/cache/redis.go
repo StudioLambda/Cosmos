@@ -35,7 +35,7 @@ func NewRedisFrom(client *redis.Client) *RedisClient {
 // Get retrieves a value by key. Returns contract.ErrCacheKeyNotFound
 // wrapped with the key name when the key does not exist.
 func (client *RedisClient) Get(ctx context.Context, key string) (any, error) {
-	v, err := (*redis.Client)(client).Get(ctx, key).Result()
+	value, err := (*redis.Client)(client).Get(ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
 		return nil, fmt.Errorf("%w: %s", contract.ErrCacheKeyNotFound, key)
@@ -45,7 +45,7 @@ func (client *RedisClient) Get(ctx context.Context, key string) (any, error) {
 		return nil, err
 	}
 
-	return v, nil
+	return value, nil
 }
 
 // Put stores a value with the given TTL. A zero TTL means the key
@@ -61,18 +61,18 @@ func (client *RedisClient) Delete(ctx context.Context, key string) error {
 
 // Has reports whether the key exists in Redis.
 func (client *RedisClient) Has(ctx context.Context, key string) (bool, error) {
-	n, err := (*redis.Client)(client).Exists(ctx, key).Result()
+	count, err := (*redis.Client)(client).Exists(ctx, key).Result()
 
 	if err != nil {
 		return false, err
 	}
 
-	return n > 0, nil
+	return count > 0, nil
 }
 
 // Pull atomically retrieves and deletes a key using Redis GETDEL.
 // The stored value is JSON-decoded into the return value.
-func (client *RedisClient) Pull(ctx context.Context, key string) (v any, e error) {
+func (client *RedisClient) Pull(ctx context.Context, key string) (value any, err error) {
 	encoded, err := (*redis.Client)(client).GetDel(ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
@@ -83,11 +83,11 @@ func (client *RedisClient) Pull(ctx context.Context, key string) (v any, e error
 		return nil, err
 	}
 
-	if err := json.Unmarshal([]byte(encoded), &v); err != nil {
+	if err := json.Unmarshal([]byte(encoded), &value); err != nil {
 		return nil, err
 	}
 
-	return v, nil
+	return value, nil
 }
 
 // Forever stores a value with no expiration.
