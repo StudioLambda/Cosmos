@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strconv"
 	"strings"
@@ -196,11 +197,7 @@ func NewMQTTBrokerWith(options *MQTTBrokerOptions) (*MQTTBroker, error) {
 		ClientConfig: paho.ClientConfig{
 			ClientID: "",
 			OnPublishReceived: []func(paho.PublishReceived) (bool, error){
-				func(pr paho.PublishReceived) (bool, error) {
-					broker.route(pr.Packet)
-
-					return true, nil
-				},
+				broker.HandlePublish,
 			},
 		},
 	}
@@ -225,6 +222,19 @@ func NewMQTTBrokerWith(options *MQTTBrokerOptions) (*MQTTBroker, error) {
 // autopaho ConnectionManager and QoS level. This constructor is
 // useful for advanced scenarios where the user needs full control
 // over the MQTT connection configuration.
+//
+// Because autopaho.ConnectionManager does not allow post-creation
+// configuration changes, the caller must wire up message routing
+// when building the paho config. Use [MQTTBroker.HandlePublish] in
+// the ClientConfig.OnPublishReceived slice:
+//
+//	broker := event.NewMQTTBrokerFrom(nil, 1)
+//	cfg.ClientConfig.OnPublishReceived = []func(paho.PublishReceived) (bool, error){
+//	    broker.HandlePublish,
+//	}
+//	cm, err := autopaho.NewConnection(ctx, cfg)
+//	// then set the client so Publish/Subscribe/Close work:
+//	broker.SetClient(cm)
 func NewMQTTBrokerFrom(
 	client *autopaho.ConnectionManager,
 	qos byte,
@@ -237,10 +247,33 @@ func NewMQTTBrokerFrom(
 	}
 }
 
+// SetClient sets the underlying autopaho ConnectionManager. This is
+// intended for use with [NewMQTTBrokerFrom] when the broker must be
+// created before the ConnectionManager so that [MQTTBroker.HandlePublish]
+// can be wired into the paho config.
+func (broker *MQTTBroker) SetClient(client *autopaho.ConnectionManager) {
+	broker.client = client
+}
+
+// HandlePublish is a paho OnPublishReceived callback that routes
+// incoming MQTT messages to registered handlers. Callers using
+// [NewMQTTBrokerFrom] must include this method in the paho
+// ClientConfig.OnPublishReceived slice so that subscribed handlers
+// receive messages.
+func (broker *MQTTBroker) HandlePublish(pr paho.PublishReceived) (bool, error) {
+	broker.route(pr.Packet)
+
+	return true, nil
+}
+
 // route delivers an incoming MQTT message to all matching
 // handlers based on topic pattern matching. This implements
 // fan-out behavior where multiple handlers can receive the
 // same message if they subscribed to matching patterns.
+//
+// Each handler is called with panic recovery so that a
+// panicking handler does not crash the paho client goroutine
+// and tear down the entire MQTT connection.
 func (broker *MQTTBroker) route(pb *paho.Publish) {
 	broker.mu.RLock()
 	defer broker.mu.RUnlock()
@@ -248,12 +281,33 @@ func (broker *MQTTBroker) route(pb *paho.Publish) {
 	for pattern, handlers := range broker.handlers {
 		if matchTopic(pattern, pb.Topic) {
 			for _, handler := range handlers {
-				handler(func(dest any) error {
-					return json.Unmarshal(pb.Payload, dest)
-				})
+				broker.deliverToHandler(handler, pb.Topic, pb.Payload)
 			}
 		}
 	}
+}
+
+// deliverToHandler invokes a single handler with panic recovery.
+// Recovered panics are logged via slog so they remain visible for
+// debugging without propagating to the caller.
+func (broker *MQTTBroker) deliverToHandler(
+	handler contract.EventHandler,
+	topic string,
+	payload []byte,
+) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			slog.Error(
+				"mqtt event handler panicked",
+				"topic", topic,
+				"error", recovered,
+			)
+		}
+	}()
+
+	handler(func(dest any) error {
+		return json.Unmarshal(payload, dest)
+	})
 }
 
 // Publish sends an event with the given name and payload to all

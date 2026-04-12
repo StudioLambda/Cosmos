@@ -1533,3 +1533,113 @@ func TestCatchAllWithFewSegments(t *testing.T) {
 		t.Fatal("root catch-all should match single segment")
 	}
 }
+
+func TestSubRouterServeHTTPFromGroup(t *testing.T) {
+	t.Parallel()
+
+	rt := router.New[http.HandlerFunc]()
+
+	rt.Group("/api", func(api *router.Router[http.HandlerFunc]) {
+		api.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+
+		// ServeHTTP on the sub-router must not panic.
+		req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+		rr := httptest.NewRecorder()
+		api.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected status %d but got %d", http.StatusOK, rr.Code)
+		}
+	})
+}
+
+func TestSubRouterRecordFromWith(t *testing.T) {
+	t.Parallel()
+
+	rt := router.New[http.HandlerFunc]()
+
+	sub := rt.With(func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Sub", "true")
+			next(w, r)
+		}
+	})
+
+	sub.Get("/record-test", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	})
+
+	// Record on the sub-router must not panic.
+	req := httptest.NewRequest(http.MethodGet, "/record-test", nil)
+	res := sub.Record(req)
+
+	if res.StatusCode != http.StatusAccepted {
+		t.Fatalf("expected status %d but got %d", http.StatusAccepted, res.StatusCode)
+	}
+
+	if res.Header.Get("X-Sub") != "true" {
+		t.Fatal("sub-router middleware should be applied")
+	}
+}
+
+func TestSubRouterHandlerMatchFromClone(t *testing.T) {
+	t.Parallel()
+
+	rt := router.New[http.HandlerFunc]()
+
+	clone := rt.Clone()
+
+	clone.Get("/cloned", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// HandlerMatch on the clone must not panic.
+	req := httptest.NewRequest(http.MethodGet, "/cloned", nil)
+	handler, ok := clone.HandlerMatch(req)
+
+	if !ok {
+		t.Fatal("HandlerMatch on clone should find the route")
+	}
+
+	if handler == nil {
+		t.Fatal("returned handler should not be nil")
+	}
+}
+
+func TestSubRouterHasFromGroup(t *testing.T) {
+	t.Parallel()
+
+	rt := router.New[http.HandlerFunc]()
+
+	rt.Group("/api", func(api *router.Router[http.HandlerFunc]) {
+		api.Get("/users", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+
+		// Has on the sub-router must not panic.
+		if !api.Has(http.MethodGet, "/api/users") {
+			t.Fatal("sub-router Has should find the route")
+		}
+	})
+}
+
+func TestSubRouterMatchesFromClone(t *testing.T) {
+	t.Parallel()
+
+	rt := router.New[http.HandlerFunc]()
+
+	clone := rt.Clone()
+
+	clone.Post("/submit", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+	})
+
+	// Matches on the clone must not panic.
+	req := httptest.NewRequest(http.MethodPost, "/submit", nil)
+
+	if !clone.Matches(req) {
+		t.Fatal("sub-router Matches should find the route")
+	}
+}

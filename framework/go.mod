@@ -6,6 +6,7 @@ require (
 	github.com/eclipse/paho.golang v0.23.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/matthewhartstonge/argon2 v1.4.3
+	github.com/mattn/go-sqlite3 v1.14.42
 	github.com/nats-io/nats.go v1.48.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/rabbitmq/amqp091-go v1.10.0
