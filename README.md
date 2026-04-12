@@ -44,16 +44,18 @@ A pure Go implementation of RFC 9457 (Problem Details for HTTP APIs) that works 
 
 ### contract
 
-A collection of common service interfaces (Cache, Database, Session, Crypto, Hash) with zero dependencies. Designed for dependency injection and testing with included mock implementations.
+A collection of common service interfaces (Cache, Database, Session, Crypto, Hash, Events, Hooks) with zero dependencies. Designed for dependency injection and testing with included mock implementations.
 
 **Module:** `github.com/studiolambda/cosmos/contract`
 
 **Key Features:**
 - Zero dependencies for maximum portability
-- Request/response helper functions
+- Request helpers with typed integer parsing (`ParamInt`, `QueryInt`)
+- Size-limited body parsing (`LimitedJSON`, `StrictJSON`)
+- Safe redirect validation
+- Response helpers (JSON, HTML, XML, SSE, streaming)
 - Hooks system for middleware lifecycle events
 - Mock implementations via mockery
-- Shared across all Cosmos modules
 
 ### framework
 
@@ -63,28 +65,30 @@ A complete HTTP framework that orchestrates the router, problem, and contract mo
 
 **Key Features:**
 - Error-returning handler pattern
-- First-class middleware system
-- Session management with cache backends
-- Cryptography (AES-GCM, ChaCha20-Poly1305)
-- Password hashing (Argon2, Bcrypt)
-- SQL database wrapper with transactions
+- First-class middleware system (CORS, CSRF, rate limiting, secure headers, recovery, logging)
+- Secure HTTP server with timeout defaults
+- Session management with cache backends and absolute lifetime enforcement
+- Cryptography (AES-GCM, ChaCha20-Poly1305) with key zeroing and additional authenticated data
+- Password hashing (Argon2, Bcrypt) with secure defaults
+- SQL database wrapper with transactions and connection pool tuning
 - Cache implementations (Memory, Redis)
-- CSRF protection middleware
+- Event system (Memory, Redis, NATS, AMQP, MQTT) with wildcard subscriptions
 
 ## Installation
 
 Each module can be installed independently:
 
 ```bash
-# Install individual modules
+# Framework includes router, problem, and contract as dependencies
+go get github.com/studiolambda/cosmos/framework
+
+# Or install individual modules
 go get github.com/studiolambda/cosmos/router
 go get github.com/studiolambda/cosmos/problem
 go get github.com/studiolambda/cosmos/contract
-go get github.com/studiolambda/cosmos/framework
-
-# Framework includes router, problem, and contract as dependencies
-go get github.com/studiolambda/cosmos/framework
 ```
+
+Requires **Go 1.25** or later.
 
 ## Quick Start
 
@@ -97,9 +101,9 @@ import (
     "log/slog"
     "net/http"
 
+    "github.com/studiolambda/cosmos/contract/response"
     "github.com/studiolambda/cosmos/framework"
     "github.com/studiolambda/cosmos/framework/middleware"
-    "github.com/studiolambda/cosmos/contract/response"
 )
 
 type User struct {
@@ -115,12 +119,14 @@ func getUser(w http.ResponseWriter, r *http.Request) error {
 func main() {
     app := framework.New()
 
-    app.Use(middleware.Logger(slog.Default()))
     app.Use(middleware.Recover())
+    app.Use(middleware.Logger(slog.Default()))
+    app.Use(middleware.SecureHeaders())
 
     app.Get("/users/{id}", getUser)
 
-    http.ListenAndServe(":8080", app)
+    server := framework.NewServer(":8080", app)
+    server.ListenAndServe()
 }
 ```
 
@@ -148,15 +154,28 @@ http.HandleFunc("/api/users/{id}", func(w http.ResponseWriter, r *http.Request) 
 })
 ```
 
+## Security
+
+Cosmos includes security hardening across all modules:
+
+- **CORS** — Configurable cross-origin resource sharing middleware
+- **CSRF** — Cross-site request forgery protection via Go's `http.CrossOriginProtection`
+- **Rate Limiting** — Per-key token bucket rate limiting middleware
+- **Secure Headers** — X-Content-Type-Options, X-Frame-Options, HSTS, Referrer-Policy, CSP
+- **Server Timeouts** — Secure defaults preventing Slowloris and connection exhaustion
+- **Session Security** — Cryptographically random IDs (256-bit), absolute lifetime enforcement, session ID validation, secure cookie defaults
+- **Body Limits** — Size-limited body parsing to prevent OOM attacks
+- **Safe Redirects** — URL validation preventing open redirect vulnerabilities
+- **XSS Prevention** — `html/template` for HTML rendering with charset enforcement
+- **Prepared Statement Cleanup** — Automatic `defer Close()` preventing connection pool exhaustion
+- **Key Zeroing** — `Close()` methods on encryption types to clear key material from memory
+- **Password Hashing** — Argon2 with password zeroing, Bcrypt with OWASP cost defaults
+
 ## Development
 
 This project uses Go workspaces for local development:
 
 ```bash
-# Initialize workspace (already configured)
-go work init
-go work use ./contract ./framework ./problem ./router
-
 # Run tests for all modules
 go test ./...
 
@@ -167,16 +186,15 @@ go test ./router/...
 # Run tests with coverage
 go test -cover ./...
 
-# Format all code
+# Format and vet
 go fmt ./...
-
-# Vet all code
 go vet ./...
+
+# Generate mocks (contract only)
+cd contract && go generate ./...
 ```
 
 ### Module Dependencies
-
-The dependency hierarchy is:
 
 ```
 contract (zero dependencies)
@@ -186,21 +204,6 @@ router (standalone)
     ↓
 framework (depends on: router, problem, contract)
 ```
-
-### Working with Local Changes
-
-When developing locally, the `go.work` file already contains replace directives:
-
-```go
-replace (
-    github.com/studiolambda/cosmos/contract v0.6.1 => ./contract
-    github.com/studiolambda/cosmos/framework v0.6.0 => ./framework
-    github.com/studiolambda/cosmos/problem v0.2.0 => ./problem
-    github.com/studiolambda/cosmos/router v0.2.0 => ./router
-)
-```
-
-This allows you to make changes across modules and test them together before publishing.
 
 ## Architecture
 
@@ -232,9 +235,9 @@ Execution order: `A → B → C → handler → C → B → A`
 
 The hooks system allows middleware to inject behavior at key points in the request/response lifecycle:
 
-- `BeforeWriteHeader`: Called before HTTP status is written
-- `BeforeWrite`: Called before response body is written
-- `AfterResponse`: Called after response completes (with error if any)
+- `BeforeWriteHeader` — Called before HTTP status is written
+- `BeforeWrite` — Called before response body is written
+- `AfterResponse` — Called after response completes (with error if any)
 
 ## Project Structure
 
@@ -245,11 +248,12 @@ cosmos/
 │   ├── response/      # Response helper functions
 │   └── mock/          # Generated mocks
 ├── framework/         # Complete HTTP framework
-│   ├── cache/         # Cache implementations
-│   ├── crypto/        # Encryption implementations
-│   ├── database/      # Database wrapper
-│   ├── hash/          # Password hashing
-│   ├── middleware/    # HTTP middleware
+│   ├── cache/         # Cache implementations (Memory, Redis)
+│   ├── crypto/        # Encryption (AES-GCM, ChaCha20-Poly1305)
+│   ├── database/      # SQL database wrapper
+│   ├── event/         # Event brokers (Memory, Redis, NATS, AMQP, MQTT)
+│   ├── hash/          # Password hashing (Argon2, Bcrypt)
+│   ├── middleware/     # HTTP middleware
 │   └── session/       # Session management
 ├── problem/           # RFC 9457 implementation
 │   └── internal/      # Internal utilities
@@ -260,24 +264,13 @@ cosmos/
 
 ## Testing
 
-Each module has comprehensive tests:
+Each module has comprehensive tests. Run all tests from the workspace root:
 
 ```bash
-# Run all tests
-go test ./...
-
-# Test specific module with verbose output
-go test -v ./framework/...
-
-# Run specific test
-go test -run TestHandlerName ./framework
-
-# Test with race detection
-go test -race ./...
-
-# Generate coverage report
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
+go test ./...              # All modules
+go test -v ./framework/... # Verbose output for one module
+go test -race ./...        # Race detection
+go test -cover ./...       # Coverage report
 ```
 
 ## Contributing
@@ -285,7 +278,7 @@ go tool cover -html=coverage.out
 Contributions are welcome! When contributing:
 
 1. Write tests for new functionality
-2. Follow existing code style and patterns
+2. Follow existing code style and patterns (see `.agents/skills/cosmos-go/`)
 3. Run `go fmt` and `go vet` before committing
 4. Ensure all tests pass
 5. Update documentation as needed
@@ -299,5 +292,5 @@ See LICENSE file in each module for details.
 ## Links
 
 - GitHub: https://github.com/studiolambda/cosmos
-- Documentation: See individual module README files
+- Documentation: https://studiolambda.com/cosmos/getting-started
 - RFC 9457: https://datatracker.ietf.org/doc/html/rfc9457
