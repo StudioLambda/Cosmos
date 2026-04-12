@@ -113,7 +113,7 @@ func (database *SQL) Select(ctx context.Context, query string, dest any, args ..
 
 	defer stmt.Close()
 
-	return stmt.Select(dest, args...)
+	return stmt.SelectContext(ctx, dest, args...)
 }
 
 // SelectNamed prepares and executes a query that returns multiple rows,
@@ -128,7 +128,7 @@ func (database *SQL) SelectNamed(ctx context.Context, query string, dest any, ar
 
 	defer stmt.Close()
 
-	return stmt.Select(dest, arg)
+	return stmt.SelectContext(ctx, dest, arg)
 }
 
 // Find prepares and executes a query expected to return a single row,
@@ -166,7 +166,15 @@ func (database *SQL) FindNamed(ctx context.Context, query string, dest any, arg 
 
 	defer stmt.Close()
 
-	return stmt.GetContext(ctx, dest, arg)
+	if err := stmt.GetContext(ctx, dest, arg); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errors.Join(err, contract.ErrDatabaseNoRows)
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 // WithTransaction executes fn inside a database transaction. If fn

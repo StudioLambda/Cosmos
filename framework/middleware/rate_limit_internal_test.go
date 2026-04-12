@@ -10,7 +10,7 @@ import (
 func TestRegistryGetCreatesNewEntry(t *testing.T) {
 	t.Parallel()
 
-	registry := newRateLimitRegistry(10, 20, time.Hour, time.Hour)
+	registry := newRateLimitRegistry(10, 20, 10000, time.Hour, time.Hour)
 	t.Cleanup(registry.close)
 
 	limiter := registry.get("192.168.1.1")
@@ -22,7 +22,7 @@ func TestRegistryGetCreatesNewEntry(t *testing.T) {
 func TestRegistryGetReusesExistingEntry(t *testing.T) {
 	t.Parallel()
 
-	registry := newRateLimitRegistry(10, 20, time.Hour, time.Hour)
+	registry := newRateLimitRegistry(10, 20, 10000, time.Hour, time.Hour)
 	t.Cleanup(registry.close)
 
 	first := registry.get("192.168.1.1")
@@ -35,7 +35,7 @@ func TestRegistryGetReusesExistingEntry(t *testing.T) {
 func TestRegistryGetUpdatesLastSeen(t *testing.T) {
 	t.Parallel()
 
-	registry := newRateLimitRegistry(10, 20, time.Hour, time.Hour)
+	registry := newRateLimitRegistry(10, 20, 10000, time.Hour, time.Hour)
 	t.Cleanup(registry.close)
 
 	registry.get("192.168.1.1")
@@ -58,7 +58,7 @@ func TestRegistryGetUpdatesLastSeen(t *testing.T) {
 func TestRegistrySizeReturnsEntryCount(t *testing.T) {
 	t.Parallel()
 
-	registry := newRateLimitRegistry(10, 20, time.Hour, time.Hour)
+	registry := newRateLimitRegistry(10, 20, 10000, time.Hour, time.Hour)
 	t.Cleanup(registry.close)
 
 	require.Equal(t, 0, registry.size())
@@ -77,7 +77,7 @@ func TestRegistryCleanupEvictsIdleEntries(t *testing.T) {
 	t.Parallel()
 
 	registry := newRateLimitRegistry(
-		10, 20,
+		10, 20, 10000,
 		50*time.Millisecond,
 		100*time.Millisecond,
 	)
@@ -96,7 +96,7 @@ func TestRegistryCleanupPreservesActiveEntries(t *testing.T) {
 	t.Parallel()
 
 	registry := newRateLimitRegistry(
-		10, 20,
+		10, 20, 10000,
 		50*time.Millisecond,
 		150*time.Millisecond,
 	)
@@ -124,7 +124,7 @@ func TestRegistryCloseStopsCleanupGoroutine(t *testing.T) {
 	t.Parallel()
 
 	registry := newRateLimitRegistry(
-		10, 20,
+		10, 20, 10000,
 		50*time.Millisecond,
 		50*time.Millisecond,
 	)
@@ -141,7 +141,7 @@ func TestRegistryEvictedKeyGetsNewLimiterOnRevisit(t *testing.T) {
 	t.Parallel()
 
 	registry := newRateLimitRegistry(
-		1, 1,
+		1, 1, 10000,
 		50*time.Millisecond,
 		100*time.Millisecond,
 	)
@@ -193,4 +193,50 @@ func TestWithDefaultsPreservesCustomMaxIdleTime(t *testing.T) {
 	}.withDefaults()
 
 	require.Equal(t, 10*time.Minute, opts.MaxIdleTime)
+}
+
+func TestWithDefaultsFillsMaxEntries(t *testing.T) {
+	t.Parallel()
+
+	opts := RateLimitOptions{}.withDefaults()
+
+	require.Equal(t, 10000, opts.MaxEntries)
+}
+
+func TestWithDefaultsPreservesCustomMaxEntries(t *testing.T) {
+	t.Parallel()
+
+	opts := RateLimitOptions{
+		MaxEntries: 500,
+	}.withDefaults()
+
+	require.Equal(t, 500, opts.MaxEntries)
+}
+
+func TestRegistryGetReturnsOverflowWhenFull(t *testing.T) {
+	t.Parallel()
+
+	registry := newRateLimitRegistry(10, 5, 2, time.Hour, time.Hour)
+	t.Cleanup(registry.close)
+
+	registry.get("key-1")
+	registry.get("key-2")
+	require.Equal(t, 2, registry.size())
+
+	limiter := registry.get("key-3")
+	require.Same(t, registry.overflow, limiter)
+	require.Equal(t, 2, registry.size())
+}
+
+func TestRegistryGetReturnsExistingEntryWhenFull(t *testing.T) {
+	t.Parallel()
+
+	registry := newRateLimitRegistry(10, 5, 2, time.Hour, time.Hour)
+	t.Cleanup(registry.close)
+
+	first := registry.get("key-1")
+	registry.get("key-2")
+
+	second := registry.get("key-1")
+	require.Same(t, first, second)
 }

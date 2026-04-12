@@ -2,8 +2,10 @@ package event
 
 import (
 	"encoding/json"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/studiolambda/cosmos/contract"
 
@@ -147,25 +149,35 @@ func TestMatchPartsHashPatternEmptyTopic(t *testing.T) {
 	require.True(t, result)
 }
 
+// newTestMQTTBroker creates an MQTTBroker with initialized
+// semaphore for use in route() tests that don't need a real
+// MQTT connection.
+func newTestMQTTBroker(handlers map[string]map[string]contract.EventHandler) *MQTTBroker {
+	return &MQTTBroker{
+		handlers: handlers,
+		sem:      make(chan struct{}, DefaultMaxConcurrentDeliveries),
+	}
+}
+
 func TestMQTTBrokerRouteDeliversToMatchingHandler(t *testing.T) {
 	t.Parallel()
 
 	var called atomic.Bool
 
-	broker := &MQTTBroker{
-		handlers: map[string]map[string]contract.EventHandler{
-			"user/created": {
-				"1": func(payload contract.EventPayload) {
-					called.Store(true)
-				},
+	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
+		"user/created": {
+			"1": func(payload contract.EventPayload) {
+				called.Store(true)
 			},
 		},
-	}
+	})
 
 	broker.route(&paho.Publish{
 		Topic:   "user/created",
 		Payload: []byte(`"hello"`),
 	})
+
+	broker.routeWg.Wait()
 
 	require.True(t, called.Load())
 }
@@ -175,20 +187,20 @@ func TestMQTTBrokerRouteDeliversToWildcardHandler(t *testing.T) {
 
 	var called atomic.Bool
 
-	broker := &MQTTBroker{
-		handlers: map[string]map[string]contract.EventHandler{
-			"user/+": {
-				"1": func(payload contract.EventPayload) {
-					called.Store(true)
-				},
+	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
+		"user/+": {
+			"1": func(payload contract.EventPayload) {
+				called.Store(true)
 			},
 		},
-	}
+	})
 
 	broker.route(&paho.Publish{
 		Topic:   "user/123",
 		Payload: []byte(`"data"`),
 	})
+
+	broker.routeWg.Wait()
 
 	require.True(t, called.Load())
 }
@@ -198,20 +210,20 @@ func TestMQTTBrokerRouteDoesNotDeliverToNonMatching(t *testing.T) {
 
 	var called atomic.Bool
 
-	broker := &MQTTBroker{
-		handlers: map[string]map[string]contract.EventHandler{
-			"user/created": {
-				"1": func(payload contract.EventPayload) {
-					called.Store(true)
-				},
+	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
+		"user/created": {
+			"1": func(payload contract.EventPayload) {
+				called.Store(true)
 			},
 		},
-	}
+	})
 
 	broker.route(&paho.Publish{
 		Topic:   "order/created",
 		Payload: []byte(`"data"`),
 	})
+
+	broker.routeWg.Wait()
 
 	require.False(t, called.Load())
 }
@@ -221,23 +233,23 @@ func TestMQTTBrokerRouteDeliversToMultipleHandlersSamePattern(t *testing.T) {
 
 	var count atomic.Int32
 
-	broker := &MQTTBroker{
-		handlers: map[string]map[string]contract.EventHandler{
-			"user/created": {
-				"1": func(payload contract.EventPayload) {
-					count.Add(1)
-				},
-				"2": func(payload contract.EventPayload) {
-					count.Add(1)
-				},
+	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
+		"user/created": {
+			"1": func(payload contract.EventPayload) {
+				count.Add(1)
+			},
+			"2": func(payload contract.EventPayload) {
+				count.Add(1)
 			},
 		},
-	}
+	})
 
 	broker.route(&paho.Publish{
 		Topic:   "user/created",
 		Payload: []byte(`"hello"`),
 	})
+
+	broker.routeWg.Wait()
 
 	require.Equal(t, int32(2), count.Load())
 }
@@ -247,25 +259,25 @@ func TestMQTTBrokerRouteFanOutAcrossPatterns(t *testing.T) {
 
 	var count atomic.Int32
 
-	broker := &MQTTBroker{
-		handlers: map[string]map[string]contract.EventHandler{
-			"user/created": {
-				"1": func(payload contract.EventPayload) {
-					count.Add(1)
-				},
-			},
-			"user/+": {
-				"2": func(payload contract.EventPayload) {
-					count.Add(1)
-				},
+	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
+		"user/created": {
+			"1": func(payload contract.EventPayload) {
+				count.Add(1)
 			},
 		},
-	}
+		"user/+": {
+			"2": func(payload contract.EventPayload) {
+				count.Add(1)
+			},
+		},
+	})
 
 	broker.route(&paho.Publish{
 		Topic:   "user/created",
 		Payload: []byte(`"hello"`),
 	})
+
+	broker.routeWg.Wait()
 
 	require.Equal(t, int32(2), count.Load())
 }
@@ -273,17 +285,19 @@ func TestMQTTBrokerRouteFanOutAcrossPatterns(t *testing.T) {
 func TestMQTTBrokerRouteUnmarshalsJSONPayload(t *testing.T) {
 	t.Parallel()
 
-	var received string
+	var received atomic.Value
 
-	broker := &MQTTBroker{
-		handlers: map[string]map[string]contract.EventHandler{
-			"user/created": {
-				"1": func(payload contract.EventPayload) {
-					_ = payload(&received)
-				},
+	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
+		"user/created": {
+			"1": func(payload contract.EventPayload) {
+				var value string
+
+				_ = payload(&value)
+
+				received.Store(value)
 			},
 		},
-	}
+	})
 
 	data, err := json.Marshal("hello world")
 
@@ -294,7 +308,91 @@ func TestMQTTBrokerRouteUnmarshalsJSONPayload(t *testing.T) {
 		Payload: data,
 	})
 
-	require.Equal(t, "hello world", received)
+	broker.routeWg.Wait()
+
+	require.Equal(t, "hello world", received.Load())
+}
+
+func TestMQTTBrokerRouteDispatchesAsynchronously(t *testing.T) {
+	t.Parallel()
+
+	var started sync.WaitGroup
+	var finished sync.WaitGroup
+
+	started.Add(2)
+	finished.Add(2)
+
+	gate := make(chan struct{})
+
+	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
+		"events/test": {
+			"1": func(payload contract.EventPayload) {
+				started.Done()
+				<-gate
+				finished.Done()
+			},
+			"2": func(payload contract.EventPayload) {
+				started.Done()
+				<-gate
+				finished.Done()
+			},
+		},
+	})
+
+	broker.route(&paho.Publish{
+		Topic:   "events/test",
+		Payload: []byte(`"data"`),
+	})
+
+	// Both handlers must start concurrently. If route() were
+	// synchronous, the second handler could never start while
+	// the first is blocked on the gate.
+	done := make(chan struct{})
+
+	go func() {
+		started.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Both handlers started concurrently — success.
+	case <-time.After(2 * time.Second):
+		t.Fatal("handlers did not start concurrently within timeout")
+	}
+
+	close(gate)
+
+	finished.Wait()
+	broker.routeWg.Wait()
+}
+
+func TestMQTTBrokerRouteRecoversPanic(t *testing.T) {
+	t.Parallel()
+
+	var secondCalled atomic.Bool
+
+	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
+		"events/panic": {
+			"1": func(payload contract.EventPayload) {
+				panic("test panic")
+			},
+		},
+		"events/+": {
+			"2": func(payload contract.EventPayload) {
+				secondCalled.Store(true)
+			},
+		},
+	})
+
+	broker.route(&paho.Publish{
+		Topic:   "events/panic",
+		Payload: []byte(`"data"`),
+	})
+
+	broker.routeWg.Wait()
+
+	require.True(t, secondCalled.Load())
 }
 
 func TestMQTTBrokerRoutePanicDoesNotPropagate(t *testing.T) {
@@ -308,6 +406,7 @@ func TestMQTTBrokerRoutePanicDoesNotPropagate(t *testing.T) {
 				},
 			},
 		},
+		sem: make(chan struct{}, DefaultMaxConcurrentDeliveries),
 	}
 
 	require.NotPanics(t, func() {
@@ -315,6 +414,7 @@ func TestMQTTBrokerRoutePanicDoesNotPropagate(t *testing.T) {
 			Topic:   "user/created",
 			Payload: []byte(`"data"`),
 		})
+		broker.routeWg.Wait()
 	})
 }
 
@@ -334,12 +434,15 @@ func TestMQTTBrokerRoutePanicDoesNotAffectOtherHandlers(t *testing.T) {
 				},
 			},
 		},
+		sem: make(chan struct{}, DefaultMaxConcurrentDeliveries),
 	}
 
 	broker.route(&paho.Publish{
 		Topic:   "user/created",
 		Payload: []byte(`"data"`),
 	})
+
+	broker.routeWg.Wait()
 
 	require.True(t, called.Load())
 }
@@ -357,6 +460,7 @@ func TestMQTTBrokerHandlePublishRoutesMessage(t *testing.T) {
 				},
 			},
 		},
+		sem: make(chan struct{}, DefaultMaxConcurrentDeliveries),
 	}
 
 	handled, err := broker.HandlePublish(paho.PublishReceived{
@@ -365,6 +469,8 @@ func TestMQTTBrokerHandlePublishRoutesMessage(t *testing.T) {
 			Payload: []byte(`"hello"`),
 		},
 	})
+
+	broker.routeWg.Wait()
 
 	require.NoError(t, err)
 	require.True(t, handled)
@@ -382,6 +488,7 @@ func TestMQTTBrokerHandlePublishRecoversPanic(t *testing.T) {
 				},
 			},
 		},
+		sem: make(chan struct{}, DefaultMaxConcurrentDeliveries),
 	}
 
 	require.NotPanics(t, func() {
@@ -391,6 +498,8 @@ func TestMQTTBrokerHandlePublishRecoversPanic(t *testing.T) {
 				Payload: []byte(`"data"`),
 			},
 		})
+
+		broker.routeWg.Wait()
 
 		require.NoError(t, err)
 		require.True(t, handled)
