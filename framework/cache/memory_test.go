@@ -356,3 +356,127 @@ func TestMemoryPutStoresVariousTypes(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"a", "b"}, sliceVal)
 }
+
+func TestMemoryIncrementWithoutExternalMutex(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+
+	err := mem.Put(ctx, "counter", int64(0), 5*time.Minute)
+	require.NoError(t, err)
+
+	result, err := mem.Increment(ctx, "counter", 10)
+
+	require.NoError(t, err)
+	require.Equal(t, int64(10), result)
+
+	result, err = mem.Increment(ctx, "counter", 5)
+
+	require.NoError(t, err)
+	require.Equal(t, int64(15), result)
+
+	val, err := mem.Get(ctx, "counter")
+
+	require.NoError(t, err)
+	require.Equal(t, int64(15), val)
+}
+
+func TestMemoryDecrementWithoutExternalMutex(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+
+	err := mem.Put(ctx, "counter", int64(20), 5*time.Minute)
+	require.NoError(t, err)
+
+	result, err := mem.Decrement(ctx, "counter", 7)
+
+	require.NoError(t, err)
+	require.Equal(t, int64(13), result)
+
+	result, err = mem.Decrement(ctx, "counter", 3)
+
+	require.NoError(t, err)
+	require.Equal(t, int64(10), result)
+
+	val, err := mem.Get(ctx, "counter")
+
+	require.NoError(t, err)
+	require.Equal(t, int64(10), val)
+}
+
+func TestMemoryRememberDistinguishesKeyNotFoundFromOtherErrors(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+
+	// When key is missing, compute is called and result is stored.
+	val, err := mem.Remember(
+		ctx, "key", 5*time.Minute, func() (any, error) {
+			return "computed", nil
+		},
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, "computed", val)
+
+	// Verify the value was stored.
+	stored, err := mem.Get(ctx, "key")
+
+	require.NoError(t, err)
+	require.Equal(t, "computed", stored)
+}
+
+func TestMemoryRememberForeverDistinguishesKeyNotFoundFromOtherErrors(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+
+	// When key is missing, compute is called and result is stored permanently.
+	val, err := mem.RememberForever(
+		ctx, "key", func() (any, error) {
+			return "computed", nil
+		},
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, "computed", val)
+
+	// Verify the value was stored.
+	stored, err := mem.Get(ctx, "key")
+
+	require.NoError(t, err)
+	require.Equal(t, "computed", stored)
+}
+
+func TestMemoryIncrementReturnsErrorForNonIntegerValue(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+
+	err := mem.Put(ctx, "key", "not-a-number", 5*time.Minute)
+	require.NoError(t, err)
+
+	_, err = mem.Increment(ctx, "key", 1)
+
+	require.ErrorIs(t, err, contract.ErrCacheKeyNotFound)
+}
+
+func TestMemoryDecrementReturnsErrorForNonIntegerValue(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+
+	err := mem.Put(ctx, "key", "not-a-number", 5*time.Minute)
+	require.NoError(t, err)
+
+	_, err = mem.Decrement(ctx, "key", 1)
+
+	require.ErrorIs(t, err, contract.ErrCacheKeyNotFound)
+}

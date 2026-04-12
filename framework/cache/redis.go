@@ -96,12 +96,16 @@ func (client *RedisClient) Forever(ctx context.Context, key string, value any) e
 	return client.Put(ctx, key, value, 0)
 }
 
-// Increment increases the integer value at key by the given amount.
+// Increment atomically increments the integer value of key by the given amount.
+// Unlike the in-memory implementation, Redis auto-creates the key with value 0
+// if it does not exist before incrementing.
 func (client *RedisClient) Increment(ctx context.Context, key string, by int64) (int64, error) {
 	return (*redis.Client)(client).IncrBy(ctx, key, by).Result()
 }
 
-// Decrement decreases the integer value at key by the given amount.
+// Decrement atomically decrements the integer value of key by the given amount.
+// Unlike the in-memory implementation, Redis auto-creates the key with value 0
+// if it does not exist before decrementing.
 func (client *RedisClient) Decrement(ctx context.Context, key string, by int64) (int64, error) {
 	return (*redis.Client)(client).DecrBy(ctx, key, by).Result()
 }
