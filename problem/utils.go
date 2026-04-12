@@ -6,11 +6,11 @@ import "errors"
 // that have been either Joined or Wrapped using [errors.Join]
 // or [fmt.Errorf] with `%w` directive.
 func stackTrace(err error) []error {
-	result := make([]error, 0)
-
 	if err == nil {
-		return result
+		return nil
 	}
+
+	var result []error
 
 	type joined interface {
 		Unwrap() []error

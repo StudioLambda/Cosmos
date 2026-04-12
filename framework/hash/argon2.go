@@ -1,6 +1,8 @@
 package hash
 
-import "github.com/matthewhartstonge/argon2"
+import (
+	"github.com/matthewhartstonge/argon2"
+)
 
 // Argon2Config is an alias for argon2.Config, exposing the full set
 // of tuning parameters (memory, iterations, parallelism) without

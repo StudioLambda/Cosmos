@@ -8,14 +8,20 @@ import (
 )
 
 func TestErrCacheKeyNotFoundMessage(t *testing.T) {
+	t.Parallel()
+
 	require.Equal(t, "cache key not found", contract.ErrCacheKeyNotFound.Error())
 }
 
 func TestErrCacheKeyNotFoundIsNonNil(t *testing.T) {
+	t.Parallel()
+
 	require.NotNil(t, contract.ErrCacheKeyNotFound)
 }
 
 func TestErrCacheUnsupportedOperationMessage(t *testing.T) {
+	t.Parallel()
+
 	require.Equal(
 		t,
 		"cache unsupported operation",
@@ -24,5 +30,7 @@ func TestErrCacheUnsupportedOperationMessage(t *testing.T) {
 }
 
 func TestErrCacheUnsupportedOperationIsNonNil(t *testing.T) {
+	t.Parallel()
+
 	require.NotNil(t, contract.ErrCacheUnsupportedOperation)
 }

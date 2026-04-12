@@ -8,8 +8,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/studiolambda/cosmos/contract"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // RedisBroker implements contract.EventBus using Redis Pub/Sub.

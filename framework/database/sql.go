@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/studiolambda/cosmos/contract"
+
+	"github.com/jmoiron/sqlx"
 )
 
 // SQL implements contract.Database using sqlx for query execution,
@@ -186,7 +187,7 @@ func (database *SQL) WithTransaction(ctx context.Context, fn func(tx contract.Da
 		return contract.ErrDatabaseNestedTransaction
 	}
 
-	tx, err := database.raw.BeginTxx(ctx, &sql.TxOptions{})
+	tx, err := database.raw.BeginTxx(ctx, nil)
 
 	if err != nil {
 		return err

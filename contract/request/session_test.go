@@ -34,6 +34,8 @@ func (s stubSession) HasRegenerated() bool           { return false }
 func (s stubSession) MarkAsUnchanged()               {}
 
 func TestSessionReturnsTrueWhenPresent(t *testing.T) {
+	t.Parallel()
+
 	sess := stubSession{id: "sess-1"}
 	ctx := context.WithValue(
 		context.Background(),
@@ -51,6 +53,8 @@ func TestSessionReturnsTrueWhenPresent(t *testing.T) {
 }
 
 func TestSessionReturnsFalseWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	result, ok := request.Session(r)
@@ -60,6 +64,8 @@ func TestSessionReturnsFalseWhenMissing(t *testing.T) {
 }
 
 func TestSessionKeyedReturnsTrueWhenPresent(t *testing.T) {
+	t.Parallel()
+
 	type customKey struct{}
 	sess := stubSession{id: "sess-2"}
 	ctx := context.WithValue(
@@ -78,6 +84,8 @@ func TestSessionKeyedReturnsTrueWhenPresent(t *testing.T) {
 }
 
 func TestSessionKeyedReturnsFalseWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	type customKey struct{}
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
@@ -88,6 +96,8 @@ func TestSessionKeyedReturnsFalseWhenMissing(t *testing.T) {
 }
 
 func TestSessionKeyedReturnsFalseWhenWrongType(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.WithValue(
 		context.Background(),
 		contract.SessionKey,
@@ -104,6 +114,8 @@ func TestSessionKeyedReturnsFalseWhenWrongType(t *testing.T) {
 }
 
 func TestMustSessionReturnsSessionWhenPresent(t *testing.T) {
+	t.Parallel()
+
 	sess := stubSession{id: "sess-3"}
 	ctx := context.WithValue(
 		context.Background(),
@@ -120,6 +132,8 @@ func TestMustSessionReturnsSessionWhenPresent(t *testing.T) {
 }
 
 func TestMustSessionPanicsWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	require.Panics(t, func() {
@@ -128,6 +142,8 @@ func TestMustSessionPanicsWhenMissing(t *testing.T) {
 }
 
 func TestMustSessionPanicsWithErrSessionNotFound(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	defer func() {
@@ -139,6 +155,8 @@ func TestMustSessionPanicsWithErrSessionNotFound(t *testing.T) {
 }
 
 func TestMustSessionKeyedReturnsSessionWhenPresent(t *testing.T) {
+	t.Parallel()
+
 	type customKey struct{}
 	sess := stubSession{id: "sess-4"}
 	ctx := context.WithValue(
@@ -156,6 +174,8 @@ func TestMustSessionKeyedReturnsSessionWhenPresent(t *testing.T) {
 }
 
 func TestMustSessionKeyedPanicsWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	type customKey struct{}
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
@@ -165,6 +185,8 @@ func TestMustSessionKeyedPanicsWhenMissing(t *testing.T) {
 }
 
 func TestMustSessionKeyedPanicsWithErrSessionNotFound(t *testing.T) {
+	t.Parallel()
+
 	type customKey struct{}
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
@@ -177,6 +199,8 @@ func TestMustSessionKeyedPanicsWithErrSessionNotFound(t *testing.T) {
 }
 
 func TestErrSessionNotFoundHasCorrectTitle(t *testing.T) {
+	t.Parallel()
+
 	require.Equal(
 		t,
 		"Session not found",
@@ -185,6 +209,8 @@ func TestErrSessionNotFoundHasCorrectTitle(t *testing.T) {
 }
 
 func TestErrSessionNotFoundHasCorrectStatus(t *testing.T) {
+	t.Parallel()
+
 	require.Equal(
 		t,
 		http.StatusInternalServerError,

@@ -6,10 +6,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/framework"
 	"github.com/studiolambda/cosmos/framework/middleware"
 	"github.com/studiolambda/cosmos/problem"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestCSRFAllowsSameOriginRequest(t *testing.T) {

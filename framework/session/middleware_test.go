@@ -7,13 +7,14 @@ import (
 	"testing"
 	"time"
 
-	tmock "github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/contract/mock"
 	"github.com/studiolambda/cosmos/contract/request"
 	"github.com/studiolambda/cosmos/framework"
 	"github.com/studiolambda/cosmos/framework/session"
+
+	tmock "github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMiddlewareCookieExists(t *testing.T) {
@@ -29,7 +30,7 @@ func TestMiddlewareCookieExists(t *testing.T) {
 
 	handlerWithSessions := session.Middleware(cache)(handler)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	res := handlerWithSessions.Record(req)
 
 	cookies := res.Cookies()
@@ -78,7 +79,7 @@ func TestMiddlewareLoadsExistingSession(t *testing.T) {
 
 	handlerWithSessions := session.Middleware(driver)(handler)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
 		Name:  session.DefaultCookie,
 		Value: sessionID,
@@ -109,7 +110,7 @@ func TestMiddlewareCreatesNewSessionForInvalidCookieID(t *testing.T) {
 
 	handlerWithSessions := session.Middleware(driver)(handler)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
 		Name:  session.DefaultCookie,
 		Value: "invalid!@#$",
@@ -144,7 +145,7 @@ func TestMiddlewareCreatesNewSessionWhenDriverFails(t *testing.T) {
 
 	handlerWithSessions := session.Middleware(driver)(handler)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
 		Name:  session.DefaultCookie,
 		Value: validID,
@@ -186,7 +187,7 @@ func TestMiddlewareWithExpiredSessionRegenerates(t *testing.T) {
 
 	handlerWithSessions := session.Middleware(driver)(handler)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
 		Name:  session.DefaultCookie,
 		Value: sessionID,
@@ -232,7 +233,7 @@ func TestMiddlewareWithExpirationDeltaExtendsSession(t *testing.T) {
 		},
 	)(handler)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
 		Name:  session.DefaultCookie,
 		Value: sessionID,
@@ -261,7 +262,7 @@ func TestMiddlewareWithDefaultShortcutUsesDefaults(t *testing.T) {
 
 	handlerWithSessions := session.Middleware(driver)(handler)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	res := handlerWithSessions.Record(req)
 
 	cookies := res.Cookies()
@@ -299,7 +300,7 @@ func TestMiddlewareErrorHandlerCalledOnSaveError(t *testing.T) {
 		},
 	)(handler)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	_ = handlerWithSessions.Record(req)
 
 	require.ErrorIs(t, capturedErr, saveErr)
@@ -334,7 +335,7 @@ func TestMiddlewareSessionNotSavedWhenUnchanged(t *testing.T) {
 		},
 	)(handler)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
 		Name:  session.DefaultCookie,
 		Value: sessionID,
@@ -413,7 +414,7 @@ func TestMiddlewareRegenerateDeletesOldSession(t *testing.T) {
 
 	handlerWithSessions := session.Middleware(driver)(handler)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
 		Name:  session.DefaultCookie,
 		Value: sessionID,

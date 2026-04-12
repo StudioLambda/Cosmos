@@ -13,6 +13,8 @@ import (
 )
 
 func TestBytesReadsEntireBody(t *testing.T) {
+	t.Parallel()
+
 	body := "hello world"
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
 
@@ -23,6 +25,8 @@ func TestBytesReadsEntireBody(t *testing.T) {
 }
 
 func TestBytesEmptyBody(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(""))
 
 	result, err := request.Bytes(r)
@@ -32,6 +36,8 @@ func TestBytesEmptyBody(t *testing.T) {
 }
 
 func TestBytesErrorOnFailedRead(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodPost, "/", errReader{})
 
 	_, err := request.Bytes(r)
@@ -51,6 +57,8 @@ func TestLimitedBytesReturnsErrorWhenBodyExceedsLimit(t *testing.T) {
 }
 
 func TestLimitedBytesReadsFullBodyUnderLimit(t *testing.T) {
+	t.Parallel()
+
 	body := "abc"
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
 
@@ -61,6 +69,8 @@ func TestLimitedBytesReadsFullBodyUnderLimit(t *testing.T) {
 }
 
 func TestLimitedBytesUsesDefaultOnNegativeMaxSize(t *testing.T) {
+	t.Parallel()
+
 	body := "short"
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
 
@@ -71,6 +81,8 @@ func TestLimitedBytesUsesDefaultOnNegativeMaxSize(t *testing.T) {
 }
 
 func TestStringReadsBodyAsString(t *testing.T) {
+	t.Parallel()
+
 	body := "hello string"
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
 
@@ -81,6 +93,8 @@ func TestStringReadsBodyAsString(t *testing.T) {
 }
 
 func TestStringEmptyBody(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(""))
 
 	result, err := request.String(r)
@@ -90,6 +104,8 @@ func TestStringEmptyBody(t *testing.T) {
 }
 
 func TestStringErrorOnFailedRead(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodPost, "/", errReader{})
 
 	_, err := request.String(r)
@@ -109,6 +125,8 @@ func TestLimitedStringReturnsErrorWhenBodyExceedsLimit(t *testing.T) {
 }
 
 func TestLimitedStringReadsFullBodyUnderLimit(t *testing.T) {
+	t.Parallel()
+
 	body := "abc"
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
 
@@ -119,6 +137,8 @@ func TestLimitedStringReadsFullBodyUnderLimit(t *testing.T) {
 }
 
 func TestLimitedStringUsesDefaultOnNegativeMaxSize(t *testing.T) {
+	t.Parallel()
+
 	body := "short"
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
 
@@ -129,6 +149,8 @@ func TestLimitedStringUsesDefaultOnNegativeMaxSize(t *testing.T) {
 }
 
 func TestLimitedStringErrorOnFailedRead(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodPost, "/", errReader{})
 
 	_, err := request.LimitedString(r, 10)
@@ -137,6 +159,8 @@ func TestLimitedStringErrorOnFailedRead(t *testing.T) {
 }
 
 func TestJSONDecodesValidPayload(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `json:"name"`
 		Age  int    `json:"age"`
@@ -155,6 +179,8 @@ func TestJSONDecodesValidPayload(t *testing.T) {
 }
 
 func TestJSONReturnsErrorOnInvalidPayload(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `json:"name"`
 	}
@@ -170,6 +196,8 @@ func TestJSONReturnsErrorOnInvalidPayload(t *testing.T) {
 }
 
 func TestJSONIgnoresUnknownFields(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `json:"name"`
 	}
@@ -186,6 +214,8 @@ func TestJSONIgnoresUnknownFields(t *testing.T) {
 }
 
 func TestStrictJSONDecodesValidPayload(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `json:"name"`
 	}
@@ -202,6 +232,8 @@ func TestStrictJSONDecodesValidPayload(t *testing.T) {
 }
 
 func TestStrictJSONRejectsUnknownFields(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `json:"name"`
 	}
@@ -217,6 +249,8 @@ func TestStrictJSONRejectsUnknownFields(t *testing.T) {
 }
 
 func TestStrictJSONReturnsErrorOnInvalidPayload(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `json:"name"`
 	}
@@ -232,6 +266,8 @@ func TestStrictJSONReturnsErrorOnInvalidPayload(t *testing.T) {
 }
 
 func TestLimitedJSONDecodesValidPayload(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `json:"name"`
 	}
@@ -248,6 +284,8 @@ func TestLimitedJSONDecodesValidPayload(t *testing.T) {
 }
 
 func TestLimitedJSONUsesDefaultOnNegativeMaxSize(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `json:"name"`
 	}
@@ -264,6 +302,8 @@ func TestLimitedJSONUsesDefaultOnNegativeMaxSize(t *testing.T) {
 }
 
 func TestLimitedJSONReturnsErrorOnInvalidPayload(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `json:"name"`
 	}
@@ -279,6 +319,8 @@ func TestLimitedJSONReturnsErrorOnInvalidPayload(t *testing.T) {
 }
 
 func TestStrictLimitedJSONDecodesValidPayload(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `json:"name"`
 	}
@@ -295,6 +337,8 @@ func TestStrictLimitedJSONDecodesValidPayload(t *testing.T) {
 }
 
 func TestStrictLimitedJSONRejectsUnknownFields(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `json:"name"`
 	}
@@ -310,6 +354,8 @@ func TestStrictLimitedJSONRejectsUnknownFields(t *testing.T) {
 }
 
 func TestStrictLimitedJSONUsesDefaultOnNegativeMaxSize(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `json:"name"`
 	}
@@ -326,6 +372,8 @@ func TestStrictLimitedJSONUsesDefaultOnNegativeMaxSize(t *testing.T) {
 }
 
 func TestStrictLimitedJSONReturnsErrorOnInvalidPayload(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `json:"name"`
 	}
@@ -341,6 +389,8 @@ func TestStrictLimitedJSONReturnsErrorOnInvalidPayload(t *testing.T) {
 }
 
 func TestXMLDecodesValidPayload(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `xml:"name"`
 	}
@@ -357,6 +407,8 @@ func TestXMLDecodesValidPayload(t *testing.T) {
 }
 
 func TestXMLReturnsErrorOnInvalidPayload(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `xml:"name"`
 	}
@@ -372,6 +424,8 @@ func TestXMLReturnsErrorOnInvalidPayload(t *testing.T) {
 }
 
 func TestLimitedXMLDecodesValidPayload(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `xml:"name"`
 	}
@@ -388,6 +442,8 @@ func TestLimitedXMLDecodesValidPayload(t *testing.T) {
 }
 
 func TestLimitedXMLUsesDefaultOnNegativeMaxSize(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `xml:"name"`
 	}
@@ -404,6 +460,8 @@ func TestLimitedXMLUsesDefaultOnNegativeMaxSize(t *testing.T) {
 }
 
 func TestLimitedXMLReturnsErrorOnInvalidPayload(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `xml:"name"`
 	}

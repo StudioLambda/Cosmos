@@ -138,8 +138,8 @@ func Recover() framework.Middleware {
 // an error that will be passed through the normal error handling
 // chain. The returned error is wrapped with a [recoverError] that
 // includes the goroutine stack trace captured at the point of
-// recovery. Use [errors.As] with *recoverError to access the
-// stack trace server-side.
+// recovery. Use [errors.As] with an interface containing a
+// Stack() []byte method to access the stack trace.
 func RecoverWith(handler func(value any) error) framework.Middleware {
 	return func(next framework.Handler) framework.Handler {
 		return func(

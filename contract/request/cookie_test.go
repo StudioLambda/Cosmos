@@ -10,6 +10,8 @@ import (
 )
 
 func TestCookieReturnsMatchingCookie(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.AddCookie(&http.Cookie{Name: "session", Value: "abc123"})
 
@@ -21,6 +23,8 @@ func TestCookieReturnsMatchingCookie(t *testing.T) {
 }
 
 func TestCookieReturnsNilWhenNotFound(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	cookie := request.Cookie(r, "missing")
@@ -29,6 +33,8 @@ func TestCookieReturnsNilWhenNotFound(t *testing.T) {
 }
 
 func TestCookieValueReturnsValue(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.AddCookie(&http.Cookie{Name: "token", Value: "xyz"})
 
@@ -38,6 +44,8 @@ func TestCookieValueReturnsValue(t *testing.T) {
 }
 
 func TestCookieValueReturnsEmptyWhenNotFound(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	value := request.CookieValue(r, "missing")
@@ -46,6 +54,8 @@ func TestCookieValueReturnsEmptyWhenNotFound(t *testing.T) {
 }
 
 func TestCookieValueOrReturnsValueWhenPresent(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.AddCookie(&http.Cookie{Name: "lang", Value: "en"})
 
@@ -55,6 +65,8 @@ func TestCookieValueOrReturnsValueWhenPresent(t *testing.T) {
 }
 
 func TestCookieValueOrReturnsFallbackWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	value := request.CookieValueOr(r, "lang", "fr")
@@ -63,6 +75,8 @@ func TestCookieValueOrReturnsFallbackWhenMissing(t *testing.T) {
 }
 
 func TestCookieValueOrReturnsFallbackWhenEmpty(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.AddCookie(&http.Cookie{Name: "lang", Value: ""})
 

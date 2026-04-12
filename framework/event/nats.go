@@ -9,8 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nats-io/nats.go"
 	"github.com/studiolambda/cosmos/contract"
+
+	"github.com/nats-io/nats.go"
 )
 
 const (
@@ -144,7 +145,7 @@ func NewNATSBroker(url string) (*NATSBroker, error) {
 //
 // Returns an error if connection to the NATS server fails.
 func NewNATSBrokerWith(options *NATSBrokerOptions) (*NATSBroker, error) {
-	opts := []nats.Option{}
+	var opts []nats.Option
 
 	if options.Name != "" {
 		opts = append(opts, nats.Name(options.Name))

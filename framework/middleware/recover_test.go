@@ -1,7 +1,6 @@
 package middleware_test
 
 import (
-	"encoding"
 	"errors"
 	"fmt"
 	"io"
@@ -10,9 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/framework"
 	"github.com/studiolambda/cosmos/framework/middleware"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRecoverFromErrorPanic(t *testing.T) {
@@ -111,7 +111,6 @@ type testTextMarshaler struct {
 
 // Ensure testTextMarshaler does NOT implement fmt.Stringer
 // so it falls through to the TextMarshaler case.
-var _ encoding.TextMarshaler = testTextMarshaler{}
 
 func (marshaler testTextMarshaler) MarshalText() ([]byte, error) {
 	if marshaler.err != nil {
@@ -281,12 +280,12 @@ type readerStringer struct {
 	message string
 }
 
-func (rs readerStringer) Read(p []byte) (int, error) {
+func (readerStringer readerStringer) Read(p []byte) (int, error) {
 	return 0, io.EOF
 }
 
-func (rs readerStringer) String() string {
-	return rs.message
+func (readerStringer readerStringer) String() string {
+	return readerStringer.message
 }
 
 func TestRecoverStringerTakesPrecedenceOverReader(t *testing.T) {

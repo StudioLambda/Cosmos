@@ -15,8 +15,7 @@ type acceptPair struct {
 	quality float64
 }
 
-// Accept is a type designed to help working
-// with header values found in the "Accept" header.
+// Accept represents a parsed HTTP Accept header for content negotiation.
 type Accept struct {
 	values []acceptPair
 }
@@ -57,7 +56,7 @@ func ParseAccept(request *http.Request) Accept {
 // find looks for a given media in the accept header and
 // returns its [acceptPair] if found.
 //
-// The second return value is true when is found, and false otherwise.
+// The second return value is true when found, and false otherwise.
 func (accept Accept) find(media string) (acceptPair, bool) {
 	for _, pair := range accept.values {
 		if media == pair.media {
@@ -110,7 +109,7 @@ func (accept Accept) Quality(media string) float64 {
 }
 
 // Order creates an ordered slice that contains the
-// actual acceptance order based on the accept quality.
+// media types sorted in descending quality order.
 func (accept Accept) Order() []string {
 	values := slices.Clone(accept.values)
 

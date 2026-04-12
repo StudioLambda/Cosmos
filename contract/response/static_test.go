@@ -14,6 +14,8 @@ import (
 )
 
 func TestRawWritesBytesWithStatus(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.Raw(w, http.StatusOK, []byte("hello"))
@@ -24,6 +26,8 @@ func TestRawWritesBytesWithStatus(t *testing.T) {
 }
 
 func TestRawSetsDefaultContentType(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.Raw(w, http.StatusOK, []byte("data"))
@@ -37,6 +41,8 @@ func TestRawSetsDefaultContentType(t *testing.T) {
 }
 
 func TestRawPreservesExistingContentType(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 	w.Header().Set("Content-Type", "text/plain")
 
@@ -47,6 +53,8 @@ func TestRawPreservesExistingContentType(t *testing.T) {
 }
 
 func TestRawWithEmptyBody(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.Raw(w, http.StatusOK, []byte{})
@@ -57,6 +65,8 @@ func TestRawWithEmptyBody(t *testing.T) {
 }
 
 func TestStatusSetsStatusCode(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.Status(w, http.StatusNoContent)
@@ -66,6 +76,8 @@ func TestStatusSetsStatusCode(t *testing.T) {
 }
 
 func TestStatusWritesNoBody(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.Status(w, http.StatusCreated)
@@ -75,6 +87,8 @@ func TestStatusWritesNoBody(t *testing.T) {
 }
 
 func TestBytesWritesWithOctetStreamContentType(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.Bytes(
@@ -92,6 +106,8 @@ func TestBytesWritesWithOctetStreamContentType(t *testing.T) {
 }
 
 func TestStringWritesPlainText(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.String(w, http.StatusOK, "hello world")
@@ -107,6 +123,8 @@ func TestStringWritesPlainText(t *testing.T) {
 }
 
 func TestStringEmptyBody(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.String(w, http.StatusOK, "")
@@ -116,6 +134,8 @@ func TestStringEmptyBody(t *testing.T) {
 }
 
 func TestStringTemplateExecutes(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 	tmpl := template.Must(
 		template.New("test").Parse("Hello, {{.Name}}!"),
@@ -136,6 +156,8 @@ func TestStringTemplateExecutes(t *testing.T) {
 }
 
 func TestStringTemplateReturnsErrorOnBadTemplate(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 	tmpl := template.Must(
 		template.New("test").Parse("{{.Name}}"),
@@ -147,6 +169,8 @@ func TestStringTemplateReturnsErrorOnBadTemplate(t *testing.T) {
 }
 
 func TestHTMLWritesHTMLContent(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.HTML(
@@ -164,6 +188,8 @@ func TestHTMLWritesHTMLContent(t *testing.T) {
 }
 
 func TestHTMLTemplateExecutes(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 	tmpl := htmltemplate.Must(
 		htmltemplate.New("test").Parse("<p>{{.Name}}</p>"),
@@ -184,6 +210,8 @@ func TestHTMLTemplateExecutes(t *testing.T) {
 }
 
 func TestHTMLTemplateReturnsErrorOnBadTemplate(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 	tmpl := htmltemplate.Must(
 		htmltemplate.New("test").Parse("{{.Name}}"),
@@ -195,6 +223,8 @@ func TestHTMLTemplateReturnsErrorOnBadTemplate(t *testing.T) {
 }
 
 func TestJSONWritesJSONContent(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		Name string `json:"name"`
 		Age  int    `json:"age"`
@@ -223,6 +253,8 @@ func TestJSONWritesJSONContent(t *testing.T) {
 }
 
 func TestJSONWritesNullForNil(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.JSON[any](w, http.StatusOK, nil)
@@ -232,6 +264,8 @@ func TestJSONWritesNullForNil(t *testing.T) {
 }
 
 func TestJSONSetsStatusCode(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.JSON(w, http.StatusCreated, map[string]string{
@@ -243,6 +277,8 @@ func TestJSONSetsStatusCode(t *testing.T) {
 }
 
 func TestXMLWritesXMLContent(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		XMLName xml.Name `xml:"item"`
 		Name    string   `xml:"name"`
@@ -265,6 +301,8 @@ func TestXMLWritesXMLContent(t *testing.T) {
 }
 
 func TestXMLSetsStatusCode(t *testing.T) {
+	t.Parallel()
+
 	type payload struct {
 		XMLName xml.Name `xml:"item"`
 		ID      int      `xml:"id"`
@@ -281,6 +319,8 @@ func TestXMLSetsStatusCode(t *testing.T) {
 }
 
 func TestRedirectSetsLocationHeader(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.Redirect(
@@ -297,6 +337,8 @@ func TestRedirectSetsLocationHeader(t *testing.T) {
 }
 
 func TestRedirectWritesNoBody(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.Redirect(
@@ -308,6 +350,8 @@ func TestRedirectWritesNoBody(t *testing.T) {
 }
 
 func TestSafeRedirectAllowsRelativePath(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.SafeRedirect(
@@ -320,6 +364,8 @@ func TestSafeRedirectAllowsRelativePath(t *testing.T) {
 }
 
 func TestSafeRedirectAllowsRelativePathWithQuery(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.SafeRedirect(
@@ -335,6 +381,8 @@ func TestSafeRedirectAllowsRelativePathWithQuery(t *testing.T) {
 }
 
 func TestSafeRedirectRejectsAbsoluteURL(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.SafeRedirect(
@@ -345,6 +393,8 @@ func TestSafeRedirectRejectsAbsoluteURL(t *testing.T) {
 }
 
 func TestSafeRedirectRejectsProtocolRelativeURL(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.SafeRedirect(
@@ -355,6 +405,8 @@ func TestSafeRedirectRejectsProtocolRelativeURL(t *testing.T) {
 }
 
 func TestSafeRedirectRejectsNonSlashPrefix(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.SafeRedirect(
@@ -365,6 +417,8 @@ func TestSafeRedirectRejectsNonSlashPrefix(t *testing.T) {
 }
 
 func TestSafeRedirectRejectsEmptyURL(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.SafeRedirect(w, http.StatusFound, "")
@@ -373,6 +427,8 @@ func TestSafeRedirectRejectsEmptyURL(t *testing.T) {
 }
 
 func TestSafeRedirectRejectsUnparseableURL(t *testing.T) {
+	t.Parallel()
+
 	w := httptest.NewRecorder()
 
 	err := response.SafeRedirect(
@@ -383,6 +439,8 @@ func TestSafeRedirectRejectsUnparseableURL(t *testing.T) {
 }
 
 func TestErrUnsafeRedirectMessage(t *testing.T) {
+	t.Parallel()
+
 	require.Equal(
 		t,
 		"unsafe redirect URL: must be a relative path",

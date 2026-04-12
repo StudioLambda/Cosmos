@@ -5,8 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/patrickmn/go-cache"
 	"github.com/studiolambda/cosmos/contract"
+
+	"github.com/patrickmn/go-cache"
 )
 
 // Memory implements [contract.Cache] using an in-memory store backed by
@@ -70,6 +71,8 @@ func (memory *Memory) Has(_ context.Context, key string) (bool, error) {
 }
 
 // Pull retrieves and removes the value for the given key.
+// Pull is not atomic; under concurrent access another caller may
+// retrieve the same value before it is deleted.
 func (memory *Memory) Pull(ctx context.Context, key string) (any, error) {
 	val, err := memory.Get(ctx, key)
 

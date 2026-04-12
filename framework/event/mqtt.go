@@ -11,9 +11,10 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/studiolambda/cosmos/contract"
+
 	"github.com/eclipse/paho.golang/autopaho"
 	"github.com/eclipse/paho.golang/paho"
-	"github.com/studiolambda/cosmos/contract"
 )
 
 // MQTTBroker implements the EventBroker interface using MQTT v5

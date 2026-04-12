@@ -36,7 +36,7 @@ func TestServeHTTPNoContent(t *testing.T) {
 		return nil
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -50,7 +50,7 @@ func TestServeHTTPHandlerReturnsError(t *testing.T) {
 		return errors.New("something went wrong")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -64,11 +64,11 @@ func TestServeHTTPContextCanceled(t *testing.T) {
 		return context.Canceled
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
-	require.Equal(t, 499, rec.Code)
+	require.Equal(t, framework.StatusClientClosedRequest, rec.Code)
 }
 
 func TestServeHTTPContextDeadlineExceeded(t *testing.T) {
@@ -78,11 +78,11 @@ func TestServeHTTPContextDeadlineExceeded(t *testing.T) {
 		return context.DeadlineExceeded
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
-	require.Equal(t, 499, rec.Code)
+	require.Equal(t, framework.StatusClientClosedRequest, rec.Code)
 }
 
 type statusError struct {
@@ -104,7 +104,7 @@ func TestServeHTTPCustomHTTPStatus(t *testing.T) {
 		return statusError{status: http.StatusTeapot}
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -128,7 +128,7 @@ func TestServeHTTPErrorImplementsHandler(t *testing.T) {
 		return handlerError{}
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -143,7 +143,7 @@ func TestServeHTTPErrorAfterPartialWrite(t *testing.T) {
 		return errors.New("late error")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -168,7 +168,7 @@ func TestServeHTTPAfterResponseHooksRun(t *testing.T) {
 		return errors.New("test error")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -188,7 +188,7 @@ func TestServeHTTPAfterResponseHookPanicRecovered(t *testing.T) {
 		return nil
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 
 	// Should not panic.
@@ -209,7 +209,7 @@ func TestServeHTTPHooksInContext(t *testing.T) {
 		return nil
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -232,7 +232,7 @@ func TestServeHTTPAfterResponseHookReceivesNilOnSuccess(t *testing.T) {
 		return response.Status(w, http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -247,9 +247,9 @@ func TestServeHTTPWrappedContextCanceled(t *testing.T) {
 		return fmt.Errorf("request failed: %w", context.Canceled)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
-	require.Equal(t, 499, rec.Code)
+	require.Equal(t, framework.StatusClientClosedRequest, rec.Code)
 }

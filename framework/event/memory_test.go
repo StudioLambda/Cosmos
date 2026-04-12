@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework/event"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMemoryBrokerPublishAndSubscribe(t *testing.T) {

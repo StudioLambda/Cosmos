@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -13,13 +13,11 @@ import (
 	"github.com/studiolambda/cosmos/contract"
 )
 
-var (
-	// ErrBrokerClosed is returned when attempting operations on a closed
-	// broker.
-	// Once a broker is closed, it cannot be reused and a new instance
-	// must be created.
-	ErrBrokerClosed = errors.New("broker is closed")
-)
+// ErrBrokerClosed is returned when attempting operations on a closed
+// broker.
+// Once a broker is closed, it cannot be reused and a new instance
+// must be created.
+var ErrBrokerClosed = errors.New("broker is closed")
 
 // DefaultMaxConcurrentDeliveries is the maximum number of
 // concurrent handler goroutines allowed per MemoryBroker.
@@ -173,7 +171,7 @@ func (broker *MemoryBroker) Subscribe(
 		return nil, err
 	}
 
-	handlerID := fmt.Sprintf("%d", broker.nextID.Add(1))
+	handlerID := strconv.FormatUint(broker.nextID.Add(1), 10)
 
 	broker.mu.Lock()
 	defer broker.mu.Unlock()
@@ -217,11 +215,9 @@ func (broker *MemoryBroker) Close() error {
 	return nil
 }
 
-// deliverToHandler invokes a handler with the encoded payload
-// in a goroutine with panic recovery. Recovered panics are
-// logged via slog so they remain visible for debugging.
-// This ensures that a panic in one handler doesn't affect
-// other handlers or the broker itself.
+// deliverToHandler invokes a handler with the encoded payload,
+// recovering from any panic to prevent handler failures from
+// affecting the broker.
 func (broker *MemoryBroker) deliverToHandler(
 	handler contract.EventHandler,
 	encoded []byte,

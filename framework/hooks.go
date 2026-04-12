@@ -14,6 +14,7 @@ import (
 //
 // All methods are safe for concurrent use.
 type Hooks struct {
+	// mutex guards all hook slices.
 	mutex                  sync.Mutex
 	afterResponseHooks     []contract.AfterResponseHook
 	beforeWriteHeaderHooks []contract.BeforeWriteHeaderHook
@@ -26,6 +27,7 @@ func NewHooks() *Hooks {
 	return &Hooks{
 		beforeWriteHeaderHooks: []contract.BeforeWriteHeaderHook{},
 		beforeWriteHooks:       []contract.BeforeWriteHook{},
+		afterResponseHooks:     []contract.AfterResponseHook{},
 	}
 }
 

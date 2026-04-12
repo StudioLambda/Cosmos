@@ -5,8 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/studiolambda/cosmos/contract"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // RedisOptions is an alias for redis.Options, exposing the full
@@ -54,12 +55,12 @@ func (client *RedisClient) Put(ctx context.Context, key string, value any, ttl t
 	return (*redis.Client)(client).Set(ctx, key, value, ttl).Err()
 }
 
-// Delete removes a key from Redis.
+// Delete removes a key from Redis. Deleting a non-existent key is a no-op.
 func (client *RedisClient) Delete(ctx context.Context, key string) error {
 	return (*redis.Client)(client).Del(ctx, key).Err()
 }
 
-// Has reports whether the key exists in Redis.
+// Has reports whether the key exists in Redis and has not expired.
 func (client *RedisClient) Has(ctx context.Context, key string) (bool, error) {
 	count, err := (*redis.Client)(client).Exists(ctx, key).Result()
 
@@ -71,7 +72,7 @@ func (client *RedisClient) Has(ctx context.Context, key string) (bool, error) {
 }
 
 // Pull atomically retrieves and deletes a key using Redis GETDEL.
-// Returns contract.ErrCacheKeyNotFound when the key does not exist.
+// Returns [contract.ErrCacheKeyNotFound] when the key does not exist.
 func (client *RedisClient) Pull(ctx context.Context, key string) (any, error) {
 	value, err := (*redis.Client)(client).GetDel(ctx, key).Result()
 
@@ -86,21 +87,23 @@ func (client *RedisClient) Pull(ctx context.Context, key string) (any, error) {
 	return value, nil
 }
 
-// Forever stores a value with no expiration.
+// Forever stores a value with no expiration. Values are serialized for storage.
 func (client *RedisClient) Forever(ctx context.Context, key string, value any) error {
 	return client.Put(ctx, key, value, 0)
 }
 
-// Increment atomically increments the integer value of key by the given amount.
-// Unlike the in-memory implementation, Redis auto-creates the key with value 0
-// if it does not exist before incrementing.
+// Increment atomically increases the integer value stored at key by
+// the given amount. Unlike the in-memory implementation, Redis
+// auto-creates the key with value 0 if it does not exist before
+// incrementing.
 func (client *RedisClient) Increment(ctx context.Context, key string, by int64) (int64, error) {
 	return (*redis.Client)(client).IncrBy(ctx, key, by).Result()
 }
 
-// Decrement atomically decrements the integer value of key by the given amount.
-// Unlike the in-memory implementation, Redis auto-creates the key with value 0
-// if it does not exist before decrementing.
+// Decrement atomically decreases the integer value stored at key by
+// the given amount. Unlike the in-memory implementation, Redis
+// auto-creates the key with value 0 if it does not exist before
+// decrementing.
 func (client *RedisClient) Decrement(ctx context.Context, key string, by int64) (int64, error) {
 	return (*redis.Client)(client).DecrBy(ctx, key, by).Result()
 }

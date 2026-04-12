@@ -13,13 +13,16 @@ import (
 // ChaCha20 implements contract.Encrypter using ChaCha20-Poly1305
 // authenticated encryption. The AEAD cipher is created once at
 // construction time and reused for every Encrypt/Decrypt call.
+// This is safe because ChaCha20-Poly1305 AEAD instances are safe
+// for concurrent use with different nonces. The nonce is generated
+// randomly for each Encrypt call and prepended to the ciphertext.
 type ChaCha20 struct {
-	// aead is the underlying ChaCha20-Poly1305 AEAD cipher.
-	aead cipher.AEAD
-
 	// key is the raw key material, retained so that Close
 	// can zero it from memory.
 	key []byte
+
+	// aead is the underlying ChaCha20-Poly1305 AEAD cipher.
+	aead cipher.AEAD
 
 	// AdditionalData is the additional authenticated data (AAD) bound to
 	// the ciphertext. It must not be modified concurrently with calls to
@@ -55,7 +58,7 @@ func NewChaCha20(key []byte) (*ChaCha20, error) {
 		return nil, err
 	}
 
-	return &ChaCha20{aead: aead, key: key}, nil
+	return &ChaCha20{key: key, aead: aead}, nil
 }
 
 // Encrypt encrypts the plaintext using ChaCha20-Poly1305 with a

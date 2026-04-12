@@ -8,6 +8,8 @@ import (
 )
 
 func TestErrDatabaseNoRowsMessage(t *testing.T) {
+	t.Parallel()
+
 	require.Equal(
 		t,
 		"no database rows were found",
@@ -16,10 +18,14 @@ func TestErrDatabaseNoRowsMessage(t *testing.T) {
 }
 
 func TestErrDatabaseNoRowsIsNonNil(t *testing.T) {
+	t.Parallel()
+
 	require.NotNil(t, contract.ErrDatabaseNoRows)
 }
 
 func TestErrDatabaseNestedTransactionMessage(t *testing.T) {
+	t.Parallel()
+
 	require.Equal(
 		t,
 		"nested transactions are not supported",
@@ -28,5 +34,7 @@ func TestErrDatabaseNestedTransactionMessage(t *testing.T) {
 }
 
 func TestErrDatabaseNestedTransactionIsNonNil(t *testing.T) {
+	t.Parallel()
+
 	require.NotNil(t, contract.ErrDatabaseNestedTransaction)
 }

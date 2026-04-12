@@ -26,5 +26,8 @@ type Hasher interface {
 // different parameters than the current configuration, indicating the value
 // should be re-hashed on the next successful authentication.
 type Rehashable interface {
+	// NeedsRehash reports whether the given hash was produced with
+	// different parameters than the current configuration, indicating
+	// the value should be re-hashed.
 	NeedsRehash(hash []byte) bool
 }

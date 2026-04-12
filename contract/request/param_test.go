@@ -10,6 +10,8 @@ import (
 )
 
 func TestParamReturnsPathValue(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/users/42", nil)
 	r.SetPathValue("id", "42")
 
@@ -19,6 +21,8 @@ func TestParamReturnsPathValue(t *testing.T) {
 }
 
 func TestParamReturnsEmptyWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	result := request.Param(r, "id")
@@ -27,6 +31,8 @@ func TestParamReturnsEmptyWhenMissing(t *testing.T) {
 }
 
 func TestParamOrReturnsValueWhenPresent(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/users/42", nil)
 	r.SetPathValue("id", "42")
 
@@ -36,6 +42,8 @@ func TestParamOrReturnsValueWhenPresent(t *testing.T) {
 }
 
 func TestParamOrReturnsFallbackWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	result := request.ParamOr(r, "id", "default")
@@ -44,6 +52,8 @@ func TestParamOrReturnsFallbackWhenMissing(t *testing.T) {
 }
 
 func TestParamOrReturnsFallbackWhenEmpty(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.SetPathValue("id", "")
 
@@ -53,6 +63,8 @@ func TestParamOrReturnsFallbackWhenEmpty(t *testing.T) {
 }
 
 func TestParamIntReturnsInteger(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/users/42", nil)
 	r.SetPathValue("id", "42")
 
@@ -63,6 +75,8 @@ func TestParamIntReturnsInteger(t *testing.T) {
 }
 
 func TestParamIntReturnsErrorWhenEmpty(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	_, err := request.ParamInt(r, "id")
@@ -72,6 +86,8 @@ func TestParamIntReturnsErrorWhenEmpty(t *testing.T) {
 }
 
 func TestParamIntReturnsErrorWhenNotInteger(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/users/abc", nil)
 	r.SetPathValue("id", "abc")
 
@@ -82,6 +98,8 @@ func TestParamIntReturnsErrorWhenNotInteger(t *testing.T) {
 }
 
 func TestParamIntReturnsNegativeInteger(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.SetPathValue("offset", "-5")
 
@@ -92,6 +110,8 @@ func TestParamIntReturnsNegativeInteger(t *testing.T) {
 }
 
 func TestParamIntReturnsZero(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.SetPathValue("page", "0")
 
@@ -102,6 +122,8 @@ func TestParamIntReturnsZero(t *testing.T) {
 }
 
 func TestParamIntOrReturnsIntegerWhenValid(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/users/99", nil)
 	r.SetPathValue("id", "99")
 
@@ -111,6 +133,8 @@ func TestParamIntOrReturnsIntegerWhenValid(t *testing.T) {
 }
 
 func TestParamIntOrReturnsFallbackWhenEmpty(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	result := request.ParamIntOr(r, "id", 10)
@@ -119,6 +143,8 @@ func TestParamIntOrReturnsFallbackWhenEmpty(t *testing.T) {
 }
 
 func TestParamIntOrReturnsFallbackWhenNotInteger(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.SetPathValue("id", "abc")
 

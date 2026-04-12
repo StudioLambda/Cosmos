@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
-	tmock "github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/contract/mock"
 	"github.com/studiolambda/cosmos/framework/session"
+
+	tmock "github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCacheDriverGetReturnsSession(t *testing.T) {

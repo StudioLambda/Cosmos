@@ -77,7 +77,7 @@ var DefaultRateLimitOptions = RateLimitOptions{
 		return host
 	},
 	ErrorResponse:   ErrRateLimited,
-	CleanupInterval: 1 * time.Minute,
+	CleanupInterval: time.Minute,
 	MaxIdleTime:     5 * time.Minute,
 	MaxEntries:      10000,
 }

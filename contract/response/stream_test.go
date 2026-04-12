@@ -70,6 +70,8 @@ func (w *errFlushWriter) WriteHeader(int) {}
 func (w *errFlushWriter) Flush() {}
 
 func TestStreamSendsDataFromChannel(t *testing.T) {
+	t.Parallel()
+
 	w := &flushRecorder{
 		ResponseRecorder: httptest.NewRecorder(),
 	}
@@ -87,6 +89,8 @@ func TestStreamSendsDataFromChannel(t *testing.T) {
 }
 
 func TestStreamSetsDefaultContentType(t *testing.T) {
+	t.Parallel()
+
 	w := &flushRecorder{
 		ResponseRecorder: httptest.NewRecorder(),
 	}
@@ -105,6 +109,8 @@ func TestStreamSetsDefaultContentType(t *testing.T) {
 }
 
 func TestStreamPreservesExistingContentType(t *testing.T) {
+	t.Parallel()
+
 	w := &flushRecorder{
 		ResponseRecorder: httptest.NewRecorder(),
 	}
@@ -120,6 +126,8 @@ func TestStreamPreservesExistingContentType(t *testing.T) {
 }
 
 func TestStreamSetsCacheControlHeader(t *testing.T) {
+	t.Parallel()
+
 	w := &flushRecorder{
 		ResponseRecorder: httptest.NewRecorder(),
 	}
@@ -134,6 +142,8 @@ func TestStreamSetsCacheControlHeader(t *testing.T) {
 }
 
 func TestStreamSetsConnectionHeader(t *testing.T) {
+	t.Parallel()
+
 	w := &flushRecorder{
 		ResponseRecorder: httptest.NewRecorder(),
 	}
@@ -152,6 +162,8 @@ func TestStreamSetsConnectionHeader(t *testing.T) {
 }
 
 func TestStreamReturnsNilOnChannelClose(t *testing.T) {
+	t.Parallel()
+
 	w := &flushRecorder{
 		ResponseRecorder: httptest.NewRecorder(),
 	}
@@ -165,6 +177,8 @@ func TestStreamReturnsNilOnChannelClose(t *testing.T) {
 }
 
 func TestStreamReturnsErrorOnContextCancellation(t *testing.T) {
+	t.Parallel()
+
 	w := &flushRecorder{
 		ResponseRecorder: httptest.NewRecorder(),
 	}
@@ -182,6 +196,8 @@ func TestStreamReturnsErrorOnContextCancellation(t *testing.T) {
 }
 
 func TestStreamReturnsErrorOnWriteFailure(t *testing.T) {
+	t.Parallel()
+
 	w := newErrFlushWriter()
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	ch := make(chan []byte, 1)
@@ -193,6 +209,8 @@ func TestStreamReturnsErrorOnWriteFailure(t *testing.T) {
 }
 
 func TestStreamReturnsErrNonFlushableWriter(t *testing.T) {
+	t.Parallel()
+
 	w := newNonFlushWriter()
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	ch := make(chan []byte)
@@ -203,6 +221,8 @@ func TestStreamReturnsErrNonFlushableWriter(t *testing.T) {
 }
 
 func TestErrNonFlushableWriterMessage(t *testing.T) {
+	t.Parallel()
+
 	require.Equal(
 		t,
 		"non-flushable response writer",
@@ -211,6 +231,8 @@ func TestErrNonFlushableWriterMessage(t *testing.T) {
 }
 
 func TestSSESetsEventStreamContentType(t *testing.T) {
+	t.Parallel()
+
 	w := &flushRecorder{
 		ResponseRecorder: httptest.NewRecorder(),
 	}
@@ -229,6 +251,8 @@ func TestSSESetsEventStreamContentType(t *testing.T) {
 }
 
 func TestSSESendsDataFromChannel(t *testing.T) {
+	t.Parallel()
+
 	w := &flushRecorder{
 		ResponseRecorder: httptest.NewRecorder(),
 	}
@@ -244,6 +268,8 @@ func TestSSESendsDataFromChannel(t *testing.T) {
 }
 
 func TestSSEReturnsErrNonFlushableWriter(t *testing.T) {
+	t.Parallel()
+
 	w := newNonFlushWriter()
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	ch := make(chan []byte)

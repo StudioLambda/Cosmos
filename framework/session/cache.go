@@ -26,9 +26,9 @@ type CacheDriver struct {
 }
 
 // CacheDriverOptions holds configuration for the CacheDriver.
-// The prefix is prepended to session IDs when forming cache keys.
+// The Prefix is prepended to session IDs when forming cache keys.
 type CacheDriverOptions struct {
-	prefix string
+	Prefix string
 }
 
 // ErrCacheDriverInvalidType is returned when a value retrieved from the
@@ -40,7 +40,7 @@ var ErrCacheDriverInvalidType = errors.New("invalid cache type")
 // "cosmos.sessions". Use NewCacheDriverWith for custom options.
 func NewCacheDriver(cache contract.Cache) *CacheDriver {
 	return NewCacheDriverWith(cache, CacheDriverOptions{
-		prefix: "cosmos.sessions",
+		Prefix: "cosmos.sessions",
 	})
 }
 
@@ -56,7 +56,7 @@ func NewCacheDriverWith(cache contract.Cache, options CacheDriverOptions) *Cache
 // key builds the full cache key by joining the configured prefix
 // with the session ID.
 func (driver *CacheDriver) key(id string) string {
-	return fmt.Sprintf("%s.%s", driver.options.prefix, id)
+	return fmt.Sprintf("%s.%s", driver.options.Prefix, id)
 }
 
 // Get retrieves a session from the cache by its ID. It returns
