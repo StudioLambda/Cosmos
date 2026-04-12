@@ -174,7 +174,10 @@ func (database *SQL) FindNamed(ctx context.Context, query string, dest any, arg 
 // original error and any rollback error are joined. If fn succeeds,
 // the transaction is committed. Nested transactions are not supported
 // and return contract.ErrDatabaseNestedTransaction.
-func (database *SQL) WithTransaction(ctx context.Context, fn func(tx contract.Database) error) error {
+//
+// If fn panics, the transaction is rolled back before the panic is
+// re-raised, preventing connection pool leaks.
+func (database *SQL) WithTransaction(ctx context.Context, fn func(tx contract.Database) error) (retErr error) {
 	if _, ok := database.db.(*sqlx.Tx); ok {
 		return contract.ErrDatabaseNestedTransaction
 	}
@@ -185,10 +188,23 @@ func (database *SQL) WithTransaction(ctx context.Context, fn func(tx contract.Da
 		return err
 	}
 
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback()
+			panic(p)
+		}
+
+		if retErr != nil {
+			retErr = errors.Join(retErr, tx.Rollback())
+		}
+	}()
+
 	txWrapper := &SQL{db: tx, raw: database.raw}
 
 	if err := fn(txWrapper); err != nil {
-		return errors.Join(err, tx.Rollback())
+		retErr = err
+
+		return
 	}
 
 	return tx.Commit()
