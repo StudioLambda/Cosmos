@@ -8,10 +8,14 @@ import (
 )
 
 func TestHooksKeyIsNonNil(t *testing.T) {
+	t.Parallel()
+
 	require.NotNil(t, contract.HooksKey)
 }
 
 func TestHooksKeyIsDistinctType(t *testing.T) {
+	t.Parallel()
+
 	var other any = struct{}{}
 
 	require.NotEqual(t, other, contract.HooksKey)

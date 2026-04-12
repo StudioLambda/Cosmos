@@ -24,6 +24,8 @@ func (stubHooks) BeforeWriteHeaderFuncs() []contract.BeforeWriteHeaderHook {
 }
 
 func TestHooksReturnsHooksFromContext(t *testing.T) {
+	t.Parallel()
+
 	hooks := stubHooks{}
 	ctx := context.WithValue(
 		context.Background(), contract.HooksKey, contract.Hooks(hooks),
@@ -38,6 +40,8 @@ func TestHooksReturnsHooksFromContext(t *testing.T) {
 }
 
 func TestHooksPanicsWithoutContext(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	require.Panics(t, func() {
@@ -46,6 +50,8 @@ func TestHooksPanicsWithoutContext(t *testing.T) {
 }
 
 func TestHooksPanicsWithErrNoHooksMiddleware(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	defer func() {
@@ -57,6 +63,8 @@ func TestHooksPanicsWithErrNoHooksMiddleware(t *testing.T) {
 }
 
 func TestTryHooksReturnsTrueWhenPresent(t *testing.T) {
+	t.Parallel()
+
 	hooks := stubHooks{}
 	ctx := context.WithValue(
 		context.Background(), contract.HooksKey, contract.Hooks(hooks),
@@ -72,6 +80,8 @@ func TestTryHooksReturnsTrueWhenPresent(t *testing.T) {
 }
 
 func TestTryHooksReturnsFalseWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	result, ok := request.TryHooks(r)
@@ -81,6 +91,8 @@ func TestTryHooksReturnsFalseWhenMissing(t *testing.T) {
 }
 
 func TestTryHooksReturnsFalseWhenWrongType(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.WithValue(
 		context.Background(), contract.HooksKey, "not hooks",
 	)
@@ -95,6 +107,8 @@ func TestTryHooksReturnsFalseWhenWrongType(t *testing.T) {
 }
 
 func TestErrNoHooksMiddlewareHasCorrectTitle(t *testing.T) {
+	t.Parallel()
+
 	require.Equal(
 		t,
 		"No hooks context",
@@ -103,6 +117,8 @@ func TestErrNoHooksMiddlewareHasCorrectTitle(t *testing.T) {
 }
 
 func TestErrNoHooksMiddlewareHasCorrectStatus(t *testing.T) {
+	t.Parallel()
+
 	require.Equal(
 		t,
 		http.StatusInternalServerError,

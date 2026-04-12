@@ -10,6 +10,8 @@ import (
 )
 
 func TestHeaderReturnsValue(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("X-Custom", "value")
 
@@ -19,6 +21,8 @@ func TestHeaderReturnsValue(t *testing.T) {
 }
 
 func TestHeaderReturnsEmptyWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	result := request.Header(r, "X-Missing")
@@ -27,6 +31,8 @@ func TestHeaderReturnsEmptyWhenMissing(t *testing.T) {
 }
 
 func TestHasHeaderReturnsTrueWhenPresent(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("Authorization", "Bearer token")
 
@@ -36,6 +42,8 @@ func TestHasHeaderReturnsTrueWhenPresent(t *testing.T) {
 }
 
 func TestHasHeaderReturnsFalseWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	result := request.HasHeader(r, "Authorization")
@@ -44,6 +52,8 @@ func TestHasHeaderReturnsFalseWhenMissing(t *testing.T) {
 }
 
 func TestHasHeaderReturnsFalseWhenEmpty(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("X-Empty", "")
 
@@ -53,6 +63,8 @@ func TestHasHeaderReturnsFalseWhenEmpty(t *testing.T) {
 }
 
 func TestHeaderOrReturnsValueWhenPresent(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("Accept", "application/json")
 
@@ -62,6 +74,8 @@ func TestHeaderOrReturnsValueWhenPresent(t *testing.T) {
 }
 
 func TestHeaderOrReturnsFallbackWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	result := request.HeaderOr(r, "Accept", "text/html")
@@ -70,6 +84,8 @@ func TestHeaderOrReturnsFallbackWhenMissing(t *testing.T) {
 }
 
 func TestHeaderOrReturnsFallbackWhenEmpty(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("Accept", "")
 
@@ -79,6 +95,8 @@ func TestHeaderOrReturnsFallbackWhenEmpty(t *testing.T) {
 }
 
 func TestHeaderValuesReturnsAllValues(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Add("X-Multi", "first")
 	r.Header.Add("X-Multi", "second")
@@ -89,6 +107,8 @@ func TestHeaderValuesReturnsAllValues(t *testing.T) {
 }
 
 func TestHeaderValuesReturnsNilWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	result := request.HeaderValues(r, "X-Missing")

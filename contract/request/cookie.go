@@ -2,15 +2,8 @@ package request
 
 import "net/http"
 
-// Cookie retrieves a cookie by name from the HTTP request.
-// Returns the cookie if found, or nil if the cookie doesn't exist
-// or if there's an error retrieving it.
-//
-// Parameters:
-//   - r: The HTTP request to search for the cookie
-//   - name: The name of the cookie to retrieve
-//
-// Returns the cookie object or nil if not found.
+// Cookie retrieves the named cookie from the HTTP request using
+// [http.Request.Cookie]. It returns nil if the cookie does not exist.
 func Cookie(r *http.Request, name string) *http.Cookie {
 	if cookie, err := r.Cookie(name); err == nil {
 		return cookie
@@ -19,15 +12,8 @@ func Cookie(r *http.Request, name string) *http.Cookie {
 	return nil
 }
 
-// CookieValue retrieves the value of a cookie by name from the HTTP request.
-// This is a convenience function that extracts just the value from the cookie.
-// Returns an empty string if the cookie doesn't exist.
-//
-// Parameters:
-//   - r: The HTTP request to search for the cookie
-//   - name: The name of the cookie whose value to retrieve
-//
-// Returns the cookie value as a string, or empty string if not found.
+// CookieValue retrieves the value of the named cookie from the HTTP
+// request. It returns an empty string if the cookie does not exist.
 func CookieValue(r *http.Request, name string) string {
 	if cookie := Cookie(r, name); cookie != nil {
 		return cookie.Value
@@ -36,16 +22,8 @@ func CookieValue(r *http.Request, name string) string {
 	return ""
 }
 
-// CookieValueOr retrieves the value of a cookie by name, returning a default
-// value if the cookie doesn't exist or has an empty value. This is useful
-// for providing fallback values when cookies are optional.
-//
-// Parameters:
-//   - r: The HTTP request to search for the cookie
-//   - name: The name of the cookie whose value to retrieve
-//   - fallback: The default value to return if the cookie is not found or empty
-//
-// Returns the cookie value if found and non-empty, otherwise the default value.
+// CookieValueOr retrieves the value of the named cookie, falling back
+// to the provided default value if the cookie is missing or empty.
 func CookieValueOr(r *http.Request, name string, fallback string) string {
 	if value := CookieValue(r, name); value != "" {
 		return value

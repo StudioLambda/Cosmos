@@ -65,6 +65,6 @@ type Database interface {
 	// WithTransaction executes the provided function fn within a database transaction.
 	// If fn returns an error, the transaction is rolled back. Otherwise, it is committed.
 	// The tx passed to fn implements the same Database interface and can be used
-	// for nested operations within the transaction.
+	// for operations within the transaction scope.
 	WithTransaction(ctx context.Context, fn func(tx Database) error) error
 }

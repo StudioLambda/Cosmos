@@ -10,6 +10,8 @@ import (
 )
 
 func TestQueryReturnsValue(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/?name=alice", nil)
 
 	result := request.Query(r, "name")
@@ -18,6 +20,8 @@ func TestQueryReturnsValue(t *testing.T) {
 }
 
 func TestQueryReturnsEmptyWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	result := request.Query(r, "name")
@@ -26,6 +30,8 @@ func TestQueryReturnsEmptyWhenMissing(t *testing.T) {
 }
 
 func TestQueryReturnsEmptyValueWhenPresentButEmpty(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/?name=", nil)
 
 	result := request.Query(r, "name")
@@ -34,6 +40,8 @@ func TestQueryReturnsEmptyValueWhenPresentButEmpty(t *testing.T) {
 }
 
 func TestHasQueryReturnsTrueWhenPresent(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/?active=true", nil)
 
 	result := request.HasQuery(r, "active")
@@ -42,6 +50,8 @@ func TestHasQueryReturnsTrueWhenPresent(t *testing.T) {
 }
 
 func TestHasQueryReturnsTrueWhenPresentButEmpty(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/?active=", nil)
 
 	result := request.HasQuery(r, "active")
@@ -50,6 +60,8 @@ func TestHasQueryReturnsTrueWhenPresentButEmpty(t *testing.T) {
 }
 
 func TestHasQueryReturnsTrueWhenPresentNoValue(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/?active", nil)
 
 	result := request.HasQuery(r, "active")
@@ -58,6 +70,8 @@ func TestHasQueryReturnsTrueWhenPresentNoValue(t *testing.T) {
 }
 
 func TestHasQueryReturnsFalseWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	result := request.HasQuery(r, "active")
@@ -66,6 +80,8 @@ func TestHasQueryReturnsFalseWhenMissing(t *testing.T) {
 }
 
 func TestQueryOrReturnsValueWhenPresent(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/?page=2", nil)
 
 	result := request.QueryOr(r, "page", "1")
@@ -74,6 +90,8 @@ func TestQueryOrReturnsValueWhenPresent(t *testing.T) {
 }
 
 func TestQueryOrReturnsEmptyValueWhenParamExists(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/?page=", nil)
 
 	result := request.QueryOr(r, "page", "1")
@@ -82,6 +100,8 @@ func TestQueryOrReturnsEmptyValueWhenParamExists(t *testing.T) {
 }
 
 func TestQueryOrReturnsFallbackWhenMissing(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	result := request.QueryOr(r, "page", "1")
@@ -90,6 +110,8 @@ func TestQueryOrReturnsFallbackWhenMissing(t *testing.T) {
 }
 
 func TestQueryIntReturnsInteger(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/?page=5", nil)
 
 	result, err := request.QueryInt(r, "page")
@@ -99,6 +121,8 @@ func TestQueryIntReturnsInteger(t *testing.T) {
 }
 
 func TestQueryIntReturnsErrorWhenEmpty(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	_, err := request.QueryInt(r, "page")
@@ -108,6 +132,8 @@ func TestQueryIntReturnsErrorWhenEmpty(t *testing.T) {
 }
 
 func TestQueryIntReturnsErrorWhenNotInteger(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/?page=abc", nil)
 
 	_, err := request.QueryInt(r, "page")
@@ -117,6 +143,8 @@ func TestQueryIntReturnsErrorWhenNotInteger(t *testing.T) {
 }
 
 func TestQueryIntReturnsNegativeInteger(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/?offset=-3", nil)
 
 	result, err := request.QueryInt(r, "offset")
@@ -126,6 +154,8 @@ func TestQueryIntReturnsNegativeInteger(t *testing.T) {
 }
 
 func TestQueryIntReturnsZero(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/?page=0", nil)
 
 	result, err := request.QueryInt(r, "page")
@@ -135,6 +165,8 @@ func TestQueryIntReturnsZero(t *testing.T) {
 }
 
 func TestQueryIntOrReturnsIntegerWhenValid(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/?page=7", nil)
 
 	result := request.QueryIntOr(r, "page", 1)
@@ -143,6 +175,8 @@ func TestQueryIntOrReturnsIntegerWhenValid(t *testing.T) {
 }
 
 func TestQueryIntOrReturnsFallbackWhenEmpty(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	result := request.QueryIntOr(r, "page", 1)
@@ -151,6 +185,8 @@ func TestQueryIntOrReturnsFallbackWhenEmpty(t *testing.T) {
 }
 
 func TestQueryIntOrReturnsFallbackWhenNotInteger(t *testing.T) {
+	t.Parallel()
+
 	r := httptest.NewRequest(http.MethodGet, "/?page=abc", nil)
 
 	result := request.QueryIntOr(r, "page", 1)
