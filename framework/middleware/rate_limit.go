@@ -56,7 +56,7 @@ var DefaultRateLimitOptions = RateLimitOptions{
 		return r.RemoteAddr
 	},
 	ErrorResponse:   ErrRateLimited,
-	CleanupInterval: 1 * time.Minute,
+	CleanupInterval: time.Minute,
 	MaxIdleTime:     5 * time.Minute,
 }
 

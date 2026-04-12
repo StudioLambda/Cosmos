@@ -109,7 +109,8 @@ func Recover() framework.Middleware {
 //
 // The custom handler receives the raw panic value and must return
 // an error that will be passed through the normal error handling
-// chain.
+// chain. Use [errors.As] with an interface containing a
+// Stack() []byte method to access the stack trace.
 func RecoverWith(handler func(value any) error) framework.Middleware {
 	return func(next framework.Handler) framework.Handler {
 		return func(

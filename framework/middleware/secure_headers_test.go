@@ -5,9 +5,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/framework"
 	"github.com/studiolambda/cosmos/framework/middleware"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSecureHeadersDefault(t *testing.T) {

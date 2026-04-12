@@ -13,8 +13,9 @@ import (
 type ProvideFunc = func(w http.ResponseWriter, r *http.Request) (context.Context, error)
 
 // Provide returns a middleware that injects a static key-value pair
-// into the request context. Every downstream handler and middleware
-// can retrieve the value with the same key.
+// into the request context. The key should be an unexported type to
+// avoid collisions. Downstream handlers retrieve the value with
+// r.Context().Value(key).
 func Provide(key any, val any) framework.Middleware {
 	return ProvideWith(func(w http.ResponseWriter, r *http.Request) (context.Context, error) {
 		return context.WithValue(r.Context(), key, val), nil
