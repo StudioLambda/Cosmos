@@ -190,3 +190,33 @@ func TestChaCha20DecryptEmptyInput(t *testing.T) {
 
 	require.ErrorIs(t, err, crypto.ErrMismatchedChaCha20NonceSize)
 }
+
+func TestChaCha20EncryptAfterCloseReturnsError(t *testing.T) {
+	t.Parallel()
+
+	key := []byte("12345678901234567890123456789012")
+	encrypter, err := crypto.NewChaCha20(key)
+
+	require.NoError(t, err)
+
+	encrypter.Close()
+
+	_, err = encrypter.Encrypt([]byte("Hello, World!"))
+
+	require.ErrorIs(t, err, crypto.ErrEncrypterClosed)
+}
+
+func TestChaCha20DecryptAfterCloseReturnsError(t *testing.T) {
+	t.Parallel()
+
+	key := []byte("12345678901234567890123456789012")
+	encrypter, err := crypto.NewChaCha20(key)
+
+	require.NoError(t, err)
+
+	encrypter.Close()
+
+	_, err = encrypter.Decrypt([]byte("some ciphertext that is long enough"))
+
+	require.ErrorIs(t, err, crypto.ErrEncrypterClosed)
+}
