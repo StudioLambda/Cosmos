@@ -296,3 +296,103 @@ func TestMQTTBrokerRouteUnmarshalsJSONPayload(t *testing.T) {
 
 	require.Equal(t, "hello world", received)
 }
+
+func TestMQTTBrokerRoutePanicDoesNotPropagate(t *testing.T) {
+	t.Parallel()
+
+	broker := &MQTTBroker{
+		handlers: map[string]map[string]contract.EventHandler{
+			"user/created": {
+				"1": func(payload contract.EventPayload) {
+					panic("handler panic")
+				},
+			},
+		},
+	}
+
+	require.NotPanics(t, func() {
+		broker.route(&paho.Publish{
+			Topic:   "user/created",
+			Payload: []byte(`"data"`),
+		})
+	})
+}
+
+func TestMQTTBrokerRoutePanicDoesNotAffectOtherHandlers(t *testing.T) {
+	t.Parallel()
+
+	var called atomic.Bool
+
+	broker := &MQTTBroker{
+		handlers: map[string]map[string]contract.EventHandler{
+			"user/created": {
+				"1": func(payload contract.EventPayload) {
+					panic("handler panic")
+				},
+				"2": func(payload contract.EventPayload) {
+					called.Store(true)
+				},
+			},
+		},
+	}
+
+	broker.route(&paho.Publish{
+		Topic:   "user/created",
+		Payload: []byte(`"data"`),
+	})
+
+	require.True(t, called.Load())
+}
+
+func TestMQTTBrokerHandlePublishRoutesMessage(t *testing.T) {
+	t.Parallel()
+
+	var called atomic.Bool
+
+	broker := &MQTTBroker{
+		handlers: map[string]map[string]contract.EventHandler{
+			"user/created": {
+				"1": func(payload contract.EventPayload) {
+					called.Store(true)
+				},
+			},
+		},
+	}
+
+	handled, err := broker.HandlePublish(paho.PublishReceived{
+		Packet: &paho.Publish{
+			Topic:   "user/created",
+			Payload: []byte(`"hello"`),
+		},
+	})
+
+	require.NoError(t, err)
+	require.True(t, handled)
+	require.True(t, called.Load())
+}
+
+func TestMQTTBrokerHandlePublishRecoversPanic(t *testing.T) {
+	t.Parallel()
+
+	broker := &MQTTBroker{
+		handlers: map[string]map[string]contract.EventHandler{
+			"user/created": {
+				"1": func(payload contract.EventPayload) {
+					panic("handler panic")
+				},
+			},
+		},
+	}
+
+	require.NotPanics(t, func() {
+		handled, err := broker.HandlePublish(paho.PublishReceived{
+			Packet: &paho.Publish{
+				Topic:   "user/created",
+				Payload: []byte(`"data"`),
+			},
+		})
+
+		require.NoError(t, err)
+		require.True(t, handled)
+	})
+}
