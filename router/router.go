@@ -198,17 +198,18 @@ func (router *Router[H]) registerTrailing(method string, pattern string, handler
 // or without a trailing slash.
 //
 // Possible scenarios are:
-//  1. The path ends in anonymous wildcard: '/'
-//     - Must register the pattern
-//     - Must register the same without the last '/'
-//     (sometimes)
-//  2. The path ends in wildcard match all: '...':
+//  1. The path ends in wildcard match all: '...':
 //     - Must register the pattern
 //     - Must register the same without wildcard and
 //     slash: '/{abc...}'
-//  3. The path does not end in '/' nor '...':
+//  2. The path does not end in '...':
 //     - Must register the pattern
 //     - Must register the pattern + '/'
+//
+// Note: patterns ending in '/' never reach this method
+// because [path.Join] in [Router.Method] strips trailing
+// slashes, and the bare "/" case is handled separately by
+// [Router.registerRoot].
 //
 // Note that catch-all routes (e.g., "/files/{path...}")
 // also match their base path (e.g., "/files/") because
@@ -220,19 +221,7 @@ func (router *Router[H]) registerPair(method string, pattern string, handler H) 
 	// In all cases we always register the pattern, so let's do this first.
 	router.register(method, pattern, handler)
 
-	// Assess the first scenario, check if we
-	// are in a pattern ended with a slash.
-	//
-	// We must register the pattern without the last
-	// slash, so we simply remove it.
-	if pattern, ok := strings.CutSuffix(pattern, "/"); ok {
-		router.register(method, pattern, handler)
-
-		return
-	}
-
-	// Assess the second scenario, check if we
-	// are in a wildcard "rest" parameter.
+	// Check if we are in a wildcard "rest" parameter.
 	if strings.HasSuffix(pattern, "...}") {
 		// We have to register the pattern without
 		// the left slash and the rest parameter, so
@@ -245,9 +234,9 @@ func (router *Router[H]) registerPair(method string, pattern string, handler H) 
 		return
 	}
 
-	// Given the path does not end in a slash nor a
-	// rest wildcard, we can simply register the trailing
-	// slash pattern to adhere to both.
+	// Given the path does not end in a rest wildcard,
+	// we can simply register the trailing slash pattern
+	// to adhere to both.
 	router.registerTrailing(method, pattern, handler)
 }
 
