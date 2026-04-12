@@ -5,8 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/patrickmn/go-cache"
 	"github.com/studiolambda/cosmos/contract"
+
+	"github.com/patrickmn/go-cache"
 )
 
 // Memory implements contract.Cache using an in-memory store backed
@@ -66,6 +67,9 @@ func (memory *Memory) Has(_ context.Context, key string) (bool, error) {
 
 // Pull atomically retrieves and removes the value for the given key.
 // It holds a mutex to prevent races between the get and delete steps.
+//
+// Pull is not atomic; under concurrent access another caller may
+// retrieve the same value before it is deleted.
 func (memory *Memory) Pull(ctx context.Context, key string) (any, error) {
 	memory.mux.Lock()
 	defer memory.mux.Unlock()

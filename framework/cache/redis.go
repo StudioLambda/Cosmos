@@ -6,8 +6,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/studiolambda/cosmos/contract"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // RedisOptions is an alias for redis.Options, exposing the full
@@ -55,12 +56,12 @@ func (client *RedisClient) Put(ctx context.Context, key string, value any, ttl t
 	return (*redis.Client)(client).Set(ctx, key, value, ttl).Err()
 }
 
-// Delete removes a key from Redis.
+// Delete removes a key from Redis. Deleting a non-existent key is a no-op.
 func (client *RedisClient) Delete(ctx context.Context, key string) error {
 	return (*redis.Client)(client).Del(ctx, key).Err()
 }
 
-// Has reports whether the key exists in Redis.
+// Has reports whether the key exists in Redis and has not expired.
 func (client *RedisClient) Has(ctx context.Context, key string) (bool, error) {
 	count, err := (*redis.Client)(client).Exists(ctx, key).Result()
 
@@ -73,7 +74,7 @@ func (client *RedisClient) Has(ctx context.Context, key string) (bool, error) {
 
 // Pull atomically retrieves and deletes a key using Redis GETDEL.
 // The stored value is JSON-decoded into the return value.
-func (client *RedisClient) Pull(ctx context.Context, key string) (value any, err error) {
+func (client *RedisClient) Pull(ctx context.Context, key string) (any, error) {
 	encoded, err := (*redis.Client)(client).GetDel(ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
@@ -84,6 +85,8 @@ func (client *RedisClient) Pull(ctx context.Context, key string) (value any, err
 		return nil, err
 	}
 
+	var value any
+
 	if err := json.Unmarshal([]byte(encoded), &value); err != nil {
 		return nil, err
 	}
@@ -91,17 +94,19 @@ func (client *RedisClient) Pull(ctx context.Context, key string) (value any, err
 	return value, nil
 }
 
-// Forever stores a value with no expiration.
+// Forever stores a value with no expiration. Values are serialized for storage.
 func (client *RedisClient) Forever(ctx context.Context, key string, value any) error {
 	return client.Put(ctx, key, value, 0)
 }
 
-// Increment increases the integer value at key by the given amount.
+// Increment atomically increases the integer value stored at key by
+// the given amount.
 func (client *RedisClient) Increment(ctx context.Context, key string, by int64) (int64, error) {
 	return (*redis.Client)(client).IncrBy(ctx, key, by).Result()
 }
 
-// Decrement decreases the integer value at key by the given amount.
+// Decrement atomically decreases the integer value stored at key by
+// the given amount.
 func (client *RedisClient) Decrement(ctx context.Context, key string, by int64) (int64, error) {
 	return (*redis.Client)(client).DecrBy(ctx, key, by).Result()
 }

@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework/cache"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMemoryGetReturnsStoredValue(t *testing.T) {
