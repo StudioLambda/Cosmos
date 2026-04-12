@@ -109,26 +109,31 @@ func (broker *MemoryBroker) Publish(
 	}
 
 	broker.mu.RLock()
-	defer broker.mu.RUnlock()
+
+	var matched []contract.EventHandler
 
 	for pattern, patternHandlers := range broker.handlers {
-		if !matchEvent(pattern, event) {
-			continue
+		if matchEvent(pattern, event) {
+			for _, handler := range patternHandlers {
+				matched = append(matched, handler)
+			}
 		}
+	}
 
-		for _, handler := range patternHandlers {
-			broker.wg.Add(1)
-			broker.sem <- struct{}{}
+	broker.mu.RUnlock()
 
-			go func(h contract.EventHandler) {
-				defer func() {
-					<-broker.sem
-					broker.wg.Done()
-				}()
+	for _, handler := range matched {
+		broker.wg.Add(1)
+		broker.sem <- struct{}{}
 
-				broker.deliverToHandler(h, encoded)
-			}(handler)
-		}
+		go func() {
+			defer func() {
+				<-broker.sem
+				broker.wg.Done()
+			}()
+
+			broker.deliverToHandler(handler, encoded)
+		}()
 	}
 
 	return nil
