@@ -28,6 +28,10 @@ import (
 //
 // The broker supports fan-out messaging where multiple handlers
 // can subscribe to the same topic and all will receive messages.
+//
+// Wildcard patterns: dots are converted to MQTT '/' separators, '*' is
+// converted to MQTT '+' (single-level), and '#' matches multiple levels
+// (must be the last token).
 type MQTTBroker struct {
 	// client is the autopaho connection manager with auto-reconnection.
 	client *autopaho.ConnectionManager
@@ -361,6 +365,10 @@ func (broker *MQTTBroker) Publish(
 	event string,
 	payload any,
 ) error {
+	if err := validateEvent(event); err != nil {
+		return err
+	}
+
 	encoded, err := json.Marshal(payload)
 
 	if err != nil {
@@ -399,6 +407,10 @@ func (broker *MQTTBroker) Subscribe(
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
+	if err := validateEvent(event); err != nil {
+		return nil, err
+	}
+
 	topic := convertTopic(event)
 	handlerID := strconv.FormatUint(broker.nextID.Add(1), 10)
 

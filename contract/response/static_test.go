@@ -389,3 +389,33 @@ func TestErrUnsafeRedirectMessage(t *testing.T) {
 		response.ErrUnsafeRedirect.Error(),
 	)
 }
+
+func TestStringTemplateBuffersBeforeWritingStatus(t *testing.T) {
+	t.Parallel()
+
+	w := httptest.NewRecorder()
+	tmpl := template.Must(
+		template.New("test").Parse("{{.Name}}"),
+	)
+
+	err := response.StringTemplate(w, http.StatusOK, *tmpl, 42)
+
+	require.Error(t, err)
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Empty(t, w.Body.String())
+}
+
+func TestHTMLTemplateBuffersBeforeWritingStatus(t *testing.T) {
+	t.Parallel()
+
+	w := httptest.NewRecorder()
+	tmpl := htmltemplate.Must(
+		htmltemplate.New("test").Parse("{{.Name}}"),
+	)
+
+	err := response.HTMLTemplate(w, http.StatusOK, *tmpl, 42)
+
+	require.Error(t, err)
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Empty(t, w.Body.String())
+}

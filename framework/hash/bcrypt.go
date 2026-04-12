@@ -18,11 +18,11 @@ type Bcrypt struct {
 	options BcryptOptions
 }
 
-// BcryptOptions configures the bcrypt hasher. The cost parameter
+// BcryptOptions configures the bcrypt hasher. The Cost parameter
 // controls the computational expense of hashing; higher values
 // are more secure but slower.
 type BcryptOptions struct {
-	cost int
+	Cost int
 }
 
 // DefaultBcryptCost is the default bcrypt cost factor.
@@ -33,7 +33,7 @@ const DefaultBcryptCost = 12
 // NewBcrypt creates a Bcrypt hasher with the default cost factor.
 func NewBcrypt() *Bcrypt {
 	return NewBcryptWith(BcryptOptions{
-		cost: DefaultBcryptCost,
+		Cost: DefaultBcryptCost,
 	})
 }
 
@@ -42,8 +42,8 @@ func NewBcrypt() *Bcrypt {
 // of bcrypt.MinCost (4). Costs below 12 are not recommended for
 // production use per OWASP guidelines.
 func NewBcryptWith(options BcryptOptions) *Bcrypt {
-	if options.cost < bcrypt.MinCost {
-		options.cost = bcrypt.MinCost
+	if options.Cost < bcrypt.MinCost {
+		options.Cost = bcrypt.MinCost
 	}
 
 	return &Bcrypt{
@@ -51,13 +51,15 @@ func NewBcryptWith(options BcryptOptions) *Bcrypt {
 	}
 }
 
-// Hash produces a bcrypt hash of the given value using the
-// configured cost factor. The plaintext value is zeroed from
-// memory after hashing completes.
+// Hash generates a bcrypt hash of the given value.
+// Bcrypt has a maximum password length of 72 bytes. Passwords exceeding
+// this limit will result in an error from the underlying bcrypt library.
+// The input value is zeroed after hashing as a security measure.
+// Callers must not reuse the value slice after calling Hash.
 func (hasher *Bcrypt) Hash(value []byte) ([]byte, error) {
 	defer zeroBytes(value)
 
-	hash, err := bcrypt.GenerateFromPassword(value, hasher.options.cost)
+	hash, err := bcrypt.GenerateFromPassword(value, hasher.options.Cost)
 
 	if err != nil {
 		return nil, err
@@ -68,8 +70,9 @@ func (hasher *Bcrypt) Hash(value []byte) ([]byte, error) {
 
 // Check verifies that the given plaintext value matches the
 // bcrypt hash. Returns (false, nil) on a mismatch and (false, err)
-// on an unexpected error. The plaintext value is zeroed from
-// memory after verification completes.
+// on an unexpected error. The input value is zeroed after verification
+// as a security measure. Callers must not reuse the value slice after
+// calling Check.
 func (hasher *Bcrypt) Check(value []byte, hash []byte) (bool, error) {
 	defer zeroBytes(value)
 
@@ -84,4 +87,17 @@ func (hasher *Bcrypt) Check(value []byte, hash []byte) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// NeedsRehash reports whether the given hash was created with different
+// parameters than the current configuration, indicating it should be
+// re-hashed on the next successful authentication.
+func (hasher *Bcrypt) NeedsRehash(hash []byte) bool {
+	cost, err := bcrypt.Cost(hash)
+
+	if err != nil {
+		return true
+	}
+
+	return cost != hasher.options.Cost
 }

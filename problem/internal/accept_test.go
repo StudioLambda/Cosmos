@@ -223,6 +223,54 @@ func TestAcceptAcceptsWildcardInMedia(t *testing.T) {
 	}
 }
 
+func TestAcceptWildcardDoesNotMatchAcrossSlash(t *testing.T) {
+	t.Parallel()
+
+	request, err := http.NewRequest("GET", "/", nil)
+
+	if err != nil {
+		t.Fatalf("failed to create request: %s", err)
+	}
+
+	request.Header.Add("Accept", "application/*")
+
+	accept := internal.ParseAccept(request)
+
+	if accept.Accepts("applicationx/json") {
+		t.Fatalf("application/* should not match applicationx/json")
+	}
+
+	if !accept.Accepts("application/json") {
+		t.Fatalf("application/* should match application/json")
+	}
+}
+
+func TestAcceptFullWildcardMatchesAny(t *testing.T) {
+	t.Parallel()
+
+	request, err := http.NewRequest("GET", "/", nil)
+
+	if err != nil {
+		t.Fatalf("failed to create request: %s", err)
+	}
+
+	request.Header.Add("Accept", "*/*")
+
+	accept := internal.ParseAccept(request)
+
+	if !accept.Accepts("application/json") {
+		t.Fatalf("expected */* to match application/json")
+	}
+
+	if !accept.Accepts("text/html") {
+		t.Fatalf("expected */* to match text/html")
+	}
+
+	if !accept.Accepts("application/problem+json") {
+		t.Fatalf("expected */* to match application/problem+json")
+	}
+}
+
 func TestAcceptNoAcceptHeader(t *testing.T) {
 	t.Parallel()
 

@@ -38,7 +38,7 @@ func TestSecureHeadersDefault(t *testing.T) {
 		res.Header.Get("Referrer-Policy"),
 	)
 	require.Equal(
-		t, "1; mode=block", res.Header.Get("X-XSS-Protection"),
+		t, "0", res.Header.Get("X-XSS-Protection"),
 	)
 	require.Equal(
 		t,
@@ -179,4 +179,22 @@ func TestSecureHeadersCallsNextHandler(t *testing.T) {
 	handler.Record(req)
 
 	require.True(t, called)
+}
+
+func TestSecureHeadersDefaultXSSProtectionIsZero(t *testing.T) {
+	t.Parallel()
+
+	handler := middleware.SecureHeaders()(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		w.WriteHeader(http.StatusOK)
+
+		return nil
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	res := handler.Record(req)
+
+	require.Equal(t, "0", res.Header.Get("X-XSS-Protection"))
 }

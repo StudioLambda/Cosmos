@@ -36,8 +36,9 @@ func NewArgon2With(config Argon2Config) *Argon2 {
 
 // Hash produces an Argon2id encoded hash of the given value.
 // The returned byte slice contains the full encoded string
-// including algorithm parameters and salt. The plaintext value
-// is zeroed from memory after hashing completes.
+// including algorithm parameters and salt. The input value is
+// zeroed after hashing as a security measure. Callers must not
+// reuse the value slice after calling Hash.
 func (hasher *Argon2) Hash(value []byte) ([]byte, error) {
 	defer zeroBytes(value)
 
@@ -45,10 +46,27 @@ func (hasher *Argon2) Hash(value []byte) ([]byte, error) {
 }
 
 // Check verifies that the given plaintext value matches the
-// previously hashed encoded output. The plaintext value is
-// zeroed from memory after verification completes.
+// previously hashed encoded output. The input value is zeroed
+// after verification as a security measure. Callers must not
+// reuse the value slice after calling Check.
 func (hasher *Argon2) Check(value []byte, hash []byte) (bool, error) {
 	defer zeroBytes(value)
 
 	return argon2.VerifyEncoded(value, hash)
+}
+
+// NeedsRehash reports whether the given hash was created with different
+// parameters than the current configuration, indicating it should be
+// re-hashed on the next successful authentication.
+func (hasher *Argon2) NeedsRehash(hash []byte) bool {
+	raw, err := argon2.Decode(hash)
+
+	if err != nil {
+		return true
+	}
+
+	return raw.Config.TimeCost != hasher.config.TimeCost ||
+		raw.Config.MemoryCost != hasher.config.MemoryCost ||
+		raw.Config.Parallelism != hasher.config.Parallelism ||
+		raw.Config.HashLength != hasher.config.HashLength
 }

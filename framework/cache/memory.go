@@ -2,19 +2,20 @@ package cache
 
 import (
 	"context"
-	"sync"
+	"errors"
 	"time"
 
 	"github.com/patrickmn/go-cache"
 	"github.com/studiolambda/cosmos/contract"
 )
 
-// Memory implements contract.Cache using an in-memory store backed
-// by patrickmn/go-cache. It is suitable for single-process
-// applications and testing scenarios where persistence across
-// restarts is not required.
+// Memory implements [contract.Cache] using an in-memory store backed by
+// patrickmn/go-cache. Note that this dependency is unmaintained since 2017;
+// consider migrating to a maintained alternative for production use.
+//
+// Memory is suitable for single-process applications and testing scenarios
+// where persistence across restarts is not required.
 type Memory struct {
-	mux   sync.Mutex
 	store *cache.Cache
 }
 
@@ -43,6 +44,10 @@ func (memory *Memory) Get(_ context.Context, key string) (any, error) {
 
 // Put stores a value in the in-memory cache with the given TTL.
 // A zero TTL uses the default expiration configured at creation.
+//
+// WARNING: Values are stored by reference. Callers must not mutate
+// values after storing or after retrieval. For safety with mutable
+// types, store copies or use value types.
 func (memory *Memory) Put(_ context.Context, key string, value any, ttl time.Duration) error {
 	memory.store.Set(key, value, ttl)
 
@@ -64,12 +69,8 @@ func (memory *Memory) Has(_ context.Context, key string) (bool, error) {
 	return found, nil
 }
 
-// Pull atomically retrieves and removes the value for the given key.
-// It holds a mutex to prevent races between the get and delete steps.
+// Pull retrieves and removes the value for the given key.
 func (memory *Memory) Pull(ctx context.Context, key string) (any, error) {
-	memory.mux.Lock()
-	defer memory.mux.Unlock()
-
 	val, err := memory.Get(ctx, key)
 
 	if err != nil {
@@ -84,6 +85,10 @@ func (memory *Memory) Pull(ctx context.Context, key string) (any, error) {
 }
 
 // Forever stores a value permanently with no expiration.
+//
+// WARNING: Values are stored by reference. Callers must not mutate
+// values after storing or after retrieval. For safety with mutable
+// types, store copies or use value types.
 func (memory *Memory) Forever(_ context.Context, key string, value any) error {
 	memory.store.Set(key, value, cache.NoExpiration)
 
@@ -91,31 +96,29 @@ func (memory *Memory) Forever(_ context.Context, key string, value any) error {
 }
 
 // Increment atomically increases the integer value stored at key by
-// the given amount. Returns contract.ErrCacheKeyNotFound if the key
+// the given amount. Returns [contract.ErrCacheKeyNotFound] if the key
 // does not exist.
-func (memory *Memory) Increment(ctx context.Context, key string, by int64) (int64, error) {
-	memory.mux.Lock()
-	defer memory.mux.Unlock()
+func (memory *Memory) Increment(_ context.Context, key string, by int64) (int64, error) {
+	result, err := memory.store.IncrementInt64(key, by)
 
-	if found, _ := memory.Has(ctx, key); !found {
+	if err != nil {
 		return 0, contract.ErrCacheKeyNotFound
 	}
 
-	return memory.store.IncrementInt64(key, by)
+	return result, nil
 }
 
 // Decrement atomically decreases the integer value stored at key by
-// the given amount. Returns contract.ErrCacheKeyNotFound if the key
+// the given amount. Returns [contract.ErrCacheKeyNotFound] if the key
 // does not exist.
-func (memory *Memory) Decrement(ctx context.Context, key string, by int64) (int64, error) {
-	memory.mux.Lock()
-	defer memory.mux.Unlock()
+func (memory *Memory) Decrement(_ context.Context, key string, by int64) (int64, error) {
+	result, err := memory.store.DecrementInt64(key, by)
 
-	if found, _ := memory.Has(ctx, key); !found {
+	if err != nil {
 		return 0, contract.ErrCacheKeyNotFound
 	}
 
-	return memory.store.DecrementInt64(key, by)
+	return result, nil
 }
 
 // Remember retrieves the cached value for the given key, or
@@ -129,39 +132,43 @@ func (memory *Memory) Decrement(ctx context.Context, key string, by int64) (int6
 // use golang.org/x/sync/singleflight to deduplicate concurrent
 // calls for the same key.
 func (memory *Memory) Remember(ctx context.Context, key string, ttl time.Duration, compute func() (any, error)) (any, error) {
-	val, err := memory.Get(ctx, key)
+	value, err := memory.Get(ctx, key)
 
 	if err == nil {
-		return val, nil
+		return value, nil
 	}
 
-	val, err = compute()
+	if !errors.Is(err, contract.ErrCacheKeyNotFound) {
+		return nil, err
+	}
+
+	value, err = compute()
 
 	if err != nil {
 		return nil, err
 	}
 
-	_ = memory.Put(ctx, key, val, ttl)
-
-	return val, nil
+	return value, memory.Put(ctx, key, value, ttl)
 }
 
 // RememberForever retrieves the cached value for the given key, or
 // computes and stores it permanently if the key is not found.
 func (memory *Memory) RememberForever(ctx context.Context, key string, compute func() (any, error)) (any, error) {
-	val, err := memory.Get(ctx, key)
+	value, err := memory.Get(ctx, key)
 
 	if err == nil {
-		return val, nil
+		return value, nil
 	}
 
-	val, err = compute()
+	if !errors.Is(err, contract.ErrCacheKeyNotFound) {
+		return nil, err
+	}
+
+	value, err = compute()
 
 	if err != nil {
 		return nil, err
 	}
 
-	_ = memory.Forever(ctx, key, val)
-
-	return val, nil
+	return value, memory.Forever(ctx, key, value)
 }

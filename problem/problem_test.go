@@ -1182,6 +1182,97 @@ func TestUnmarshalJSONPartialFields(t *testing.T) {
 	}
 }
 
+func TestMarshalJSONStandardFieldsCannotBeOverwritten(t *testing.T) {
+	t.Parallel()
+
+	p := problem.Problem{
+		Type:     "https://example.com/errors/test",
+		Title:    "Test Error",
+		Detail:   "Real detail",
+		Status:   http.StatusBadRequest,
+		Instance: "/real/instance",
+	}
+
+	p = p.With("status", 999)
+	p = p.With("type", "https://evil.com/hijack")
+	p = p.With("title", "Hijacked Title")
+	p = p.With("detail", "Hijacked detail")
+	p = p.With("instance", "/hijacked/instance")
+
+	data, err := json.Marshal(p)
+
+	if err != nil {
+		t.Fatalf("failed to marshal: %s", err)
+	}
+
+	var decoded map[string]any
+
+	err = json.Unmarshal(data, &decoded)
+
+	if err != nil {
+		t.Fatalf("failed to unmarshal result: %s", err)
+	}
+
+	if decoded["status"] != float64(http.StatusBadRequest) {
+		t.Fatalf("expected status %v, got %v", float64(http.StatusBadRequest), decoded["status"])
+	}
+
+	if decoded["type"] != "https://example.com/errors/test" {
+		t.Fatalf("expected type %q, got %v", "https://example.com/errors/test", decoded["type"])
+	}
+
+	if decoded["title"] != "Test Error" {
+		t.Fatalf("expected title %q, got %v", "Test Error", decoded["title"])
+	}
+
+	if decoded["detail"] != "Real detail" {
+		t.Fatalf("expected detail %q, got %v", "Real detail", decoded["detail"])
+	}
+
+	if decoded["instance"] != "/real/instance" {
+		t.Fatalf("expected instance %q, got %v", "/real/instance", decoded["instance"])
+	}
+}
+
+func TestServeHTTPWithAcceptWildcardReturnsJSON(t *testing.T) {
+	t.Parallel()
+
+	p := problem.Problem{
+		Type:   "https://example.com/errors/test",
+		Title:  "Test Error",
+		Detail: "Details here",
+		Status: http.StatusBadRequest,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Accept", "*/*")
+	rec := httptest.NewRecorder()
+
+	p.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	ct := rec.Header().Get("Content-Type")
+
+	if ct != "application/json" {
+		t.Fatalf("expected content-type %q, got %q", "application/json", ct)
+	}
+
+	var decoded map[string]any
+
+	err := json.NewDecoder(rec.Body).Decode(&decoded)
+
+	if err != nil {
+		t.Fatalf("failed to decode response: %s", err)
+	}
+
+	if decoded["title"] != "Test Error" {
+		t.Fatalf("expected title %q, got %v", "Test Error", decoded["title"])
+	}
+}
+
 func TestUnmarshalJSONWrongFieldTypes(t *testing.T) {
 	t.Parallel()
 

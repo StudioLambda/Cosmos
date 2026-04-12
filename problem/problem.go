@@ -219,13 +219,13 @@ func (problem Problem) WithoutStackTrace() Problem {
 func (problem Problem) MarshalJSON() ([]byte, error) {
 	mapped := make(map[string]any, len(problem.additional)+5)
 
+	maps.Copy(mapped, problem.additional)
+
 	mapped["detail"] = problem.Detail
 	mapped["instance"] = problem.Instance
 	mapped["status"] = problem.Status
 	mapped["title"] = problem.Title
 	mapped["type"] = problem.Type
-
-	maps.Copy(mapped, problem.additional)
 
 	return json.Marshal(mapped)
 }
@@ -358,6 +358,12 @@ func (problem Problem) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for _, media := range internal.ParseAccept(r).Order() {
 		if response, ok := responses[media]; ok {
 			response.ServeHTTP(w, r)
+			return
+		}
+
+		// When */* is accepted, prefer application/json as the default format.
+		if media == "*/*" {
+			responses["application/json"].ServeHTTP(w, r)
 			return
 		}
 	}

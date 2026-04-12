@@ -15,6 +15,11 @@ import (
 // RedisBroker implements contract.EventBus using Redis Pub/Sub.
 // It maps the "#" multi-level wildcard to Redis's "*" glob pattern
 // for topic subscriptions.
+//
+// Wildcard patterns: '#' is translated to Redis glob '*' which matches
+// any characters including dots. Single-token matching ('*') is not
+// faithfully represented in Redis Pub/Sub and may match across token
+// boundaries.
 type RedisBroker struct {
 	client *redis.Client
 	wg     sync.WaitGroup
@@ -44,6 +49,10 @@ func NewRedisBrokerFrom(client *redis.Client) *RedisBroker {
 // Publish serializes the payload as JSON and publishes it to the
 // given Redis channel.
 func (broker *RedisBroker) Publish(ctx context.Context, event string, payload any) error {
+	if err := validateEvent(event); err != nil {
+		return err
+	}
+
 	encoded, err := json.Marshal(payload)
 
 	if err != nil {
@@ -62,6 +71,10 @@ func (broker *RedisBroker) Subscribe(
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
+	if err := validateEvent(event); err != nil {
+		return nil, err
+	}
+
 	event = strings.ReplaceAll(event, "#", "*")
 	sub := broker.client.PSubscribe(ctx, event)
 

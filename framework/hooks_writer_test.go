@@ -180,6 +180,49 @@ func TestWriteAfterWriteHeaderDoesNotCallAgain(t *testing.T) {
 	require.Equal(t, http.StatusCreated, rec.Code)
 }
 
+func TestBeforeWriteHeaderHookPanicIsRecovered(t *testing.T) {
+	t.Parallel()
+
+	hooks := framework.NewHooks()
+	rec := httptest.NewRecorder()
+	wrapped := framework.NewResponseWriter(rec, hooks)
+
+	hooks.BeforeWriteHeader(func(w http.ResponseWriter, status int) {
+		panic("header hook panic")
+	})
+
+	require.NotPanics(t, func() {
+		wrapped.WriteHeader(http.StatusOK)
+	})
+
+	require.True(t, wrapped.WriteHeaderCalled())
+	require.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestBeforeWriteHookPanicIsRecovered(t *testing.T) {
+	t.Parallel()
+
+	hooks := framework.NewHooks()
+	rec := httptest.NewRecorder()
+	wrapped := framework.NewResponseWriter(rec, hooks)
+
+	hooks.BeforeWrite(func(w http.ResponseWriter, content []byte) {
+		panic("write hook panic")
+	})
+
+	wrapped.WriteHeader(http.StatusOK)
+
+	var n int
+	var err error
+
+	require.NotPanics(t, func() {
+		n, err = wrapped.Write([]byte("hello"))
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 5, n)
+}
+
 func TestResponseWriterUnwrapReturnsUnderlying(t *testing.T) {
 	t.Parallel()
 

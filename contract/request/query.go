@@ -48,11 +48,13 @@ func HasQuery(r *http.Request, name string) bool {
 //
 // Returns the parameter value if it exists, otherwise the default value.
 func QueryOr(r *http.Request, name string, fallback string) string {
-	if HasQuery(r, name) {
-		return Query(r, name)
+	values := r.URL.Query()
+
+	if !values.Has(name) {
+		return fallback
 	}
 
-	return fallback
+	return values.Get(name)
 }
 
 // QueryInt retrieves a query parameter by name and parses

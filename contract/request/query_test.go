@@ -157,3 +157,33 @@ func TestQueryIntOrReturnsFallbackWhenNotInteger(t *testing.T) {
 
 	require.Equal(t, 1, result)
 }
+
+func TestQueryOrParsesOnceReturnsValueWhenPresent(t *testing.T) {
+	t.Parallel()
+
+	r := httptest.NewRequest(http.MethodGet, "/?key=value", nil)
+
+	result := request.QueryOr(r, "key", "default")
+
+	require.Equal(t, "value", result)
+}
+
+func TestQueryOrParsesOnceReturnsFallbackWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	result := request.QueryOr(r, "key", "default")
+
+	require.Equal(t, "default", result)
+}
+
+func TestQueryOrParsesOnceReturnsEmptyWhenPresentButEmpty(t *testing.T) {
+	t.Parallel()
+
+	r := httptest.NewRequest(http.MethodGet, "/?key=", nil)
+
+	result := request.QueryOr(r, "key", "default")
+
+	require.Equal(t, "", result)
+}

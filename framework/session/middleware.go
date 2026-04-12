@@ -108,12 +108,27 @@ func validSessionID(id string) bool {
 // currentSession loads an existing session from the cookie-provided
 // ID or creates a fresh one when no valid session is found. The
 // cookie value is validated against the expected session ID format
-// before performing a cache lookup.
+// before performing a cache lookup. Expired sessions and sessions
+// that exceed MaxLifetime are deleted from the driver and replaced
+// with a fresh session to prevent stale auth data from reaching
+// the handler.
 func currentSession(r *http.Request, driver contract.SessionDriver, options MiddlewareOptions) (contract.Session, error) {
 	id := request.CookieValue(r, options.Name)
 
 	if id != "" && validSessionID(id) {
 		if session, err := driver.Get(r.Context(), id); err == nil {
+			if session.HasExpired() {
+				_ = driver.Delete(r.Context(), id)
+
+				return NewSession(time.Now().Add(options.TTL), map[string]any{})
+			}
+
+			if options.MaxLifetime > 0 && time.Since(session.CreatedAt()) >= options.MaxLifetime {
+				_ = driver.Delete(r.Context(), id)
+
+				return NewSession(time.Now().Add(options.TTL), map[string]any{})
+			}
+
 			session.MarkAsUnchanged()
 
 			return session, nil
@@ -125,10 +140,12 @@ func currentSession(r *http.Request, driver contract.SessionDriver, options Midd
 
 // withDefaults returns a copy of the options with secure defaults
 // applied to any zero-valued fields. This ensures that callers who
-// construct a partial MiddlewareOptions still get secure cookie
-// attributes (Secure=true, SameSite=Lax, HttpOnly, Path="/") and
-// sensible session parameters (DefaultCookie name, DefaultTTL,
-// DefaultExpirationDelta, contract.SessionKey).
+// construct a partial MiddlewareOptions still get sensible cookie
+// attributes (SameSite=Lax, Path="/") and sensible session
+// parameters (DefaultCookie name, DefaultTTL, DefaultMaxLifetime,
+// DefaultExpirationDelta, contract.SessionKey). The Secure flag
+// is NOT defaulted so that callers can set it to false for local
+// development; use [Middleware] for secure-by-default behaviour.
 func (options MiddlewareOptions) withDefaults() MiddlewareOptions {
 	if options.Name == "" {
 		options.Name = DefaultCookie
@@ -136,10 +153,6 @@ func (options MiddlewareOptions) withDefaults() MiddlewareOptions {
 
 	if options.Path == "" {
 		options.Path = "/"
-	}
-
-	if !options.Secure {
-		options.Secure = true
 	}
 
 	if options.SameSite == 0 {
@@ -152,6 +165,10 @@ func (options MiddlewareOptions) withDefaults() MiddlewareOptions {
 
 	if options.ExpirationDelta == 0 {
 		options.ExpirationDelta = DefaultExpirationDelta
+	}
+
+	if options.MaxLifetime == 0 {
+		options.MaxLifetime = DefaultMaxLifetime
 	}
 
 	if options.Key == nil {
@@ -193,6 +210,8 @@ func MiddlewareWith(driver contract.SessionDriver, options MiddlewareOptions) fr
 
 			hooks := request.Hooks(r)
 			hooks.BeforeWriteHeader(func(w http.ResponseWriter, status int) {
+				saveCtx := context.WithoutCancel(r.Context())
+
 				if options.MaxLifetime > 0 {
 					age := time.Since(session.CreatedAt())
 
@@ -218,7 +237,7 @@ func MiddlewareWith(driver contract.SessionDriver, options MiddlewareOptions) fr
 					reportError(
 						options,
 						driver.Delete(
-							r.Context(),
+							saveCtx,
 							session.OriginalSessionID(),
 						),
 					)
@@ -227,7 +246,7 @@ func MiddlewareWith(driver contract.SessionDriver, options MiddlewareOptions) fr
 				if session.HasChanged() {
 					ttl := time.Until(session.ExpiresAt())
 
-					if err := driver.Save(r.Context(), session, ttl); err != nil {
+					if err := driver.Save(saveCtx, session, ttl); err != nil {
 						reportError(options, err)
 
 						return

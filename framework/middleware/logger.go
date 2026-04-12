@@ -17,7 +17,8 @@ import (
 // The middleware logs the following information for failed
 // requests:
 //   - HTTP method (GET, POST, etc.)
-//   - Full request URL
+//   - Request URL path (query string excluded to prevent
+//     accidental logging of tokens or secrets)
 //   - HTTP status code returned
 //   - Any error returned by the handler
 //
@@ -78,7 +79,7 @@ func Logger(logger *slog.Logger) framework.Middleware {
 						r.Context(),
 						"request failed",
 						"method", r.Method,
-						"url", r.URL.String(),
+						"path", r.URL.Path,
 						"status", status,
 						"err", err,
 					)

@@ -23,9 +23,11 @@ type SecureHeadersOptions struct {
 	// limits referrer information sent with requests.
 	ReferrerPolicy string
 
-	// XSSProtection controls the X-XSS-Protection header. While
-	// largely superseded by CSP, it provides defence-in-depth
-	// for older browsers.
+	// XSSProtection controls the X-XSS-Protection header.
+	// The default value "0" disables the legacy XSS auditor,
+	// which is the current OWASP recommendation. The auditor
+	// has been removed from modern browsers and can introduce
+	// XSS vulnerabilities when enabled.
 	XSSProtection string
 
 	// StrictTransportSecurity controls the Strict-Transport-Security
@@ -50,7 +52,7 @@ var DefaultSecureHeadersOptions = SecureHeadersOptions{
 	ContentTypeOptions:      "nosniff",
 	FrameOptions:            "DENY",
 	ReferrerPolicy:          "strict-origin-when-cross-origin",
-	XSSProtection:           "1; mode=block",
+	XSSProtection:           "0",
 	StrictTransportSecurity: "max-age=63072000; includeSubDomains",
 }
 

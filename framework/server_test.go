@@ -90,7 +90,7 @@ func TestWithDefaultsPreservesNonZeroValues(t *testing.T) {
 func TestDefaultServerOptionsValues(t *testing.T) {
 	t.Parallel()
 
-	defaults := framework.DefaultServerOptions
+	defaults := framework.DefaultServerOptions()
 
 	require.Equal(t, ":8080", defaults.Addr)
 	require.Equal(t, 10*time.Second, defaults.ReadHeaderTimeout)
@@ -98,4 +98,17 @@ func TestDefaultServerOptionsValues(t *testing.T) {
 	require.Equal(t, 60*time.Second, defaults.WriteTimeout)
 	require.Equal(t, 120*time.Second, defaults.IdleTimeout)
 	require.Equal(t, 1<<20, defaults.MaxHeaderBytes)
+}
+
+func TestDefaultServerOptionsReturnsNewCopy(t *testing.T) {
+	t.Parallel()
+
+	first := framework.DefaultServerOptions()
+	second := framework.DefaultServerOptions()
+
+	first.Addr = ":9999"
+	first.ReadTimeout = 999 * time.Second
+
+	require.Equal(t, ":8080", second.Addr)
+	require.Equal(t, 30*time.Second, second.ReadTimeout)
 }

@@ -36,6 +36,10 @@ const (
 // fan-out support and wildcard subscriptions.
 // NATS handles message routing natively, making this implementation simpler
 // than brokers that require manual handler tracking.
+//
+// Wildcard patterns: '*' matches a single dot-separated token (NATS native).
+// '#' is translated to NATS '>' which matches one or more tokens and must
+// be the last token.
 type NATSBroker struct {
 	// conn is the underlying NATS connection.
 	// It handles all communication with the NATS server including publishing,
@@ -233,6 +237,10 @@ func (broker *NATSBroker) Publish(
 	event string,
 	payload any,
 ) error {
+	if err := validateEvent(event); err != nil {
+		return err
+	}
+
 	encoded, err := json.Marshal(payload)
 
 	if err != nil {
@@ -258,6 +266,10 @@ func (broker *NATSBroker) Subscribe(
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
+	if err := validateEvent(event); err != nil {
+		return nil, err
+	}
+
 	subject := convertSubject(event)
 
 	sub, err := broker.conn.Subscribe(subject, func(msg *nats.Msg) {

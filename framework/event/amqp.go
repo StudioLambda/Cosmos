@@ -20,6 +20,9 @@ import (
 // The broker maintains a single connection with one channel for
 // publishing and creates individual channels for each subscriber,
 // following RabbitMQ best practices for concurrent access.
+//
+// Wildcard patterns: '*' matches a single dot-separated word and '#'
+// matches zero or more words, following AMQP topic exchange semantics.
 type AMQPBroker struct {
 	// conn is the shared AMQP connection used for all operations.
 	conn *amqp091.Connection
@@ -150,6 +153,10 @@ func (broker *AMQPBroker) Publish(
 	event string,
 	payload any,
 ) error {
+	if err := validateEvent(event); err != nil {
+		return err
+	}
+
 	encoded, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -212,6 +219,10 @@ func (broker *AMQPBroker) Subscribe(
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
+	if err := validateEvent(event); err != nil {
+		return nil, err
+	}
+
 	ch, err := broker.conn.Channel()
 	if err != nil {
 		return nil, err

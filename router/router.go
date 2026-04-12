@@ -23,6 +23,10 @@ type Middleware[H http.Handler] = func(H) H
 // It also handles some patterns automatically,
 // such as {$}, that is appended on each route
 // automatically, regardless of the pattern.
+//
+// A Router is not safe for concurrent use during route registration.
+// All routes and middleware must be registered before calling ServeHTTP
+// or passing the router to an HTTP server.
 type Router[H http.Handler] struct {
 	// native stores the actual [http.ServeMux]
 	// that's used internally  to register the routes.
@@ -275,6 +279,14 @@ func (router *Router[H]) registerPair(method string, pattern string, handler H) 
 // CONNECT is reserved for HTTP proxies. If needed, use the
 // [Router.Trace] or [Router.Connect] methods explicitly.
 func (router *Router[H]) Method(method string, pattern string, handler H) {
+	if method == "" {
+		panic("router: method must not be empty")
+	}
+
+	if strings.Contains(pattern, "/../") || strings.HasPrefix(pattern, "../") || strings.HasSuffix(pattern, "/..") || pattern == ".." {
+		panic("router: pattern must not contain '..' segments")
+	}
+
 	pattern = path.Join(router.pattern, pattern)
 
 	// When the pattern is simply a slash, we shall
