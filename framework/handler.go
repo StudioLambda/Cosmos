@@ -109,7 +109,7 @@ func (handler Handler) ServeHTTP(
 				"err", err,
 			)
 		} else {
-			handleError(wrapped, r, err)
+			handleError(wrapped, r.WithContext(ctx), err)
 		}
 	}
 
