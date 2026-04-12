@@ -31,6 +31,7 @@ func TestCORSPreflightSetsHeaders(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodOptions, "/api/data", nil)
 	req.Header.Set("Origin", "https://example.com")
+	req.Header.Set("Access-Control-Request-Method", "POST")
 	res := handler.Record(req)
 
 	require.Equal(t, http.StatusNoContent, res.StatusCode)
@@ -88,6 +89,7 @@ func TestCORSDisallowedOriginSkipsHeaders(t *testing.T) {
 
 	require.True(t, called)
 	require.Empty(t, res.Header.Get("Access-Control-Allow-Origin"))
+	require.Equal(t, "Origin", res.Header.Get("Vary"))
 }
 
 func TestCORSNoOriginHeaderPassesThrough(t *testing.T) {
@@ -159,4 +161,89 @@ func TestCORSExposedHeaders(t *testing.T) {
 		"X-Request-Id, X-Total-Count",
 		res.Header.Get("Access-Control-Expose-Headers"),
 	)
+}
+
+func TestCORSVaryHeaderIsAddedNotOverwritten(t *testing.T) {
+	t.Parallel()
+
+	handler := middleware.CORS(middleware.CORSOptions{
+		AllowedOrigins: []string{"https://example.com"},
+		AllowedMethods: []string{"GET"},
+	})(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		return nil
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Origin", "https://example.com")
+
+	rec := httptest.NewRecorder()
+	rec.Header().Set("Vary", "Accept-Encoding")
+
+	// Execute through the framework handler to trigger CORS.
+	err := handler(rec, req)
+
+	require.NoError(t, err)
+
+	values := rec.Header().Values("Vary")
+	require.Contains(t, values, "Accept-Encoding")
+	require.Contains(t, values, "Origin")
+}
+
+func TestCORSNonPreflightOptionsPassesToNext(t *testing.T) {
+	t.Parallel()
+
+	called := false
+	handler := middleware.CORS(middleware.CORSOptions{
+		AllowedOrigins: []string{"https://example.com"},
+		AllowedMethods: []string{"GET", "POST"},
+	})(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		called = true
+		w.WriteHeader(http.StatusOK)
+
+		return nil
+	}))
+
+	req := httptest.NewRequest(http.MethodOptions, "/api/data", nil)
+	req.Header.Set("Origin", "https://example.com")
+	res := handler.Record(req)
+
+	require.True(t, called)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Equal(
+		t,
+		"https://example.com",
+		res.Header.Get("Access-Control-Allow-Origin"),
+	)
+}
+
+func TestCORSPanicsOnCredentialsWithWildcard(t *testing.T) {
+	t.Parallel()
+
+	require.PanicsWithValue(
+		t,
+		"cors: AllowCredentials must not be used with wildcard AllowedOrigins",
+		func() {
+			middleware.CORS(middleware.CORSOptions{
+				AllowedOrigins:   []string{"*"},
+				AllowCredentials: true,
+			})
+		},
+	)
+}
+
+func TestCORSDoesNotPanicOnCredentialsWithExplicitOrigins(t *testing.T) {
+	t.Parallel()
+
+	require.NotPanics(t, func() {
+		middleware.CORS(middleware.CORSOptions{
+			AllowedOrigins:   []string{"https://example.com"},
+			AllowCredentials: true,
+		})
+	})
 }

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"io"
+	"runtime"
 )
 
 // AES implements contract.Encrypter using AES-GCM (Galois/Counter
@@ -23,13 +24,16 @@ type AES struct {
 	// on every Encrypt and Decrypt call.
 	gcm cipher.AEAD
 
-	// AdditionalData is optional additional authenticated data (AAD)
-	// passed to the GCM Seal and Open operations. AAD is authenticated
-	// but not encrypted, which allows binding the ciphertext to a
-	// particular context (e.g. a user ID, resource path, or version)
-	// so that ciphertext cannot be transplanted between contexts.
-	// When set, the same AAD must be provided for both encryption
-	// and decryption or authentication will fail.
+	// AdditionalData is the additional authenticated data (AAD) bound to
+	// the ciphertext. It must not be modified concurrently with calls to
+	// [AES.Encrypt] or [AES.Decrypt]. Set it before use and do not change
+	// it during the encrypter's lifetime.
+	//
+	// AAD is authenticated but not encrypted, which allows binding the
+	// ciphertext to a particular context (e.g. a user ID, resource path,
+	// or version) so that ciphertext cannot be transplanted between
+	// contexts. When set, the same AAD must be provided for both
+	// encryption and decryption or authentication will fail.
 	AdditionalData []byte
 }
 
@@ -38,8 +42,14 @@ type AES struct {
 // truncated or corrupted data.
 var ErrMismatchedAESNonceSize = errors.New("mismatched nonce size")
 
-// NewAES creates an AES encrypter with the provided key. The key
-// must be 16, 24, or 32 bytes for AES-128, AES-192, or AES-256
+// NewAES creates a new AES-GCM authenticated encrypter.
+//
+// AES-GCM uses random 96-bit nonces. Per NIST recommendations, a single
+// key should not be used for more than 2^32 (~4 billion) encryptions to
+// keep nonce collision probability negligible. For higher-volume use
+// cases, consider rotating keys or using [NewChaCha20] with XChaCha20.
+//
+// The key must be 16, 24, or 32 bytes for AES-128, AES-192, or AES-256
 // respectively. The GCM cipher is constructed eagerly so that
 // Encrypt and Decrypt avoid repeated setup overhead.
 func NewAES(key []byte) (*AES, error) {
@@ -66,6 +76,10 @@ func NewAES(key []byte) (*AES, error) {
 // nonce. The returned slice contains the nonce followed by the
 // ciphertext and authentication tag.
 func (encrypter *AES) Encrypt(value []byte) ([]byte, error) {
+	if encrypter.gcm == nil {
+		return nil, ErrEncrypterClosed
+	}
+
 	nonce := make([]byte, encrypter.gcm.NonceSize())
 
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
@@ -81,6 +95,10 @@ func (encrypter *AES) Encrypt(value []byte) ([]byte, error) {
 // prepended. Returns ErrMismatchedAESNonceSize if the input is
 // too short to contain a valid nonce.
 func (encrypter *AES) Decrypt(value []byte) ([]byte, error) {
+	if encrypter.gcm == nil {
+		return nil, ErrEncrypterClosed
+	}
+
 	nonceSize := encrypter.gcm.NonceSize()
 
 	if len(value) < nonceSize {
@@ -99,11 +117,14 @@ func (encrypter *AES) Decrypt(value []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// Close zeros the key material from memory. Callers should
-// defer Close immediately after creating the encrypter to
-// ensure key material does not linger in process memory.
+// Close zeroes the stored key material and nils the AEAD cipher.
+// Note: Go's crypto/cipher retains an internal copy of the key in the
+// AEAD state that cannot be zeroed from user code. This is a limitation
+// of the Go standard library. Nilling the AEAD allows the garbage
+// collector to reclaim the cipher state. After Close, any calls to
+// [AES.Encrypt] or [AES.Decrypt] return [ErrEncrypterClosed].
 func (encrypter *AES) Close() {
-	for i := range encrypter.key {
-		encrypter.key[i] = 0
-	}
+	clear(encrypter.key)
+	encrypter.gcm = nil
+	runtime.KeepAlive(&encrypter.key)
 }

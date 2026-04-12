@@ -1,6 +1,7 @@
 package framework
 
 import (
+	"log/slog"
 	"net/http"
 	"sync/atomic"
 )
@@ -71,11 +72,26 @@ func (writer *ResponseWriter) WriteHeader(status int) {
 	}
 
 	for _, hook := range writer.Hooks.BeforeWriteHeaderFuncs() {
-		hook(writer.ResponseWriter, status)
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("before write header hook panicked", "error", r)
+				}
+			}()
+
+			hook(writer.ResponseWriter, status)
+		}()
 	}
 
 	writer.ResponseWriter.WriteHeader(status)
 	writer.writeHeaderCalled.Store(true)
+}
+
+// Unwrap returns the underlying [http.ResponseWriter]. This enables
+// [http.ResponseController] to discover interfaces on the original
+// writer such as [http.Flusher] and [http.Hijacker].
+func (writer *ResponseWriter) Unwrap() http.ResponseWriter {
+	return writer.ResponseWriter
 }
 
 // Write sends the response body bytes to the client after
@@ -89,7 +105,15 @@ func (writer *ResponseWriter) Write(content []byte) (int, error) {
 	}
 
 	for _, hook := range writer.Hooks.BeforeWriteFuncs() {
-		hook(writer.ResponseWriter, content)
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("before write hook panicked", "error", r)
+				}
+			}()
+
+			hook(writer.ResponseWriter, content)
+		}()
 	}
 
 	return writer.ResponseWriter.Write(content)

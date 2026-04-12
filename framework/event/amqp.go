@@ -3,6 +3,9 @@ package event
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/studiolambda/cosmos/contract"
@@ -18,6 +21,9 @@ import (
 // The broker maintains a single connection with one channel for
 // publishing and creates individual channels for each subscriber,
 // following RabbitMQ best practices for concurrent access.
+//
+// Wildcard patterns: '*' matches a single dot-separated word and '#'
+// matches zero or more words, following AMQP topic exchange semantics.
 type AMQPBroker struct {
 	// conn is the shared AMQP connection used for all operations.
 	conn *amqp091.Connection
@@ -150,6 +156,10 @@ func (broker *AMQPBroker) Publish(
 	event string,
 	payload any,
 ) error {
+	if err := validateEvent(event); err != nil {
+		return err
+	}
+
 	encoded, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -158,7 +168,7 @@ func (broker *AMQPBroker) Publish(
 	broker.mu.Lock()
 	defer broker.mu.Unlock()
 
-	return broker.pubCh.PublishWithContext(
+	err = broker.pubCh.PublishWithContext(
 		ctx,
 		broker.exchange,
 		event,
@@ -169,6 +179,29 @@ func (broker *AMQPBroker) Publish(
 			Body:        encoded,
 		},
 	)
+
+	if err != nil {
+		newCh, chErr := broker.conn.Channel()
+		if chErr != nil {
+			return errors.Join(err, chErr)
+		}
+
+		broker.pubCh = newCh
+
+		return broker.pubCh.PublishWithContext(
+			ctx,
+			broker.exchange,
+			event,
+			false,
+			false,
+			amqp091.Publishing{
+				ContentType: "application/json",
+				Body:        encoded,
+			},
+		)
+	}
+
+	return nil
 }
 
 // Subscribe registers a handler to receive events with the given
@@ -189,6 +222,10 @@ func (broker *AMQPBroker) Subscribe(
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
+	if err := validateEvent(event); err != nil {
+		return nil, err
+	}
+
 	ch, err := broker.conn.Channel()
 	if err != nil {
 		return nil, err
@@ -248,9 +285,17 @@ func (broker *AMQPBroker) Subscribe(
 
 	wg.Go(func() {
 		for delivery := range deliveries {
-			handler(func(dest any) error {
-				return json.Unmarshal(delivery.Body, dest)
-			})
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						slog.Error("panic in amqp event handler", "event", event, "panic", fmt.Sprint(r))
+					}
+				}()
+
+				handler(func(dest any) error {
+					return json.Unmarshal(delivery.Body, dest)
+				})
+			}()
 		}
 	})
 

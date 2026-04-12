@@ -1,6 +1,7 @@
 package response
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -87,10 +88,18 @@ func String(w http.ResponseWriter, status int, data string) error {
 //   - tmpl: The text template to execute
 //   - data: The data to pass to the template for execution
 func StringTemplate(w http.ResponseWriter, status int, tmpl template.Template, data any) error {
+	var buf bytes.Buffer
+
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(status)
 
-	return tmpl.Execute(w, data)
+	_, err := w.Write(buf.Bytes())
+
+	return err
 }
 
 // HTML writes HTML content to the response writer with the
@@ -121,10 +130,18 @@ func HTML(w http.ResponseWriter, status int, data string) error {
 //   - tmpl: The HTML template to execute (must be html/template for XSS safety)
 //   - data: The data to pass to the template for execution
 func HTMLTemplate(w http.ResponseWriter, status int, tmpl htmltemplate.Template, data any) error {
+	var buf bytes.Buffer
+
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 
-	return tmpl.Execute(w, data)
+	_, err := w.Write(buf.Bytes())
+
+	return err
 }
 
 // JSON serializes the given data to JSON format and writes it to the

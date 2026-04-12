@@ -1654,14 +1654,14 @@ func TestMethodPanicsOnDotDotPattern(t *testing.T) {
 			t.Fatal("Method with '..' pattern should panic")
 		}
 
-		msg, ok := r.(error)
+		msg, ok := r.(string)
 
 		if !ok {
-			t.Fatalf("expected panic value to be an error, got %T", r)
+			t.Fatalf("expected panic value to be a string, got %T", r)
 		}
 
-		if msg.Error() == "" {
-			t.Fatal("panic error message should not be empty")
+		if msg == "" {
+			t.Fatal("panic message should not be empty")
 		}
 	}()
 

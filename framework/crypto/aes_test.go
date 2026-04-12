@@ -229,3 +229,50 @@ func TestAESDecryptEmptyInput(t *testing.T) {
 
 	require.ErrorIs(t, err, crypto.ErrMismatchedAESNonceSize)
 }
+
+func TestAESEncryptAfterCloseReturnsError(t *testing.T) {
+	t.Parallel()
+
+	key := []byte("12345678901234567890123456789012")
+	encrypter, err := crypto.NewAES(key)
+
+	require.NoError(t, err)
+
+	encrypter.Close()
+
+	_, err = encrypter.Encrypt([]byte("Hello, World!"))
+
+	require.ErrorIs(t, err, crypto.ErrEncrypterClosed)
+}
+
+func TestAESDecryptAfterCloseReturnsError(t *testing.T) {
+	t.Parallel()
+
+	key := []byte("12345678901234567890123456789012")
+	encrypter, err := crypto.NewAES(key)
+
+	require.NoError(t, err)
+
+	encrypter.Close()
+
+	_, err = encrypter.Decrypt([]byte("some ciphertext that is long enough"))
+
+	require.ErrorIs(t, err, crypto.ErrEncrypterClosed)
+}
+
+func TestAESCloseNilsAEAD(t *testing.T) {
+	t.Parallel()
+
+	key := []byte("12345678901234567890123456789012")
+	encrypter, err := crypto.NewAES(key)
+
+	require.NoError(t, err)
+
+	encrypter.Close()
+
+	// After Close, the internal AEAD is nil, so Encrypt must fail
+	// with ErrEncrypterClosed rather than panicking.
+	_, err = encrypter.Encrypt([]byte("test"))
+
+	require.ErrorIs(t, err, crypto.ErrEncrypterClosed)
+}

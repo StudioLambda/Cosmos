@@ -3,6 +3,8 @@ package event
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -14,8 +16,14 @@ import (
 // RedisBroker implements contract.EventBus using Redis Pub/Sub.
 // It maps the "#" multi-level wildcard to Redis's "*" glob pattern
 // for topic subscriptions.
+//
+// Wildcard patterns: '#' is translated to Redis glob '*' which matches
+// any characters including dots. Single-token matching ('*') is not
+// faithfully represented in Redis Pub/Sub and may match across token
+// boundaries.
 type RedisBroker struct {
 	client *redis.Client
+	wg     sync.WaitGroup
 }
 
 // RedisBrokerOptions is an alias for redis.Options, exposing the
@@ -42,6 +50,10 @@ func NewRedisBrokerFrom(client *redis.Client) *RedisBroker {
 // Publish serializes the payload as JSON and publishes it to the
 // given Redis channel.
 func (broker *RedisBroker) Publish(ctx context.Context, event string, payload any) error {
+	if err := validateEvent(event); err != nil {
+		return err
+	}
+
 	encoded, err := json.Marshal(payload)
 
 	if err != nil {
@@ -60,25 +72,43 @@ func (broker *RedisBroker) Subscribe(
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
+	if err := validateEvent(event); err != nil {
+		return nil, err
+	}
+
 	event = strings.ReplaceAll(event, "#", "*")
 	sub := broker.client.PSubscribe(ctx, event)
-	var wg sync.WaitGroup
 
-	wg.Go(func() {
+	broker.wg.Add(1)
+
+	go func() {
+		defer broker.wg.Done()
+
 		for message := range sub.Channel() {
-			handler(func(dest any) error {
-				return json.Unmarshal([]byte(message.Payload), dest)
-			})
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						slog.Error("panic in redis event handler", "event", event, "panic", fmt.Sprint(r))
+					}
+				}()
+
+				handler(func(dest any) error {
+					return json.Unmarshal([]byte(message.Payload), dest)
+				})
+			}()
 		}
-	})
+	}()
 
 	return func() error {
-		defer wg.Wait()
 		return sub.Close()
 	}, nil
 }
 
-// Close shuts down the underlying Redis client connection.
+// Close shuts down the underlying Redis client connection and
+// waits for all active subscription goroutines to finish.
 func (broker *RedisBroker) Close() error {
-	return broker.client.Close()
+	err := broker.client.Close()
+	broker.wg.Wait()
+
+	return err
 }

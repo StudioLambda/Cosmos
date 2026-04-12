@@ -14,6 +14,10 @@ type Middleware[H http.Handler] = func(H) H
 
 // Router is a generic HTTP router that wraps [http.ServeMux] and supports
 // middleware, route groups, and automatic trailing-slash handling.
+//
+// A Router is not safe for concurrent use during route registration.
+// All routes and middleware must be registered before calling ServeHTTP
+// or passing the router to an HTTP server.
 type Router[H http.Handler] struct {
 	// native stores the actual [http.ServeMux]
 	// that's used internally to register the routes.
@@ -263,6 +267,10 @@ func (router *Router[H]) registerPair(method string, pattern string, handler H) 
 func (router *Router[H]) Method(method string, pattern string, handler H) {
 	if method == "" {
 		panic("router: method must not be empty")
+	}
+
+	if strings.Contains(pattern, "/../") || strings.HasPrefix(pattern, "../") || strings.HasSuffix(pattern, "/..") || pattern == ".." {
+		panic("router: pattern must not contain '..' segments")
 	}
 
 	pattern = path.Join(router.pattern, pattern)

@@ -3,12 +3,19 @@ package contract
 // Hasher defines the interface for hashing and verifying hashed values.
 // Implementations of Hasher are responsible for generating cryptographic hashes
 // and verifying that values match their corresponding hashes.
+//
+// Both Hash and Check zero the input value slice after use as a security
+// measure. Callers must not reuse the value slice after calling either method.
 type Hasher interface {
 	// Hash computes a cryptographic hash of the given byte slice and returns the hash.
+	// The input value is zeroed after hashing as a security measure.
+	// Callers must not reuse the value slice after calling Hash.
 	// It returns an error if the hashing operation fails.
 	Hash(value []byte) ([]byte, error)
 
 	// Check verifies that the given value matches the provided hash.
+	// The input value is zeroed after verification as a security measure.
+	// Callers must not reuse the value slice after calling Check.
 	// It returns true if the value and hash match, false otherwise.
 	// It returns an error if the verification operation fails.
 	Check(value []byte, hash []byte) (bool, error)

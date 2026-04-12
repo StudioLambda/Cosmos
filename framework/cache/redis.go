@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"time"
 
@@ -73,21 +72,15 @@ func (client *RedisClient) Has(ctx context.Context, key string) (bool, error) {
 }
 
 // Pull atomically retrieves and deletes a key using Redis GETDEL.
-// The stored value is JSON-decoded into the return value.
+// Returns [contract.ErrCacheKeyNotFound] when the key does not exist.
 func (client *RedisClient) Pull(ctx context.Context, key string) (any, error) {
-	encoded, err := (*redis.Client)(client).GetDel(ctx, key).Result()
+	value, err := (*redis.Client)(client).GetDel(ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
 		return nil, contract.ErrCacheKeyNotFound
 	}
 
 	if err != nil {
-		return nil, err
-	}
-
-	var value any
-
-	if err := json.Unmarshal([]byte(encoded), &value); err != nil {
 		return nil, err
 	}
 
@@ -100,13 +93,17 @@ func (client *RedisClient) Forever(ctx context.Context, key string, value any) e
 }
 
 // Increment atomically increases the integer value stored at key by
-// the given amount.
+// the given amount. Unlike the in-memory implementation, Redis
+// auto-creates the key with value 0 if it does not exist before
+// incrementing.
 func (client *RedisClient) Increment(ctx context.Context, key string, by int64) (int64, error) {
 	return (*redis.Client)(client).IncrBy(ctx, key, by).Result()
 }
 
 // Decrement atomically decreases the integer value stored at key by
-// the given amount.
+// the given amount. Unlike the in-memory implementation, Redis
+// auto-creates the key with value 0 if it does not exist before
+// decrementing.
 func (client *RedisClient) Decrement(ctx context.Context, key string, by int64) (int64, error) {
 	return (*redis.Client)(client).DecrBy(ctx, key, by).Result()
 }

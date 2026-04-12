@@ -6,6 +6,8 @@ import (
 	"github.com/studiolambda/cosmos/framework/hash"
 
 	"github.com/stretchr/testify/require"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestBcryptHashProducesOutput(t *testing.T) {
@@ -104,4 +106,50 @@ func TestBcryptCheckZerosInputPassword(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, make([]byte, len(password)), password)
+}
+
+func TestBcryptNewBcryptWithCustomCost(t *testing.T) {
+	t.Parallel()
+
+	hasher := hash.NewBcryptWith(hash.BcryptOptions{Cost: 14})
+
+	hashed, err := hasher.Hash([]byte("hello, world"))
+
+	require.NoError(t, err)
+
+	cost, err := bcrypt.Cost(hashed)
+
+	require.NoError(t, err)
+	require.Equal(t, 14, cost)
+}
+
+func TestBcryptNeedsRehashReturnsTrueForDifferentCost(t *testing.T) {
+	t.Parallel()
+
+	hasher12 := hash.NewBcryptWith(hash.BcryptOptions{Cost: 12})
+	hasher14 := hash.NewBcryptWith(hash.BcryptOptions{Cost: 14})
+
+	hashed, err := hasher12.Hash([]byte("hello, world"))
+
+	require.NoError(t, err)
+	require.True(t, hasher14.NeedsRehash(hashed))
+}
+
+func TestBcryptNeedsRehashReturnsFalseForSameCost(t *testing.T) {
+	t.Parallel()
+
+	hasher := hash.NewBcryptWith(hash.BcryptOptions{Cost: 12})
+
+	hashed, err := hasher.Hash([]byte("hello, world"))
+
+	require.NoError(t, err)
+	require.False(t, hasher.NeedsRehash(hashed))
+}
+
+func TestBcryptNeedsRehashReturnsTrueForInvalidHash(t *testing.T) {
+	t.Parallel()
+
+	hasher := hash.NewBcrypt()
+
+	require.True(t, hasher.NeedsRehash([]byte("not-a-valid-hash")))
 }

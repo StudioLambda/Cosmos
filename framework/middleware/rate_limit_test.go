@@ -1,9 +1,12 @@
 package middleware_test
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/studiolambda/cosmos/framework"
 	"github.com/studiolambda/cosmos/framework/middleware"
@@ -235,4 +238,140 @@ func TestRateLimitDefaultsAre15ReqPerSecBurst30(t *testing.T) {
 
 	require.Equal(t, float64(15), middleware.DefaultRateLimitOptions.RequestsPerSecond)
 	require.Equal(t, 30, middleware.DefaultRateLimitOptions.Burst)
+}
+
+func TestRateLimitContextCancellationStopsCleanup(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	handler := middleware.RateLimitWith(middleware.RateLimitOptions{
+		RequestsPerSecond: 100,
+		Burst:             100,
+		CleanupInterval:   50 * time.Millisecond,
+		MaxIdleTime:       50 * time.Millisecond,
+		Context:           ctx,
+	})(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		w.WriteHeader(http.StatusOK)
+
+		return nil
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	res := handler.Record(req)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+
+	// Cancel the context to stop the cleanup goroutine.
+	cancel()
+
+	// Allow time for the goroutine to observe the cancellation.
+	time.Sleep(100 * time.Millisecond)
+
+	// The middleware should still function after cancellation.
+	res = handler.Record(req)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+}
+
+func TestRateLimitKeyFuncStripsPort(t *testing.T) {
+	t.Parallel()
+
+	handler := middleware.RateLimitWith(middleware.RateLimitOptions{
+		RequestsPerSecond: 1,
+		Burst:             1,
+	})(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		w.WriteHeader(http.StatusOK)
+
+		return nil
+	}))
+
+	first := httptest.NewRequest(http.MethodGet, "/", nil)
+	first.RemoteAddr = "10.0.0.1:12345"
+	res := handler.Record(first)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+
+	second := httptest.NewRequest(http.MethodGet, "/", nil)
+	second.RemoteAddr = "10.0.0.1:54321"
+	res = handler.Record(second)
+	require.Equal(t, http.StatusTooManyRequests, res.StatusCode)
+}
+
+func TestRateLimitKeyFuncFallsBackOnInvalidAddr(t *testing.T) {
+	t.Parallel()
+
+	handler := middleware.RateLimitWith(middleware.RateLimitOptions{
+		RequestsPerSecond: 1,
+		Burst:             1,
+	})(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		w.WriteHeader(http.StatusOK)
+
+		return nil
+	}))
+
+	first := httptest.NewRequest(http.MethodGet, "/", nil)
+	first.RemoteAddr = "/var/run/app.sock"
+	res := handler.Record(first)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+
+	second := httptest.NewRequest(http.MethodGet, "/", nil)
+	second.RemoteAddr = "/var/run/app.sock"
+	res = handler.Record(second)
+	require.Equal(t, http.StatusTooManyRequests, res.StatusCode)
+}
+
+func TestRateLimitMaxEntriesUsesOverflowLimiter(t *testing.T) {
+	t.Parallel()
+
+	handler := middleware.RateLimitWith(middleware.RateLimitOptions{
+		RequestsPerSecond: 1,
+		Burst:             2,
+		MaxEntries:        2,
+		KeyFunc: func(r *http.Request) string {
+			return r.Header.Get("X-Key")
+		},
+	})(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		w.WriteHeader(http.StatusOK)
+
+		return nil
+	}))
+
+	// Fill the registry to max capacity with 2 distinct keys.
+	for _, key := range []string{"key-1", "key-2"} {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("X-Key", key)
+		res := handler.Record(req)
+		require.Equal(t, http.StatusOK, res.StatusCode)
+	}
+
+	// A third distinct key should use the shared overflow limiter.
+	// The overflow limiter has burst=2, so the first two requests
+	// succeed but the third is rate-limited.
+	for i := range 2 {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("X-Key", fmt.Sprintf("overflow-%d", i))
+		res := handler.Record(req)
+		require.Equal(t, http.StatusOK, res.StatusCode)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Key", "overflow-2")
+	res := handler.Record(req)
+	require.Equal(t, http.StatusTooManyRequests, res.StatusCode)
+}
+
+func TestRateLimitMaxEntriesDefaultIs10000(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, 10000, middleware.DefaultRateLimitOptions.MaxEntries)
 }

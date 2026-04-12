@@ -307,3 +307,59 @@ func TestRecoverStringerTakesPrecedenceOverReader(t *testing.T) {
 	require.ErrorIs(t, err, middleware.ErrRecoverUnexpected)
 	require.ErrorContains(t, err, "stringer wins")
 }
+
+// stackTracer is a local interface used to verify that the
+// recover middleware attaches a stack trace to the returned error.
+type stackTracer interface {
+	Stack() []byte
+}
+
+func TestRecoverCapturesStackTrace(t *testing.T) {
+	t.Parallel()
+
+	handler := middleware.Recover()(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		panic("trace me")
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+
+	err := handler(rec, req)
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, middleware.ErrRecoverUnexpected)
+
+	var tracer stackTracer
+	require.ErrorAs(t, err, &tracer)
+	require.NotEmpty(t, tracer.Stack())
+	require.Contains(t, string(tracer.Stack()), "goroutine")
+}
+
+func TestRecoverWithCustomHandlerIncludesStackTrace(t *testing.T) {
+	t.Parallel()
+
+	customErr := errors.New("custom")
+	handler := middleware.RecoverWith(func(value any) error {
+		return fmt.Errorf("%w: %v", customErr, value)
+	})(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		panic("boom")
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+
+	err := handler(rec, req)
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, customErr)
+
+	var tracer stackTracer
+	require.ErrorAs(t, err, &tracer)
+	require.NotEmpty(t, tracer.Stack())
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime/debug"
 
 	"github.com/studiolambda/cosmos/framework"
 )
@@ -27,6 +28,32 @@ var ErrRecoverUnexpected = errors.New("an unexpected error occurred")
 var ErrFailedRecovering = errors.New(
 	"failed recovering from unexpected error",
 )
+
+// recoverError wraps a panic-derived error together with the
+// goroutine stack trace captured at the point of recovery. The
+// stack trace is only available server-side via [recoverError.Stack]
+// and is never exposed to HTTP clients.
+type recoverError struct {
+	err   error
+	stack []byte
+}
+
+// Error delegates to the wrapped error.
+func (recovery recoverError) Error() string {
+	return recovery.err.Error()
+}
+
+// Unwrap returns the wrapped error chain so that [errors.Is]
+// and [errors.As] work transparently.
+func (recovery recoverError) Unwrap() error {
+	return recovery.err
+}
+
+// Stack returns the goroutine stack trace captured at the point
+// of panic recovery.
+func (recovery recoverError) Stack() []byte {
+	return recovery.stack
+}
 
 // defaultRecoverHandler converts recovered panic values into errors.
 // It handles common panic value types and provides sensible error
@@ -109,7 +136,9 @@ func Recover() framework.Middleware {
 //
 // The custom handler receives the raw panic value and must return
 // an error that will be passed through the normal error handling
-// chain. Use [errors.As] with an interface containing a
+// chain. The returned error is wrapped with a [recoverError] that
+// includes the goroutine stack trace captured at the point of
+// recovery. Use [errors.As] with an interface containing a
 // Stack() []byte method to access the stack trace.
 func RecoverWith(handler func(value any) error) framework.Middleware {
 	return func(next framework.Handler) framework.Handler {
@@ -119,7 +148,12 @@ func RecoverWith(handler func(value any) error) framework.Middleware {
 		) (err error) {
 			defer func() {
 				if e := recover(); e != nil {
-					err = handler(e)
+					stack := debug.Stack()
+
+					err = recoverError{
+						err:   handler(e),
+						stack: stack,
+					}
 				}
 			}()
 

@@ -119,7 +119,7 @@ func TestLoggerDoesNotLogOn4xxStatus(t *testing.T) {
 	require.Empty(t, buf.String())
 }
 
-func TestLoggerIncludesURLInLog(t *testing.T) {
+func TestLoggerIncludesPathInLog(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
@@ -139,5 +139,31 @@ func TestLoggerIncludesURLInLog(t *testing.T) {
 
 	output := buf.String()
 	require.Contains(t, output, "/api/resource")
+	require.NotContains(t, output, "key=val")
 	require.Contains(t, output, "POST")
+}
+
+func TestLoggerLogsPathWithoutQueryString(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+
+	handler := middleware.Logger(logger)(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		return errors.New("fail")
+	}))
+
+	req := httptest.NewRequest(
+		http.MethodGet, "/users?token=secret123&page=2", nil,
+	)
+	handler.Record(req)
+
+	output := buf.String()
+	require.Contains(t, output, "/users")
+	require.NotContains(t, output, "secret123")
+	require.NotContains(t, output, "token=")
+	require.NotContains(t, output, "page=2")
 }

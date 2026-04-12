@@ -63,18 +63,23 @@ func (accept Accept) find(media string) (acceptPair, bool) {
 			return pair, true
 		}
 
+		// Full wildcard matches anything.
+		if media == "*/*" || pair.media == "*/*" {
+			return pair, true
+		}
+
 		// Test for wildcard in media type
 		if strings.Contains(media, "/*") {
-			// Compare only the first part.
-			if trimmed := strings.TrimSuffix(media, "/*"); strings.HasPrefix(pair.media, trimmed) {
+			// Compare only the first part, ensuring the "/" boundary.
+			if trimmed, ok := strings.CutSuffix(media, "/*"); ok && strings.HasPrefix(pair.media, trimmed+"/") {
 				return pair, true
 			}
 		}
 
 		// Test for wildcard in accept media type
 		if strings.Contains(pair.media, "/*") {
-			// Compare only the first part.
-			if trimmed := strings.TrimSuffix(pair.media, "/*"); strings.HasPrefix(media, trimmed) {
+			// Compare only the first part, ensuring the "/" boundary.
+			if trimmed, ok := strings.CutSuffix(pair.media, "/*"); ok && strings.HasPrefix(media, trimmed+"/") {
 				return pair, true
 			}
 		}
