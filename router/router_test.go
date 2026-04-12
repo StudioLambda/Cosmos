@@ -1533,3 +1533,35 @@ func TestCatchAllWithFewSegments(t *testing.T) {
 		t.Fatal("root catch-all should match single segment")
 	}
 }
+
+func TestMethodPanicsOnDotDotPattern(t *testing.T) {
+	t.Parallel()
+
+	rt := router.New[http.HandlerFunc]()
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic for pattern containing '..' but got none")
+		}
+	}()
+
+	rt.Get("/../admin", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+}
+
+func TestMethodPanicsOnEmptyMethod(t *testing.T) {
+	t.Parallel()
+
+	rt := router.New[http.HandlerFunc]()
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic for empty method but got none")
+		}
+	}()
+
+	rt.Method("", "/test", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+}
