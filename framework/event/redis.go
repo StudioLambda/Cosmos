@@ -6,8 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/studiolambda/cosmos/contract"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // RedisBroker implements contract.EventBus using Redis Pub/Sub.
@@ -61,7 +62,7 @@ func (broker *RedisBroker) Subscribe(
 ) (contract.EventUnsubscribeFunc, error) {
 	event = strings.ReplaceAll(event, "#", "*")
 	sub := broker.client.PSubscribe(ctx, event)
-	wg := sync.WaitGroup{}
+	var wg sync.WaitGroup
 
 	wg.Go(func() {
 		for message := range sub.Channel() {

@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"sync"
 
-	amqp091 "github.com/rabbitmq/amqp091-go"
 	"github.com/studiolambda/cosmos/contract"
+
+	amqp091 "github.com/rabbitmq/amqp091-go"
 )
 
 // AMQPBroker implements the EventBroker interface using RabbitMQ's
@@ -122,7 +123,9 @@ func NewAMQPBrokerFrom(
 	)
 
 	if err != nil {
-		pubCh.Close()
+		// Close is best-effort: the connection is being abandoned due to
+		// the exchange declaration failure above.
+		_ = pubCh.Close()
 
 		return nil, err
 	}
@@ -200,7 +203,9 @@ func (broker *AMQPBroker) Subscribe(
 		nil,
 	)
 	if err != nil {
-		ch.Close()
+		// Close is best-effort: the channel is being abandoned due to
+		// the queue declaration failure above.
+		_ = ch.Close()
 
 		return nil, err
 	}
@@ -214,7 +219,9 @@ func (broker *AMQPBroker) Subscribe(
 	)
 
 	if err != nil {
-		ch.Close()
+		// Close is best-effort: the channel is being abandoned due to
+		// the queue bind failure above.
+		_ = ch.Close()
 
 		return nil, err
 	}
@@ -230,12 +237,14 @@ func (broker *AMQPBroker) Subscribe(
 		nil,
 	)
 	if err != nil {
-		ch.Close()
+		// Close is best-effort: the channel is being abandoned due to
+		// the consume setup failure above.
+		_ = ch.Close()
 
 		return nil, err
 	}
 
-	wg := sync.WaitGroup{}
+	var wg sync.WaitGroup
 
 	wg.Go(func() {
 		for delivery := range deliveries {
