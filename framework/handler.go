@@ -54,11 +54,18 @@ type HTTPStatus interface {
 	HTTPStatus() int
 }
 
+// StatusClientClosedRequest is the non-standard HTTP status code used
+// when the client closes the connection before the server responds.
+const StatusClientClosedRequest = 499
+
+// handleError writes an error response by inspecting the error for context
+// cancellation, custom status codes via [HTTPStatus], or self-rendering
+// capability via [http.Handler], falling back to a Problem Details response.
 func handleError(w http.ResponseWriter, r *http.Request, err error) {
 	status := http.StatusInternalServerError
 
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		status = 499 // A non-standard status code: 499 Client Closed Request
+		status = StatusClientClosedRequest
 	}
 
 	if target := (HTTPStatus)(nil); errors.As(err, &target) {

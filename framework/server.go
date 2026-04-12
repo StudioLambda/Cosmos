@@ -6,7 +6,7 @@ import (
 )
 
 // ServerOptions configures the HTTP server created by [NewServer].
-// All timeout fields default to secure values when zero.
+// All zero-valued fields default to secure values from [DefaultServerOptions].
 type ServerOptions struct {
 	// Addr is the TCP address to listen on (e.g. ":8080").
 	Addr string
