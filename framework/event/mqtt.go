@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strconv"
 	"strings"
@@ -49,6 +50,14 @@ type MQTTBroker struct {
 	// nextID generates unique handler identifiers for
 	// proper unsubscribe behavior.
 	nextID atomic.Uint64
+
+	// sem limits the number of concurrent delivery goroutines
+	// to prevent resource exhaustion under high throughput.
+	sem chan struct{}
+
+	// routeWg tracks in-flight handler deliveries so Close
+	// can wait for them to complete.
+	routeWg sync.WaitGroup
 }
 
 // MQTTBrokerOptions configures the creation of a new MQTTBroker,
@@ -186,6 +195,7 @@ func NewMQTTBrokerWith(options *MQTTBrokerOptions) (*MQTTBroker, error) {
 		qos:           qos,
 		handlers:      make(map[string]map[string]contract.EventHandler),
 		subscriptions: make(map[string]bool),
+		sem:           make(chan struct{}, DefaultMaxConcurrentDeliveries),
 	}
 
 	cfg := autopaho.ClientConfig{
@@ -234,6 +244,7 @@ func NewMQTTBrokerFrom(
 		qos:           qos,
 		handlers:      make(map[string]map[string]contract.EventHandler),
 		subscriptions: make(map[string]bool),
+		sem:           make(chan struct{}, DefaultMaxConcurrentDeliveries),
 	}
 }
 
@@ -241,18 +252,49 @@ func NewMQTTBrokerFrom(
 // handlers based on topic pattern matching. This implements
 // fan-out behavior where multiple handlers can receive the
 // same message if they subscribed to matching patterns.
+//
+// Handlers are dispatched asynchronously in separate goroutines
+// with semaphore-bounded concurrency and panic recovery to
+// prevent a slow or failing handler from blocking all message
+// delivery.
 func (broker *MQTTBroker) route(pb *paho.Publish) {
 	broker.mu.RLock()
-	defer broker.mu.RUnlock()
+
+	var matched []contract.EventHandler
 
 	for pattern, handlers := range broker.handlers {
 		if matchTopic(pattern, pb.Topic) {
 			for _, handler := range handlers {
-				handler(func(dest any) error {
-					return json.Unmarshal(pb.Payload, dest)
-				})
+				matched = append(matched, handler)
 			}
 		}
+	}
+
+	broker.mu.RUnlock()
+
+	for _, handler := range matched {
+		broker.routeWg.Add(1)
+		broker.sem <- struct{}{}
+
+		go func(h contract.EventHandler) {
+			defer func() {
+				<-broker.sem
+				broker.routeWg.Done()
+			}()
+
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					slog.Error(
+						"event handler panicked",
+						"error", recovered,
+					)
+				}
+			}()
+
+			h(func(dest any) error {
+				return json.Unmarshal(pb.Payload, dest)
+			})
+		}(handler)
 	}
 }
 
@@ -310,11 +352,43 @@ func (broker *MQTTBroker) Subscribe(
 	handlerID := strconv.FormatUint(broker.nextID.Add(1), 10)
 
 	broker.mu.Lock()
-	first := !broker.subscriptions[topic]
 
-	if first {
-		broker.subscriptions[topic] = true
+	if broker.subscriptions[topic] {
+		// Already subscribed at MQTT level; just append the handler.
+		if broker.handlers[topic] == nil {
+			broker.handlers[topic] = make(map[string]contract.EventHandler)
+		}
+
+		broker.handlers[topic][handlerID] = handler
+		broker.mu.Unlock()
+
+		return broker.unsubscribeFunc(ctx, topic, handlerID), nil
 	}
+
+	broker.mu.Unlock()
+
+	// First subscriber for this pattern: subscribe at the MQTT
+	// broker level before registering the handler so that on
+	// failure the handler is never visible to route().
+	_, err := broker.client.Subscribe(ctx, &paho.Subscribe{
+		Subscriptions: []paho.SubscribeOptions{
+			{
+				Topic: topic,
+				QoS:   broker.qos,
+			},
+		},
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	broker.mu.Lock()
+
+	// Mark the MQTT-level subscription. Another goroutine may
+	// have raced and already registered; that is harmless since
+	// duplicate MQTT subscribes are idempotent.
+	broker.subscriptions[topic] = true
 
 	if broker.handlers[topic] == nil {
 		broker.handlers[topic] = make(map[string]contract.EventHandler)
@@ -323,31 +397,17 @@ func (broker *MQTTBroker) Subscribe(
 	broker.handlers[topic][handlerID] = handler
 	broker.mu.Unlock()
 
-	if first {
-		_, err := broker.client.Subscribe(ctx, &paho.Subscribe{
-			Subscriptions: []paho.SubscribeOptions{
-				{
-					Topic: topic,
-					QoS:   broker.qos,
-				},
-			},
-		})
+	return broker.unsubscribeFunc(ctx, topic, handlerID), nil
+}
 
-		if err != nil {
-			broker.mu.Lock()
-			delete(broker.handlers[topic], handlerID)
-
-			if len(broker.handlers[topic]) == 0 {
-				delete(broker.handlers, topic)
-				delete(broker.subscriptions, topic)
-			}
-
-			broker.mu.Unlock()
-
-			return nil, err
-		}
-	}
-
+// unsubscribeFunc returns a function that removes a specific
+// handler and unsubscribes from the MQTT broker when the last
+// handler for the topic is removed.
+func (broker *MQTTBroker) unsubscribeFunc(
+	ctx context.Context,
+	topic string,
+	handlerID string,
+) contract.EventUnsubscribeFunc {
 	return func() error {
 		broker.mu.Lock()
 		delete(broker.handlers[topic], handlerID)
@@ -372,12 +432,15 @@ func (broker *MQTTBroker) Subscribe(
 		}
 
 		return nil
-	}, nil
+	}
 }
 
 // Close gracefully disconnects from the MQTT broker and releases
-// all resources. This will terminate all active subscriptions and
-// close the underlying connection.
+// all resources. It waits for all in-flight handler deliveries to
+// complete before disconnecting. This will terminate all active
+// subscriptions and close the underlying connection.
 func (broker *MQTTBroker) Close() error {
+	broker.routeWg.Wait()
+
 	return broker.client.Disconnect(context.Background())
 }
