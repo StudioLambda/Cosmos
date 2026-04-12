@@ -106,3 +106,135 @@ func TestAcceptOrder(t *testing.T) {
 		t.Fatalf("failed order element: %s, expected %s", order[4], expected)
 	}
 }
+
+func TestAcceptQualityFound(t *testing.T) {
+	t.Parallel()
+
+	request, err := http.NewRequest("GET", "/", nil)
+
+	if err != nil {
+		t.Fatalf("failed to create request: %s", err)
+	}
+
+	request.Header.Add("Accept", "application/json;q=0.8")
+
+	accept := internal.ParseAccept(request)
+	quality := accept.Quality("application/json")
+
+	if quality != 0.8 {
+		t.Fatalf("expected quality 0.8, got %f", quality)
+	}
+}
+
+func TestAcceptQualityNotFound(t *testing.T) {
+	t.Parallel()
+
+	request, err := http.NewRequest("GET", "/", nil)
+
+	if err != nil {
+		t.Fatalf("failed to create request: %s", err)
+	}
+
+	request.Header.Add("Accept", "application/json")
+
+	accept := internal.ParseAccept(request)
+	quality := accept.Quality("text/html")
+
+	if quality != 0 {
+		t.Fatalf("expected quality 0, got %f", quality)
+	}
+}
+
+func TestAcceptQualityDefault(t *testing.T) {
+	t.Parallel()
+
+	request, err := http.NewRequest("GET", "/", nil)
+
+	if err != nil {
+		t.Fatalf("failed to create request: %s", err)
+	}
+
+	request.Header.Add("Accept", "application/json")
+
+	accept := internal.ParseAccept(request)
+	quality := accept.Quality("application/json")
+
+	if quality != 1.0 {
+		t.Fatalf("expected quality 1.0, got %f", quality)
+	}
+}
+
+func TestParseAcceptMalformedMediaType(t *testing.T) {
+	t.Parallel()
+
+	request, err := http.NewRequest("GET", "/", nil)
+
+	if err != nil {
+		t.Fatalf("failed to create request: %s", err)
+	}
+
+	request.Header.Add("Accept", "a/b/c/d, application/json")
+
+	accept := internal.ParseAccept(request)
+
+	if !accept.Accepts("application/json") {
+		t.Fatalf("expected application/json to be accepted")
+	}
+
+	order := accept.Order()
+
+	if len(order) != 1 {
+		t.Fatalf("expected 1 valid media type, got %d", len(order))
+	}
+}
+
+func TestAcceptOrderEmpty(t *testing.T) {
+	t.Parallel()
+
+	request, err := http.NewRequest("GET", "/", nil)
+
+	if err != nil {
+		t.Fatalf("failed to create request: %s", err)
+	}
+
+	accept := internal.ParseAccept(request)
+	order := accept.Order()
+
+	if len(order) != 0 {
+		t.Fatalf("expected empty order, got %d elements", len(order))
+	}
+}
+
+func TestAcceptAcceptsWildcardInMedia(t *testing.T) {
+	t.Parallel()
+
+	request, err := http.NewRequest("GET", "/", nil)
+
+	if err != nil {
+		t.Fatalf("failed to create request: %s", err)
+	}
+
+	request.Header.Add("Accept", "application/json")
+
+	accept := internal.ParseAccept(request)
+
+	if !accept.Accepts("application/*") {
+		t.Fatalf("expected application/* to match application/json")
+	}
+}
+
+func TestAcceptNoAcceptHeader(t *testing.T) {
+	t.Parallel()
+
+	request, err := http.NewRequest("GET", "/", nil)
+
+	if err != nil {
+		t.Fatalf("failed to create request: %s", err)
+	}
+
+	accept := internal.ParseAccept(request)
+
+	if accept.Accepts("application/json") {
+		t.Fatalf("expected no media to be accepted with empty Accept header")
+	}
+}
