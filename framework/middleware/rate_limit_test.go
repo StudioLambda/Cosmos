@@ -1,9 +1,11 @@
 package middleware_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/studiolambda/cosmos/framework"
 	"github.com/studiolambda/cosmos/framework/middleware"
@@ -235,4 +237,39 @@ func TestRateLimitDefaultsAre15ReqPerSecBurst30(t *testing.T) {
 
 	require.Equal(t, float64(15), middleware.DefaultRateLimitOptions.RequestsPerSecond)
 	require.Equal(t, 30, middleware.DefaultRateLimitOptions.Burst)
+}
+
+func TestRateLimitContextCancellationStopsCleanup(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	handler := middleware.RateLimitWith(middleware.RateLimitOptions{
+		RequestsPerSecond: 100,
+		Burst:             100,
+		CleanupInterval:   50 * time.Millisecond,
+		MaxIdleTime:       50 * time.Millisecond,
+		Context:           ctx,
+	})(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		w.WriteHeader(http.StatusOK)
+
+		return nil
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	res := handler.Record(req)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+
+	// Cancel the context to stop the cleanup goroutine.
+	cancel()
+
+	// Allow time for the goroutine to observe the cancellation.
+	time.Sleep(100 * time.Millisecond)
+
+	// The middleware should still function after cancellation.
+	res = handler.Record(req)
+	require.Equal(t, http.StatusOK, res.StatusCode)
 }

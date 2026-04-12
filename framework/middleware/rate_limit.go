@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"sync"
 	"time"
@@ -44,6 +45,13 @@ type RateLimitOptions struct {
 	// MaxIdleTime is how long an entry can be idle before
 	// being evicted. Defaults to 5 minutes.
 	MaxIdleTime time.Duration
+
+	// Context, when non-nil, controls the lifetime of the
+	// background cleanup goroutine. When the context is
+	// cancelled, the goroutine exits and its resources are
+	// released. A nil context means the goroutine runs until
+	// the process exits.
+	Context context.Context
 }
 
 // DefaultRateLimitOptions holds sensible defaults: 15 req/s
@@ -224,6 +232,10 @@ func RateLimit() framework.Middleware {
 // periodically evicts entries that have been idle longer than
 // [RateLimitOptions.MaxIdleTime] to prevent unbounded memory
 // growth.
+//
+// If [RateLimitOptions.Context] is set, the cleanup goroutine
+// stops when the context is cancelled. Otherwise it runs for
+// the lifetime of the process.
 func RateLimitWith(opts RateLimitOptions) framework.Middleware {
 	opts = opts.withDefaults()
 
@@ -233,6 +245,13 @@ func RateLimitWith(opts RateLimitOptions) framework.Middleware {
 		opts.CleanupInterval,
 		opts.MaxIdleTime,
 	)
+
+	if opts.Context != nil {
+		go func() {
+			<-opts.Context.Done()
+			registry.close()
+		}()
+	}
 
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {

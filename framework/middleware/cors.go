@@ -80,12 +80,15 @@ func CORS(options CORSOptions) framework.Middleware {
 			}
 
 			if !originAllowed(options.AllowedOrigins, origin) {
+				w.Header().Add("Vary", "Origin")
+
 				return next(w, r)
 			}
 
 			setCORSHeaders(w, options, origin)
 
-			if r.Method == http.MethodOptions {
+			if r.Method == http.MethodOptions &&
+				r.Header.Get("Access-Control-Request-Method") != "" {
 				w.WriteHeader(http.StatusNoContent)
 
 				return nil
@@ -125,7 +128,7 @@ func setCORSHeaders(
 		header.Set("Access-Control-Allow-Origin", "*")
 	} else {
 		header.Set("Access-Control-Allow-Origin", origin)
-		header.Set("Vary", "Origin")
+		header.Add("Vary", "Origin")
 	}
 
 	if len(options.AllowedMethods) > 0 {
