@@ -1,15 +1,4 @@
----
-name: cosmos-problem
-description: >
-  RFC 9457 Problem Details implementation for Go
-  (github.com/studiolambda/cosmos/problem). Use when creating structured
-  HTTP error responses, working with problem details, content negotiation,
-  error wrapping, or returning errors from Cosmos framework handlers. The
-  Problem type implements error, http.Handler, and json.Marshaler
-  simultaneously.
----
-
-# Cosmos Problem
+# Problem Details (RFC 9457)
 
 RFC 9457 (Problem Details for HTTP APIs) implementation. Zero external
 dependencies. A `Problem` is simultaneously an `error`, an `http.Handler`,
@@ -124,9 +113,9 @@ func handler(w http.ResponseWriter, r *http.Request) error {
 ```
 
 The framework's error pipeline detects:
-1. `http.Handler` interface → calls `ServeHTTP` (Problem renders itself).
-2. `HTTPStatus` interface → uses the status code.
-3. Otherwise → wraps in `NewProblem(err, status)`.
+1. `http.Handler` interface -> calls `ServeHTTP` (Problem renders itself).
+2. `HTTPStatus` interface -> uses the status code.
+3. Otherwise -> wraps in `NewProblem(err, status)`.
 
 ## Content Negotiation
 

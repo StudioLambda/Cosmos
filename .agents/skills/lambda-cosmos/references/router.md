@@ -1,14 +1,4 @@
----
-name: cosmos-router
-description: >
-  Generic HTTP router for Go built on http.ServeMux
-  (github.com/studiolambda/cosmos/router). Use when building HTTP
-  services with the Cosmos router: registering routes, applying
-  middleware, grouping routes, testing with Record, or using the router
-  with custom handler types via generics.
----
-
-# Cosmos Router
+# Router
 
 A generic HTTP router built on `http.ServeMux` with zero external
 dependencies. The type parameter makes it usable with any handler type

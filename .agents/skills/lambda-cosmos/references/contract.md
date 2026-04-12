@@ -1,14 +1,4 @@
----
-name: cosmos-contract
-description: >
-  Interfaces and helpers for the Cosmos HTTP framework contract module
-  (github.com/studiolambda/cosmos/contract). Use when consuming or
-  implementing Cosmos contracts: Cache, Database, Encrypter, Hasher,
-  Session, SessionDriver, Events, Hooks. Also covers the request and
-  response helper packages for reading HTTP inputs and writing outputs.
----
-
-# Cosmos Contract
+# Contract
 
 The contract module defines all service interfaces and HTTP helper functions
 for the Cosmos framework. It is the foundation layer — every other Cosmos
