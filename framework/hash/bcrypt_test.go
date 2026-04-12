@@ -3,32 +3,33 @@ package hash_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/framework/hash"
+
+	"github.com/stretchr/testify/require"
 )
 
-func TestItCanHashBcryptPasswords(t *testing.T) {
+func TestBcryptHashProducesOutput(t *testing.T) {
 	t.Parallel()
 
-	h := hash.NewBcrypt()
+	hasher := hash.NewBcrypt()
 	content := []byte("hello, world")
 
-	r, err := h.Hash(content)
+	hashed, err := hasher.Hash(content)
 
 	require.NoError(t, err)
-	require.Greater(t, len(r), 0)
+	require.Greater(t, len(hashed), 0)
 }
 
-func TestItCanCheckHashedBcryptHashes(t *testing.T) {
+func TestBcryptCheckMatchesCorrectPassword(t *testing.T) {
 	t.Parallel()
 
-	h := hash.NewBcrypt()
+	hasher := hash.NewBcrypt()
 
-	r, err := h.Hash([]byte("hello, world"))
+	hashed, err := hasher.Hash([]byte("hello, world"))
 
 	require.NoError(t, err)
 
-	ok, err := h.Check([]byte("hello, world"), r)
+	ok, err := hasher.Check([]byte("hello, world"), hashed)
 
 	require.NoError(t, err)
 	require.True(t, ok)
@@ -37,14 +38,14 @@ func TestItCanCheckHashedBcryptHashes(t *testing.T) {
 func TestBcryptWithDefaultOptions(t *testing.T) {
 	t.Parallel()
 
-	h := hash.NewBcryptWith(hash.BcryptOptions{})
+	hasher := hash.NewBcryptWith(hash.BcryptOptions{})
 
-	r, err := h.Hash([]byte("hello, world"))
+	hashed, err := hasher.Hash([]byte("hello, world"))
 
 	require.NoError(t, err)
-	require.Greater(t, len(r), 0)
+	require.Greater(t, len(hashed), 0)
 
-	ok, err := h.Check([]byte("hello, world"), r)
+	ok, err := hasher.Check([]byte("hello, world"), hashed)
 
 	require.NoError(t, err)
 	require.True(t, ok)
@@ -53,13 +54,13 @@ func TestBcryptWithDefaultOptions(t *testing.T) {
 func TestBcryptCheckWrongPasswordReturnsFalse(t *testing.T) {
 	t.Parallel()
 
-	h := hash.NewBcrypt()
+	hasher := hash.NewBcrypt()
 
-	hashed, err := h.Hash([]byte("correct-password"))
+	hashed, err := hasher.Hash([]byte("correct-password"))
 
 	require.NoError(t, err)
 
-	ok, err := h.Check([]byte("wrong-password"), hashed)
+	ok, err := hasher.Check([]byte("wrong-password"), hashed)
 
 	require.NoError(t, err)
 	require.False(t, ok)
@@ -68,9 +69,9 @@ func TestBcryptCheckWrongPasswordReturnsFalse(t *testing.T) {
 func TestBcryptCheckCorruptedHashReturnsError(t *testing.T) {
 	t.Parallel()
 
-	h := hash.NewBcrypt()
+	hasher := hash.NewBcrypt()
 
-	ok, err := h.Check([]byte("password"), []byte("not-a-hash"))
+	ok, err := hasher.Check([]byte("password"), []byte("not-a-hash"))
 
 	require.Error(t, err)
 	require.False(t, ok)
@@ -79,46 +80,28 @@ func TestBcryptCheckCorruptedHashReturnsError(t *testing.T) {
 func TestBcryptHashZerosInputPassword(t *testing.T) {
 	t.Parallel()
 
-	h := hash.NewBcrypt()
+	hasher := hash.NewBcrypt()
 	password := []byte("sensitive-data")
 
-	_, err := h.Hash(password)
+	_, err := hasher.Hash(password)
 
 	require.NoError(t, err)
-
-	allZero := true
-	for _, b := range password {
-		if b != 0 {
-			allZero = false
-			break
-		}
-	}
-
-	require.True(t, allZero)
+	require.Equal(t, make([]byte, len(password)), password)
 }
 
 func TestBcryptCheckZerosInputPassword(t *testing.T) {
 	t.Parallel()
 
-	h := hash.NewBcrypt()
+	hasher := hash.NewBcrypt()
 
-	hashed, err := h.Hash([]byte("hello"))
+	hashed, err := hasher.Hash([]byte("hello"))
 
 	require.NoError(t, err)
 
 	password := []byte("hello")
 
-	_, err = h.Check(password, hashed)
+	_, err = hasher.Check(password, hashed)
 
 	require.NoError(t, err)
-
-	allZero := true
-	for _, b := range password {
-		if b != 0 {
-			allZero = false
-			break
-		}
-	}
-
-	require.True(t, allZero)
+	require.Equal(t, make([]byte, len(password)), password)
 }

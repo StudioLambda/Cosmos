@@ -3,32 +3,33 @@ package hash_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/framework/hash"
+
+	"github.com/stretchr/testify/require"
 )
 
-func TestItCanHashArgon2Passwords(t *testing.T) {
+func TestArgon2HashProducesOutput(t *testing.T) {
 	t.Parallel()
 
-	h := hash.NewArgon2()
+	hasher := hash.NewArgon2()
 	content := []byte("hello, world")
 
-	r, err := h.Hash(content)
+	hashed, err := hasher.Hash(content)
 
 	require.NoError(t, err)
-	require.Greater(t, len(r), 0)
+	require.Greater(t, len(hashed), 0)
 }
 
-func TestItCanCheckHashedArgon2Hashes(t *testing.T) {
+func TestArgon2CheckMatchesCorrectPassword(t *testing.T) {
 	t.Parallel()
 
-	h := hash.NewArgon2()
+	hasher := hash.NewArgon2()
 
-	r, err := h.Hash([]byte("hello, world"))
+	hashed, err := hasher.Hash([]byte("hello, world"))
 
 	require.NoError(t, err)
 
-	ok, err := h.Check([]byte("hello, world"), r)
+	ok, err := hasher.Check([]byte("hello, world"), hashed)
 
 	require.NoError(t, err)
 	require.True(t, ok)
@@ -47,24 +48,24 @@ func TestArgon2WithCustomConfig(t *testing.T) {
 		Version:     0,
 	}
 
-	h := hash.NewArgon2With(config)
+	hasher := hash.NewArgon2With(config)
 
-	r, err := h.Hash([]byte("hello, world"))
+	hashed, err := hasher.Hash([]byte("hello, world"))
 
 	require.NoError(t, err)
-	require.Greater(t, len(r), 0)
+	require.Greater(t, len(hashed), 0)
 }
 
 func TestArgon2CheckWrongPasswordReturnsFalse(t *testing.T) {
 	t.Parallel()
 
-	h := hash.NewArgon2()
+	hasher := hash.NewArgon2()
 
-	hashed, err := h.Hash([]byte("correct-password"))
+	hashed, err := hasher.Hash([]byte("correct-password"))
 
 	require.NoError(t, err)
 
-	ok, err := h.Check([]byte("wrong-password"), hashed)
+	ok, err := hasher.Check([]byte("wrong-password"), hashed)
 
 	require.NoError(t, err)
 	require.False(t, ok)
@@ -73,46 +74,28 @@ func TestArgon2CheckWrongPasswordReturnsFalse(t *testing.T) {
 func TestArgon2HashZerosInputPassword(t *testing.T) {
 	t.Parallel()
 
-	h := hash.NewArgon2()
+	hasher := hash.NewArgon2()
 	password := []byte("sensitive-data")
 
-	_, err := h.Hash(password)
+	_, err := hasher.Hash(password)
 
 	require.NoError(t, err)
-
-	allZero := true
-	for _, b := range password {
-		if b != 0 {
-			allZero = false
-			break
-		}
-	}
-
-	require.True(t, allZero)
+	require.Equal(t, make([]byte, len(password)), password)
 }
 
 func TestArgon2CheckZerosInputPassword(t *testing.T) {
 	t.Parallel()
 
-	h := hash.NewArgon2()
+	hasher := hash.NewArgon2()
 
-	hashed, err := h.Hash([]byte("hello"))
+	hashed, err := hasher.Hash([]byte("hello"))
 
 	require.NoError(t, err)
 
 	password := []byte("hello")
 
-	_, err = h.Check(password, hashed)
+	_, err = hasher.Check(password, hashed)
 
 	require.NoError(t, err)
-
-	allZero := true
-	for _, b := range password {
-		if b != 0 {
-			allZero = false
-			break
-		}
-	}
-
-	require.True(t, allZero)
+	require.Equal(t, make([]byte, len(password)), password)
 }
