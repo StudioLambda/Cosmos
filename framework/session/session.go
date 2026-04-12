@@ -85,8 +85,8 @@ func NewSession(expiresAt time.Time, storage map[string]any) (*Session, error) {
 		createdAt:  time.Now(),
 		expiresAt:  expiresAt,
 		storage:    storage,
-		mutex:      sync.Mutex{},
-		changed:    true, // this will make sure first time its saved
+		// Mark changed so the session is persisted on first save.
+		changed: true,
 	}, nil
 }
 
@@ -139,7 +139,7 @@ func (session *Session) Put(key string, value any) {
 }
 
 // Delete removes a value from the session storage by key. If the key does not exist,
-// this operation is a no-op. This operation marks the session as changed.
+// the storage is unaffected but the session is still marked as changed.
 func (session *Session) Delete(key string) {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
@@ -159,12 +159,12 @@ func (session *Session) Extend(expiresAt time.Time) {
 	session.changed = true
 }
 
-// Regenerate generates a new session ID and updates the expiration
-// time. This is commonly used for security purposes such as
-// preventing session fixation attacks after user authentication.
-// The original session ID is preserved and can be retrieved via
-// OriginalSessionID. This operation marks the session as changed.
-// It returns an error if ID generation fails.
+// Regenerate generates a new cryptographically random session ID
+// for the session. This is commonly used for security purposes
+// such as preventing session fixation attacks after user
+// authentication. The original session ID is preserved and can be
+// retrieved via OriginalSessionID. This operation marks the
+// session as changed. It returns an error if ID generation fails.
 //
 // WARNING: This method MUST be called after any authentication
 // state change (login, logout, privilege escalation). Without

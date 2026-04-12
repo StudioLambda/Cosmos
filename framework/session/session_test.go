@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/framework/session"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewSessionReturnsNonNilSession(t *testing.T) {
