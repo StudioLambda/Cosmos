@@ -5,10 +5,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/framework"
 	"github.com/studiolambda/cosmos/framework/middleware"
 	"github.com/studiolambda/cosmos/problem"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRateLimitAllowsWithinLimit(t *testing.T) {
@@ -227,4 +228,11 @@ func TestRateLimitWithZeroOptionsUsesDefaults(t *testing.T) {
 	res := handler.Record(req)
 
 	require.Equal(t, http.StatusOK, res.StatusCode)
+}
+
+func TestRateLimitDefaultsAre15ReqPerSecBurst30(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, float64(15), middleware.DefaultRateLimitOptions.RequestsPerSecond)
+	require.Equal(t, 30, middleware.DefaultRateLimitOptions.Burst)
 }
