@@ -7,10 +7,11 @@ import (
 	"errors"
 	"testing"
 
-	_ "github.com/mattn/go-sqlite3"
-	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework/database"
+
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/stretchr/testify/require"
 )
 
 func newTestDB(t *testing.T) *database.SQL {
