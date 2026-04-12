@@ -133,7 +133,7 @@ Available in `framework/middleware`:
 - `CSRF(origins...)` / `CSRFWith(csrf, problem)` — cross-origin protection
 - `CORS(CORSOptions)` — configurable CORS headers
 - `SecureHeaders()` / `SecureHeadersWith(opts)` — security headers (HSTS, CSP, X-Frame-Options)
-- `RateLimit()` / `RateLimitWith(opts)` — per-key token bucket (default 10 req/s, burst 20)
+- `RateLimit()` / `RateLimitWith(opts)` — per-key token bucket (default 15 req/s, burst 30, idle eviction after 5m)
 - `Provide(key, value)` / `ProvideWith(fn)` — context injection
 - `HTTP(func(http.Handler) http.Handler)` — stdlib middleware adapter
 
