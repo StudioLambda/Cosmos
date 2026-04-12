@@ -35,6 +35,9 @@ const DefaultMaxConcurrentDeliveries = 1024
 // panic recovery to ensure one handler's failure doesn't affect others.
 // Concurrent deliveries are bounded by a semaphore to prevent goroutine
 // exhaustion.
+//
+// Wildcard patterns: '*' matches a single dot-separated token,
+// '#' matches zero or more tokens (must be the last token in the pattern).
 type MemoryBroker struct {
 	// mu protects concurrent access to the handlers map during
 	// subscribe and unsubscribe operations.
@@ -98,6 +101,10 @@ func (broker *MemoryBroker) Publish(
 		return ErrBrokerClosed
 	}
 
+	if err := validateEvent(event); err != nil {
+		return err
+	}
+
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -155,6 +162,10 @@ func (broker *MemoryBroker) Subscribe(
 ) (contract.EventUnsubscribeFunc, error) {
 	if broker.closed.Load() {
 		return nil, ErrBrokerClosed
+	}
+
+	if err := validateEvent(event); err != nil {
+		return nil, err
 	}
 
 	handlerID := fmt.Sprintf("%d", broker.nextID.Add(1))

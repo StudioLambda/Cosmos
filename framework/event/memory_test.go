@@ -2,6 +2,8 @@ package event_test
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -503,4 +505,89 @@ func TestMemoryBrokerUnsubscribeOneDoesNotAffectOther(t *testing.T) {
 	wg.Wait()
 
 	require.Equal(t, int64(1), atomic.LoadInt64(&received))
+}
+
+func TestMemoryBrokerPublishRejectsEmptyEvent(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	broker := event.NewMemoryBroker()
+
+	t.Cleanup(func() {
+		_ = broker.Close()
+	})
+
+	err := broker.Publish(ctx, "", "data")
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, event.ErrInvalidEvent)
+}
+
+func TestMemoryBrokerPublishRejectsControlCharacters(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	broker := event.NewMemoryBroker()
+
+	t.Cleanup(func() {
+		_ = broker.Close()
+	})
+
+	err := broker.Publish(ctx, "user.\tcreated", "data")
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, event.ErrInvalidEvent)
+}
+
+func TestMemoryBrokerPublishRejectsTooLongEvent(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	broker := event.NewMemoryBroker()
+
+	t.Cleanup(func() {
+		_ = broker.Close()
+	})
+
+	longEvent := strings.Repeat("a", 256)
+
+	err := broker.Publish(ctx, longEvent, "data")
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, event.ErrInvalidEvent)
+}
+
+func TestMemoryBrokerSubscribeRejectsEmptyEvent(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	broker := event.NewMemoryBroker()
+
+	t.Cleanup(func() {
+		_ = broker.Close()
+	})
+
+	unsub, err := broker.Subscribe(
+		ctx, "", func(payload contract.EventPayload) {},
+	)
+
+	require.Nil(t, unsub)
+	require.Error(t, err)
+	require.ErrorIs(t, err, event.ErrInvalidEvent)
+}
+
+func TestMemoryBrokerValidationErrorsWrapErrInvalidEvent(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	broker := event.NewMemoryBroker()
+
+	t.Cleanup(func() {
+		_ = broker.Close()
+	})
+
+	err := broker.Publish(ctx, "", "data")
+
+	require.Error(t, err)
+	require.True(t, errors.Is(err, event.ErrInvalidEvent))
 }
