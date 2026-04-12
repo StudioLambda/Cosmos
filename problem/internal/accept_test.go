@@ -1,7 +1,7 @@
 package internal_test
 
 import (
-	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/studiolambda/cosmos/problem/internal"
@@ -10,11 +10,7 @@ import (
 func TestAcceptAccepts(t *testing.T) {
 	t.Parallel()
 
-	request, err := http.NewRequest("GET", "/", nil)
-
-	if err != nil {
-		t.Fatalf("failed to create request: %s", err)
-	}
+	request := httptest.NewRequest("GET", "/", nil)
 
 	request.Header.Add("Accept", "application/json, text/*")
 
@@ -40,11 +36,7 @@ func TestAcceptAccepts(t *testing.T) {
 func TestAcceptAcceptsWithMultipleHeaderValues(t *testing.T) {
 	t.Parallel()
 
-	request, err := http.NewRequest("GET", "/", nil)
-
-	if err != nil {
-		t.Fatalf("failed to create request: %s", err)
-	}
+	request := httptest.NewRequest("GET", "/", nil)
 
 	request.Header.Add("Accept", "application/json")
 	request.Header.Add("Accept", "text/*")
@@ -71,11 +63,7 @@ func TestAcceptAcceptsWithMultipleHeaderValues(t *testing.T) {
 func TestAcceptOrder(t *testing.T) {
 	t.Parallel()
 
-	request, err := http.NewRequest("GET", "/", nil)
-
-	if err != nil {
-		t.Fatalf("failed to create request: %s", err)
-	}
+	request := httptest.NewRequest("GET", "/", nil)
 
 	request.Header.Add("Accept", "application/json, text/*, foo/bar;q=0.3, another/*;q=0.4, bar/baz;q=0.5")
 
@@ -110,11 +98,7 @@ func TestAcceptOrder(t *testing.T) {
 func TestAcceptQualityFound(t *testing.T) {
 	t.Parallel()
 
-	request, err := http.NewRequest("GET", "/", nil)
-
-	if err != nil {
-		t.Fatalf("failed to create request: %s", err)
-	}
+	request := httptest.NewRequest("GET", "/", nil)
 
 	request.Header.Add("Accept", "application/json;q=0.8")
 
@@ -129,11 +113,7 @@ func TestAcceptQualityFound(t *testing.T) {
 func TestAcceptQualityNotFound(t *testing.T) {
 	t.Parallel()
 
-	request, err := http.NewRequest("GET", "/", nil)
-
-	if err != nil {
-		t.Fatalf("failed to create request: %s", err)
-	}
+	request := httptest.NewRequest("GET", "/", nil)
 
 	request.Header.Add("Accept", "application/json")
 
@@ -148,11 +128,7 @@ func TestAcceptQualityNotFound(t *testing.T) {
 func TestAcceptQualityDefault(t *testing.T) {
 	t.Parallel()
 
-	request, err := http.NewRequest("GET", "/", nil)
-
-	if err != nil {
-		t.Fatalf("failed to create request: %s", err)
-	}
+	request := httptest.NewRequest("GET", "/", nil)
 
 	request.Header.Add("Accept", "application/json")
 
@@ -167,11 +143,7 @@ func TestAcceptQualityDefault(t *testing.T) {
 func TestParseAcceptMalformedMediaType(t *testing.T) {
 	t.Parallel()
 
-	request, err := http.NewRequest("GET", "/", nil)
-
-	if err != nil {
-		t.Fatalf("failed to create request: %s", err)
-	}
+	request := httptest.NewRequest("GET", "/", nil)
 
 	request.Header.Add("Accept", "a/b/c/d, application/json")
 
@@ -191,11 +163,7 @@ func TestParseAcceptMalformedMediaType(t *testing.T) {
 func TestAcceptOrderEmpty(t *testing.T) {
 	t.Parallel()
 
-	request, err := http.NewRequest("GET", "/", nil)
-
-	if err != nil {
-		t.Fatalf("failed to create request: %s", err)
-	}
+	request := httptest.NewRequest("GET", "/", nil)
 
 	accept := internal.ParseAccept(request)
 	order := accept.Order()
@@ -208,11 +176,7 @@ func TestAcceptOrderEmpty(t *testing.T) {
 func TestAcceptAcceptsWildcardInMedia(t *testing.T) {
 	t.Parallel()
 
-	request, err := http.NewRequest("GET", "/", nil)
-
-	if err != nil {
-		t.Fatalf("failed to create request: %s", err)
-	}
+	request := httptest.NewRequest("GET", "/", nil)
 
 	request.Header.Add("Accept", "application/json")
 
@@ -226,11 +190,7 @@ func TestAcceptAcceptsWildcardInMedia(t *testing.T) {
 func TestAcceptNoAcceptHeader(t *testing.T) {
 	t.Parallel()
 
-	request, err := http.NewRequest("GET", "/", nil)
-
-	if err != nil {
-		t.Fatalf("failed to create request: %s", err)
-	}
+	request := httptest.NewRequest("GET", "/", nil)
 
 	accept := internal.ParseAccept(request)
 

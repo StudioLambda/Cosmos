@@ -1,7 +1,6 @@
 package problem
 
 import (
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -11,7 +10,8 @@ import (
 	"github.com/studiolambda/cosmos/problem/internal"
 )
 
-// Problem represents a problem details for HTTP APIs.
+// Problem represents a problem details response for HTTP APIs.
+// It implements [error], [http.Handler], and [json.Marshaler].
 // See https://datatracker.ietf.org/doc/html/rfc9457 for more information.
 type Problem struct {
 
@@ -79,7 +79,7 @@ type Problem struct {
 	// use the HTTP status code.
 	Status int
 
-	// 	The "instance" member is a JSON string containing a URI reference that
+	// The "instance" member is a JSON string containing a URI reference that
 	// identifies the specific occurrence of the problem.
 	//
 	// When the "instance" URI is dereferenceable, the problem details object
@@ -128,7 +128,9 @@ func (problem Problem) Additional(key string) (any, bool) {
 	return additional, ok
 }
 
-// With adds a new additional value to the given key.
+// With returns a new [Problem] with an additional value set for the given key.
+// The original [Problem] is not modified (copy-on-write).
+// Use [Problem.Without] to remove additional values.
 func (problem Problem) With(key string, value any) Problem {
 	if problem.additional == nil {
 		problem.additional = map[string]any{key: value}
@@ -158,7 +160,7 @@ func (problem Problem) WithoutError() Problem {
 	return problem
 }
 
-// Without removes an additional value to the given key.
+// Without returns a new [Problem] with the additional value for the given key removed.
 func (problem Problem) Without(key string) Problem {
 	if problem.additional == nil {
 		return problem
@@ -170,7 +172,7 @@ func (problem Problem) Without(key string) Problem {
 	return problem
 }
 
-// Error is the error-like string representation of a [Problem].
+// Error returns a string representation of the [Problem] for the [error] interface.
 func (problem Problem) Error() string {
 	if problem.err != nil {
 		return strings.ToLower(
@@ -183,14 +185,14 @@ func (problem Problem) Error() string {
 	)
 }
 
-// Errors returns all the strack-trace of errors that
+// Errors returns all the stack trace of errors that
 // are bound to this particular [Problem].
 func (problem Problem) Errors() []error {
 	return stackTrace(problem.err)
 }
 
-// Unwrap is used to get the original error from
-// the problem to use with the errors pkg.
+// Unwrap returns the underlying error from the [Problem]
+// for use with [errors.Is] and [errors.As].
 func (problem Problem) Unwrap() error {
 	return problem.err
 }
@@ -215,9 +217,10 @@ func (problem Problem) WithoutStackTrace() Problem {
 	return problem.Without(StackTraceKey)
 }
 
-// MarshalJSON replaces the default JSON encoding behaviour.
+// MarshalJSON encodes the [Problem] as a flat JSON object by merging
+// the five standard RFC 9457 fields with any additional values.
 func (problem Problem) MarshalJSON() ([]byte, error) {
-	mapped := make(map[string]any, len(problem.additional)+5)
+	mapped := make(map[string]any, len(problem.additional)+5) // 5 standard RFC 9457 fields
 
 	mapped["detail"] = problem.Detail
 	mapped["instance"] = problem.Instance
@@ -230,7 +233,8 @@ func (problem Problem) MarshalJSON() ([]byte, error) {
 	return json.Marshal(mapped)
 }
 
-// UnmarshalJSON replaces the default JSON decoding behaviour.
+// UnmarshalJSON decodes a flat JSON object into the [Problem] by extracting
+// the five standard RFC 9457 fields and storing the remaining keys as additional values.
 func (problem *Problem) UnmarshalJSON(data []byte) error {
 	mapped := make(map[string]any)
 
@@ -269,8 +273,9 @@ func (problem *Problem) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Defaulted returns a [Problem] that is defaulted using the given
-// request and the current instance.
+// Defaulted returns a new [Problem] with zero-value fields filled with sensible
+// defaults: Type defaults to "about:blank", Status to 500, Title to
+// [http.StatusText] of the status, and Instance to the request URL path.
 func (problem Problem) Defaulted(request *http.Request) Problem {
 	if problem.Type == "" {
 		problem.Type = "about:blank"
@@ -294,25 +299,23 @@ func (problem Problem) Defaulted(request *http.Request) Problem {
 // textHandler writes the problem as a plain text HTTP response
 // including the status code, title, detail, and any stack traces.
 func (problem Problem) textHandler(w http.ResponseWriter, r *http.Request) {
-	textResponse := fmt.Sprintf(
-		"%d %s\n\n%s",
-		problem.Status,
-		problem.Title,
-		problem.Detail,
-	)
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%d %s\n\n%s", problem.Status, problem.Title, problem.Detail)
 
 	additional, found := problem.Additional(StackTraceKey)
 	traces, tracesOK := additional.([]string)
 
 	if found && tracesOK {
-		textResponse += "\n\n"
+		b.WriteString("\n\n")
 
 		for _, trace := range traces {
-			textResponse += trace + "\n"
+			b.WriteString(trace)
+			b.WriteByte('\n')
 		}
 	}
 
-	http.Error(w, textResponse, problem.Status)
+	http.Error(w, b.String(), problem.Status)
 }
 
 // jsonHandler writes the problem as a standard application/json
