@@ -9,23 +9,14 @@ import (
 	"strings"
 )
 
-// Middleware is a func type that can be used to
-// apply middleware logic between request and responses.
+// Middleware is a func type that can be used to apply middleware logic between requests and responses.
 type Middleware[H http.Handler] = func(H) H
 
-// Router is the structure that handles
-// http routing in an application.
-//
-// This router is completely optional and
-// uses [http.ServeMux] under the hood
-// to register all the routes.
-//
-// It also handles some patterns automatically,
-// such as {$}, that is appended on each route
-// automatically, regardless of the pattern.
+// Router is a generic HTTP router that wraps [http.ServeMux] and supports
+// middleware, route groups, and automatic trailing-slash handling.
 type Router[H http.Handler] struct {
 	// native stores the actual [http.ServeMux]
-	// that's used internally  to register the routes.
+	// that's used internally to register the routes.
 	native *http.ServeMux
 
 	// pattern stores the current pattern that will be
@@ -61,14 +52,10 @@ var allMethods = []string{
 	http.MethodOptions,
 }
 
-// New creates a new [Router] instance and automatically
-// creates all the needed components such as the middleware
-// list or the native [http.ServeMux] used under the hood.
+// New creates a new [Router] with an empty [http.ServeMux].
 func New[H http.Handler]() *Router[H] {
 	return &Router[H]{
 		native:      http.NewServeMux(),
-		pattern:     "",
-		parent:      nil,
 		middlewares: make([]Middleware[H], 0),
 	}
 }
@@ -99,12 +86,13 @@ func (router *Router[H]) Group(pattern string, subrouter func(*Router[H])) {
 	})
 }
 
-// Grouped clones the router inside a subrouter.
+// Grouped creates a cloned sub-router for scoping middleware without a path prefix.
 func (router *Router[H]) Grouped(subrouter func(*Router[H])) {
 	subrouter(router.Clone())
 }
 
-// Clone creates a new subrouter and returns it.
+// Clone creates a sub-router that shares the same [http.ServeMux] but has an
+// independent middleware stack.
 func (router *Router[H]) Clone() *Router[H] {
 	return &Router[H]{
 		native:      nil, // parent's native will be used
@@ -114,14 +102,13 @@ func (router *Router[H]) Clone() *Router[H] {
 	}
 }
 
-// With does create a new sub-router that automatically applies
-// the given middlewares.
+// With creates a new sub-router that applies the given middlewares in addition
+// to any inherited ones.
 //
-// This is very useful when used to inline some middlewares to
-// specific routes.
+// This is useful for inlining middleware on specific routes.
 //
-// In contrast to [Router.Use] method, it does create a new
-// sub-router instead of modifying the current router.
+// In contrast to [Router.Use], it creates a new sub-router instead of
+// modifying the current router.
 func (router *Router[H]) With(middlewares ...Middleware[H]) *Router[H] {
 	return &Router[H]{
 		native:      nil, // parent's native will be used
@@ -134,7 +121,7 @@ func (router *Router[H]) With(middlewares ...Middleware[H]) *Router[H] {
 // mux returns the native [http.ServeMux] that is used
 // internally by the router. This exists because sub-routers
 // must use the same [http.ServeMux] and therefore, there's
-// some recursivity involved to get the same [http.ServeMux].
+// some recursion involved to get the same [http.ServeMux].
 func (router *Router[H]) mux() *http.ServeMux {
 	if router.parent != nil {
 		return router.parent.mux()
@@ -143,10 +130,9 @@ func (router *Router[H]) mux() *http.ServeMux {
 	return router.native
 }
 
-// wrap makes an handler wrapped by the current routers'
-// middlewares. This means that the resulting handler is
-// the same as first calling the router middlewares and then the
-// provided handler.
+// wrap makes a handler wrapped by the current router's middleware.
+// This means that the resulting handler is the same as first calling
+// the router's middleware and then the provided handler.
 func (router *Router[H]) wrap(handler H) H {
 	for i := len(router.middlewares) - 1; i >= 0; i-- {
 		handler = router.middlewares[i](handler)
@@ -275,6 +261,10 @@ func (router *Router[H]) registerPair(method string, pattern string, handler H) 
 // CONNECT is reserved for HTTP proxies. If needed, use the
 // [Router.Trace] or [Router.Connect] methods explicitly.
 func (router *Router[H]) Method(method string, pattern string, handler H) {
+	if method == "" {
+		panic("router: method must not be empty")
+	}
+
 	pattern = path.Join(router.pattern, pattern)
 
 	// When the pattern is simply a slash, we shall
@@ -288,75 +278,67 @@ func (router *Router[H]) Method(method string, pattern string, handler H) {
 	router.registerPair(method, pattern, handler)
 }
 
-// Methods allows binding multiple methods to the pattern and handler.
+// Methods registers a handler for each method in the given slice by calling
+// [Router.Method] for each entry.
 func (router *Router[H]) Methods(methods []string, pattern string, handler H) {
 	for _, method := range methods {
 		router.Method(method, pattern, handler)
 	}
 }
 
-// Any registers all methods to the given pattern and handler.
+// Any registers a handler for all standard HTTP methods (GET, HEAD, POST, PUT,
+// PATCH, DELETE, OPTIONS) using [Router.Methods]. TRACE and CONNECT are
+// intentionally excluded for security reasons.
 func (router *Router[H]) Any(pattern string, handler H) {
 	router.Methods(allMethods, pattern, handler)
 }
 
-// Get registers a new handler to the router using [Router.Method]
-// and using the [http.MethodGet] as the method parameter.
+// Get registers a handler for [http.MethodGet] using [Router.Method].
 func (router *Router[H]) Get(pattern string, handler H) {
 	router.Method(http.MethodGet, pattern, handler)
 }
 
-// Head registers a new handler to the router using [Router.Method]
-// and using the [http.MethodHead] as the method parameter.
+// Head registers a handler for [http.MethodHead] using [Router.Method].
 func (router *Router[H]) Head(pattern string, handler H) {
 	router.Method(http.MethodHead, pattern, handler)
 }
 
-// Post registers a new handler to the router using [Router.Method]
-// and using the [http.MethodPost] as the method parameter.
+// Post registers a handler for [http.MethodPost] using [Router.Method].
 func (router *Router[H]) Post(pattern string, handler H) {
 	router.Method(http.MethodPost, pattern, handler)
 }
 
-// Put registers a new handler to the router using [Router.Method]
-// and using the [http.MethodPut] as the method parameter.
+// Put registers a handler for [http.MethodPut] using [Router.Method].
 func (router *Router[H]) Put(pattern string, handler H) {
 	router.Method(http.MethodPut, pattern, handler)
 }
 
-// Patch registers a new handler to the router using [Router.Method]
-// and using the [http.MethodPatch] as the method parameter.
+// Patch registers a handler for [http.MethodPatch] using [Router.Method].
 func (router *Router[H]) Patch(pattern string, handler H) {
 	router.Method(http.MethodPatch, pattern, handler)
 }
 
-// Delete registers a new handler to the router using [Router.Method]
-// and using the [http.MethodDelete] as the method parameter.
+// Delete registers a handler for [http.MethodDelete] using [Router.Method].
 func (router *Router[H]) Delete(pattern string, handler H) {
 	router.Method(http.MethodDelete, pattern, handler)
 }
 
-// Connect registers a new handler to the router using [Router.Method]
-// and using the [http.MethodConnect] as the method parameter.
+// Connect registers a handler for [http.MethodConnect] using [Router.Method].
 func (router *Router[H]) Connect(pattern string, handler H) {
 	router.Method(http.MethodConnect, pattern, handler)
 }
 
-// Options registers a new handler to the router using [Router.Method]
-// and using the [http.MethodOptions] as the method parameter.
+// Options registers a handler for [http.MethodOptions] using [Router.Method].
 func (router *Router[H]) Options(pattern string, handler H) {
 	router.Method(http.MethodOptions, pattern, handler)
 }
 
-// Trace registers a new handler to the router using [Router.Method]
-// and using the [http.MethodTrace] as the method parameter.
+// Trace registers a handler for [http.MethodTrace] using [Router.Method].
 func (router *Router[H]) Trace(pattern string, handler H) {
 	router.Method(http.MethodTrace, pattern, handler)
 }
 
-// ServeHTTP is the method that will make the router implement
-// the handler interface, making it possible to be used
-// as a handler in places like [http.Server].
+// ServeHTTP implements [http.Handler] by delegating to the underlying [http.ServeMux].
 func (router *Router[H]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	router.mux().ServeHTTP(w, r)
 }
@@ -364,8 +346,7 @@ func (router *Router[H]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Has reports whether the given pattern is registered in the router
 // with the given method.
 //
-// Alternatively, check out the [Router.Matches] to use an [http.Request]
-// as the parameter.
+// Alternatively, use the [Router.Matches] method with an [http.Request].
 func (router *Router[H]) Has(method string, pattern string) bool {
 	if req, err := http.NewRequest(method, pattern, nil); err == nil {
 		return router.Matches(req)
@@ -374,7 +355,7 @@ func (router *Router[H]) Has(method string, pattern string) bool {
 	return false
 }
 
-// Matches reports whether the given [http.Request] match any registered
+// Matches reports whether the given [http.Request] matches any registered
 // route in the router.
 //
 // This means that, given the request method and the
@@ -386,7 +367,8 @@ func (router *Router[H]) Matches(request *http.Request) bool {
 }
 
 // Handler returns the handler that matches the given method and pattern.
-// The second return value determines if the handler was found or not.
+// The second return value reports whether the handler was found; when false,
+// the first return value is the zero value of H.
 //
 // For matching against an [http.Request] use the [Router.HandlerMatch] method.
 func (router *Router[H]) Handler(method string, pattern string) (h H, ok bool) {
@@ -413,14 +395,11 @@ func (router *Router[H]) HandlerMatch(request *http.Request) (h H, ok bool) {
 	return h, false
 }
 
-// Record returns a [http.Response] that can be used to inspect what
-// the given http request would have returned as a response.
-//
-// This method is a shortcut of calling [RecordHandler] with the router as the
-// handler and the given request.
-func (router *Router[H]) Record(r *http.Request) *http.Response {
+// Record returns an [http.Response] produced by dispatching the given HTTP
+// request through the router's full middleware and handler pipeline.
+func (router *Router[H]) Record(request *http.Request) *http.Response {
 	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, r)
+	router.ServeHTTP(rr, request)
 
 	return rr.Result()
 }
