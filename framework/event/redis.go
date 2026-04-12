@@ -3,6 +3,8 @@ package event
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -15,6 +17,7 @@ import (
 // for topic subscriptions.
 type RedisBroker struct {
 	client *redis.Client
+	wg     sync.WaitGroup
 }
 
 // RedisBrokerOptions is an alias for redis.Options, exposing the
@@ -61,23 +64,37 @@ func (broker *RedisBroker) Subscribe(
 ) (contract.EventUnsubscribeFunc, error) {
 	event = strings.ReplaceAll(event, "#", "*")
 	sub := broker.client.PSubscribe(ctx, event)
-	wg := sync.WaitGroup{}
 
-	wg.Go(func() {
+	broker.wg.Add(1)
+
+	go func() {
+		defer broker.wg.Done()
+
 		for message := range sub.Channel() {
-			handler(func(dest any) error {
-				return json.Unmarshal([]byte(message.Payload), dest)
-			})
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						slog.Error("panic in redis event handler", "event", event, "panic", fmt.Sprint(r))
+					}
+				}()
+
+				handler(func(dest any) error {
+					return json.Unmarshal([]byte(message.Payload), dest)
+				})
+			}()
 		}
-	})
+	}()
 
 	return func() error {
-		defer wg.Wait()
 		return sub.Close()
 	}, nil
 }
 
-// Close shuts down the underlying Redis client connection.
+// Close shuts down the underlying Redis client connection and
+// waits for all active subscription goroutines to finish.
 func (broker *RedisBroker) Close() error {
-	return broker.client.Close()
+	err := broker.client.Close()
+	broker.wg.Wait()
+
+	return err
 }

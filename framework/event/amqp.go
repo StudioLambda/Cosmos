@@ -3,6 +3,9 @@ package event
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
 	"sync"
 
 	amqp091 "github.com/rabbitmq/amqp091-go"
@@ -155,7 +158,7 @@ func (broker *AMQPBroker) Publish(
 	broker.mu.Lock()
 	defer broker.mu.Unlock()
 
-	return broker.pubCh.PublishWithContext(
+	err = broker.pubCh.PublishWithContext(
 		ctx,
 		broker.exchange,
 		event,
@@ -166,6 +169,29 @@ func (broker *AMQPBroker) Publish(
 			Body:        encoded,
 		},
 	)
+
+	if err != nil {
+		newCh, chErr := broker.conn.Channel()
+		if chErr != nil {
+			return errors.Join(err, chErr)
+		}
+
+		broker.pubCh = newCh
+
+		return broker.pubCh.PublishWithContext(
+			ctx,
+			broker.exchange,
+			event,
+			false,
+			false,
+			amqp091.Publishing{
+				ContentType: "application/json",
+				Body:        encoded,
+			},
+		)
+	}
+
+	return nil
 }
 
 // Subscribe registers a handler to receive events with the given
@@ -239,9 +265,17 @@ func (broker *AMQPBroker) Subscribe(
 
 	wg.Go(func() {
 		for delivery := range deliveries {
-			handler(func(dest any) error {
-				return json.Unmarshal(delivery.Body, dest)
-			})
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						slog.Error("panic in amqp event handler", "event", event, "panic", fmt.Sprint(r))
+					}
+				}()
+
+				handler(func(dest any) error {
+					return json.Unmarshal(delivery.Body, dest)
+				})
+			}()
 		}
 	})
 
