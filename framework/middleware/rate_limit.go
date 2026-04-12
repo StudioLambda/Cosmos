@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -46,6 +47,13 @@ type RateLimitOptions struct {
 	// being evicted. Defaults to 5 minutes.
 	MaxIdleTime time.Duration
 
+	// MaxEntries is the maximum number of distinct keys
+	// tracked by the registry. When exceeded, new keys share
+	// an overflow limiter instead of receiving their own
+	// bucket. This prevents unbounded memory growth from
+	// attackers rotating keys. Defaults to 10000.
+	MaxEntries int
+
 	// Context, when non-nil, controls the lifetime of the
 	// background cleanup goroutine. When the context is
 	// cancelled, the goroutine exits and its resources are
@@ -61,11 +69,17 @@ var DefaultRateLimitOptions = RateLimitOptions{
 	RequestsPerSecond: 15,
 	Burst:             30,
 	KeyFunc: func(r *http.Request) string {
-		return r.RemoteAddr
+		host, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			return r.RemoteAddr
+		}
+
+		return host
 	},
 	ErrorResponse:   ErrRateLimited,
 	CleanupInterval: 1 * time.Minute,
 	MaxIdleTime:     5 * time.Minute,
+	MaxEntries:      10000,
 }
 
 // withDefaults returns a copy of the options with zero values
@@ -93,6 +107,10 @@ func (options RateLimitOptions) withDefaults() RateLimitOptions {
 
 	if options.MaxIdleTime == 0 {
 		options.MaxIdleTime = DefaultRateLimitOptions.MaxIdleTime
+	}
+
+	if options.MaxEntries == 0 {
+		options.MaxEntries = DefaultRateLimitOptions.MaxEntries
 	}
 
 	return options
@@ -128,6 +146,15 @@ type rateLimitRegistry struct {
 	// limiters.
 	burst int
 
+	// maxEntries is the upper bound on distinct keys tracked.
+	// Once reached, new keys share the overflow limiter.
+	maxEntries int
+
+	// overflow is a shared limiter returned for keys that
+	// arrive after the registry reaches maxEntries. It
+	// prevents unbounded map growth under attack.
+	overflow *rate.Limiter
+
 	// stop signals the cleanup goroutine to exit.
 	stop chan struct{}
 }
@@ -140,14 +167,17 @@ type rateLimitRegistry struct {
 func newRateLimitRegistry(
 	rps float64,
 	burst int,
+	maxEntries int,
 	cleanupInterval time.Duration,
 	maxIdle time.Duration,
 ) *rateLimitRegistry {
 	registry := &rateLimitRegistry{
-		entries: make(map[string]*rateLimitEntry),
-		rps:     rps,
-		burst:   burst,
-		stop:    make(chan struct{}),
+		entries:    make(map[string]*rateLimitEntry),
+		rps:        rps,
+		burst:      burst,
+		maxEntries: maxEntries,
+		overflow:   rate.NewLimiter(rate.Limit(rps), burst),
+		stop:       make(chan struct{}),
 	}
 
 	go registry.cleanup(cleanupInterval, maxIdle)
@@ -166,6 +196,10 @@ func (registry *rateLimitRegistry) get(key string) *rate.Limiter {
 		entry.lastSeen = time.Now()
 
 		return entry.limiter
+	}
+
+	if len(registry.entries) >= registry.maxEntries {
+		return registry.overflow
 	}
 
 	limiter := rate.NewLimiter(rate.Limit(registry.rps), registry.burst)
@@ -242,6 +276,7 @@ func RateLimitWith(opts RateLimitOptions) framework.Middleware {
 	registry := newRateLimitRegistry(
 		opts.RequestsPerSecond,
 		opts.Burst,
+		opts.MaxEntries,
 		opts.CleanupInterval,
 		opts.MaxIdleTime,
 	)

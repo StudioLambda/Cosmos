@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"time"
 
@@ -72,19 +71,15 @@ func (client *RedisClient) Has(ctx context.Context, key string) (bool, error) {
 }
 
 // Pull atomically retrieves and deletes a key using Redis GETDEL.
-// The stored value is JSON-decoded into the return value.
-func (client *RedisClient) Pull(ctx context.Context, key string) (value any, err error) {
-	encoded, err := (*redis.Client)(client).GetDel(ctx, key).Result()
+// Returns contract.ErrCacheKeyNotFound when the key does not exist.
+func (client *RedisClient) Pull(ctx context.Context, key string) (any, error) {
+	value, err := (*redis.Client)(client).GetDel(ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
 		return nil, contract.ErrCacheKeyNotFound
 	}
 
 	if err != nil {
-		return nil, err
-	}
-
-	if err := json.Unmarshal([]byte(encoded), &value); err != nil {
 		return nil, err
 	}
 

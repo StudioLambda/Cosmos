@@ -87,6 +87,13 @@ func (writer *ResponseWriter) WriteHeader(status int) {
 	writer.writeHeaderCalled.Store(true)
 }
 
+// Unwrap returns the underlying [http.ResponseWriter]. This enables
+// [http.ResponseController] to discover interfaces on the original
+// writer such as [http.Flusher] and [http.Hijacker].
+func (writer *ResponseWriter) Unwrap() http.ResponseWriter {
+	return writer.ResponseWriter
+}
+
 // Write sends the response body bytes to the client after
 // firing all registered BeforeWrite hooks. If WriteHeader has
 // not yet been called, it defaults to http.StatusOK, matching

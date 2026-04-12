@@ -246,14 +246,11 @@ func MiddlewareWith(driver contract.SessionDriver, options MiddlewareOptions) fr
 				if session.HasChanged() {
 					ttl := time.Until(session.ExpiresAt())
 
-					reportError(
-						options,
-						driver.Save(
-							saveCtx,
-							session,
-							ttl,
-						),
-					)
+					if err := driver.Save(saveCtx, session, ttl); err != nil {
+						reportError(options, err)
+
+						return
+					}
 
 					http.SetCookie(w, &http.Cookie{
 						Name:        options.Name,

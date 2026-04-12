@@ -8,23 +8,34 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
-	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework/database"
+
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/stretchr/testify/require"
 )
 
-func openTestDB(t *testing.T) *database.SQL {
+func newTestDB(t *testing.T) *database.SQL {
 	t.Helper()
 
-	raw, err := sqlx.Connect("sqlite3", ":memory:")
+	db, err := database.NewSQL("sqlite3", ":memory:")
+
 	require.NoError(t, err)
 
-	db := database.NewSQLFrom(raw)
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() {
+		require.NoError(t, db.Close())
+	})
 
-	_, err = raw.Exec(`CREATE TABLE users (
+	return db
+}
+
+func newTestDBWithUsers(t *testing.T) *database.SQL {
+	t.Helper()
+
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	_, err := db.Exec(ctx, `CREATE TABLE users (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL,
 		email TEXT NOT NULL
@@ -37,7 +48,7 @@ func openTestDB(t *testing.T) *database.SQL {
 func TestPingSucceeds(t *testing.T) {
 	t.Parallel()
 
-	db := openTestDB(t)
+	db := newTestDB(t)
 
 	err := db.Ping(context.Background())
 
@@ -47,7 +58,7 @@ func TestPingSucceeds(t *testing.T) {
 func TestExecInsertsRow(t *testing.T) {
 	t.Parallel()
 
-	db := openTestDB(t)
+	db := newTestDBWithUsers(t)
 	ctx := context.Background()
 
 	affected, err := db.Exec(ctx, "INSERT INTO users (name, email) VALUES (?, ?)", "alice", "alice@example.com")
@@ -59,7 +70,7 @@ func TestExecInsertsRow(t *testing.T) {
 func TestExecNamedInsertsRow(t *testing.T) {
 	t.Parallel()
 
-	db := openTestDB(t)
+	db := newTestDBWithUsers(t)
 	ctx := context.Background()
 
 	arg := map[string]any{"name": "bob", "email": "bob@example.com"}
@@ -72,7 +83,7 @@ func TestExecNamedInsertsRow(t *testing.T) {
 func TestSelectReturnsMultipleRows(t *testing.T) {
 	t.Parallel()
 
-	db := openTestDB(t)
+	db := newTestDBWithUsers(t)
 	ctx := context.Background()
 
 	_, err := db.Exec(ctx, "INSERT INTO users (name, email) VALUES (?, ?)", "alice", "a@x.com")
@@ -96,10 +107,40 @@ func TestSelectReturnsMultipleRows(t *testing.T) {
 	require.Equal(t, "bob", users[1].Name)
 }
 
+func TestSelectPropagatesContext(t *testing.T) {
+	t.Parallel()
+
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	_, err := db.Exec(ctx, `CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)`)
+	require.NoError(t, err)
+
+	_, err = db.Exec(ctx, `INSERT INTO users (id, name) VALUES (?, ?)`, 1, "alice")
+	require.NoError(t, err)
+
+	_, err = db.Exec(ctx, `INSERT INTO users (id, name) VALUES (?, ?)`, 2, "bob")
+	require.NoError(t, err)
+
+	type user struct {
+		ID   int    `db:"id"`
+		Name string `db:"name"`
+	}
+
+	var users []user
+
+	err = db.Select(ctx, `SELECT id, name FROM users ORDER BY id`, &users)
+
+	require.NoError(t, err)
+	require.Len(t, users, 2)
+	require.Equal(t, "alice", users[0].Name)
+	require.Equal(t, "bob", users[1].Name)
+}
+
 func TestSelectNamedReturnsMultipleRows(t *testing.T) {
 	t.Parallel()
 
-	db := openTestDB(t)
+	db := newTestDBWithUsers(t)
 	ctx := context.Background()
 
 	_, err := db.Exec(ctx, "INSERT INTO users (name, email) VALUES (?, ?)", "alice", "a@x.com")
@@ -126,7 +167,7 @@ func TestSelectNamedReturnsMultipleRows(t *testing.T) {
 func TestFindReturnsSingleRow(t *testing.T) {
 	t.Parallel()
 
-	db := openTestDB(t)
+	db := newTestDBWithUsers(t)
 	ctx := context.Background()
 
 	_, err := db.Exec(ctx, "INSERT INTO users (name, email) VALUES (?, ?)", "alice", "a@x.com")
@@ -148,7 +189,7 @@ func TestFindReturnsSingleRow(t *testing.T) {
 func TestFindWrapsErrNoRows(t *testing.T) {
 	t.Parallel()
 
-	db := openTestDB(t)
+	db := newTestDBWithUsers(t)
 	ctx := context.Background()
 
 	type user struct {
@@ -160,14 +201,14 @@ func TestFindWrapsErrNoRows(t *testing.T) {
 	err := db.Find(ctx, "SELECT id, name FROM users WHERE name = ?", &found, "ghost")
 
 	require.Error(t, err)
-	require.True(t, errors.Is(err, sql.ErrNoRows))
-	require.True(t, errors.Is(err, contract.ErrDatabaseNoRows))
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.ErrorIs(t, err, contract.ErrDatabaseNoRows)
 }
 
 func TestFindNamedReturnsSingleRow(t *testing.T) {
 	t.Parallel()
 
-	db := openTestDB(t)
+	db := newTestDBWithUsers(t)
 	ctx := context.Background()
 
 	_, err := db.Exec(ctx, "INSERT INTO users (name, email) VALUES (?, ?)", "alice", "a@x.com")
@@ -190,7 +231,7 @@ func TestFindNamedReturnsSingleRow(t *testing.T) {
 func TestFindNamedWrapsErrNoRows(t *testing.T) {
 	t.Parallel()
 
-	db := openTestDB(t)
+	db := newTestDBWithUsers(t)
 	ctx := context.Background()
 
 	type user struct {
@@ -203,14 +244,62 @@ func TestFindNamedWrapsErrNoRows(t *testing.T) {
 	err := db.FindNamed(ctx, "SELECT id, name FROM users WHERE name = :name", &found, arg)
 
 	require.Error(t, err)
-	require.True(t, errors.Is(err, sql.ErrNoRows))
-	require.True(t, errors.Is(err, contract.ErrDatabaseNoRows))
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.ErrorIs(t, err, contract.ErrDatabaseNoRows)
+}
+
+func TestFindNamedReturnsErrDatabaseNoRows(t *testing.T) {
+	t.Parallel()
+
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	_, err := db.Exec(ctx, `CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)`)
+	require.NoError(t, err)
+
+	type user struct {
+		ID   int    `db:"id"`
+		Name string `db:"name"`
+	}
+
+	var found user
+
+	err = db.FindNamed(ctx, `SELECT id, name FROM users WHERE id = :id`, &found, map[string]any{"id": 999})
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, contract.ErrDatabaseNoRows)
+}
+
+func TestFindNamedReturnsResultWhenFound(t *testing.T) {
+	t.Parallel()
+
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	_, err := db.Exec(ctx, `CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)`)
+	require.NoError(t, err)
+
+	_, err = db.Exec(ctx, `INSERT INTO users (id, name) VALUES (?, ?)`, 1, "alice")
+	require.NoError(t, err)
+
+	type user struct {
+		ID   int    `db:"id"`
+		Name string `db:"name"`
+	}
+
+	var found user
+
+	err = db.FindNamed(ctx, `SELECT id, name FROM users WHERE id = :id`, &found, map[string]any{"id": 1})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, found.ID)
+	require.Equal(t, "alice", found.Name)
 }
 
 func TestWithTransactionCommitsOnSuccess(t *testing.T) {
 	t.Parallel()
 
-	db := openTestDB(t)
+	db := newTestDBWithUsers(t)
 	ctx := context.Background()
 
 	err := db.WithTransaction(ctx, func(tx contract.Database) error {
@@ -234,7 +323,7 @@ func TestWithTransactionCommitsOnSuccess(t *testing.T) {
 func TestWithTransactionRollsBackOnError(t *testing.T) {
 	t.Parallel()
 
-	db := openTestDB(t)
+	db := newTestDBWithUsers(t)
 	ctx := context.Background()
 
 	sentinel := errors.New("rollback me")
@@ -245,7 +334,7 @@ func TestWithTransactionRollsBackOnError(t *testing.T) {
 
 		return sentinel
 	})
-	require.True(t, errors.Is(err, sentinel))
+	require.ErrorIs(t, err, sentinel)
 
 	type user struct {
 		ID   int    `db:"id"`
@@ -262,7 +351,7 @@ func TestWithTransactionRollsBackOnError(t *testing.T) {
 func TestWithTransactionRejectsNesting(t *testing.T) {
 	t.Parallel()
 
-	db := openTestDB(t)
+	db := newTestDB(t)
 	ctx := context.Background()
 
 	err := db.WithTransaction(ctx, func(tx contract.Database) error {
@@ -271,13 +360,64 @@ func TestWithTransactionRejectsNesting(t *testing.T) {
 		})
 	})
 
-	require.True(t, errors.Is(err, contract.ErrDatabaseNestedTransaction))
+	require.ErrorIs(t, err, contract.ErrDatabaseNestedTransaction)
+}
+
+func TestWithTransactionPanicRollsBack(t *testing.T) {
+	t.Parallel()
+
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	_, err := db.Exec(ctx, "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)")
+
+	require.NoError(t, err)
+
+	require.Panics(t, func() {
+		_ = db.WithTransaction(ctx, func(tx contract.Database) error {
+			_, err := tx.Exec(ctx, "INSERT INTO items (name) VALUES (?)", "should-be-rolled-back")
+
+			if err != nil {
+				return err
+			}
+
+			panic("unexpected failure")
+		})
+	})
+
+	// The row must not exist because the transaction was rolled back.
+	var count int
+	err = db.Find(ctx, "SELECT COUNT(*) FROM items", &count)
+
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+}
+
+func TestWithTransactionPanicPreservesValue(t *testing.T) {
+	t.Parallel()
+
+	db := newTestDB(t)
+	ctx := context.Background()
+
+	var recovered any
+
+	func() {
+		defer func() {
+			recovered = recover()
+		}()
+
+		_ = db.WithTransaction(ctx, func(tx contract.Database) error {
+			panic("test-panic-value")
+		})
+	}()
+
+	require.Equal(t, "test-panic-value", recovered)
 }
 
 func TestCloseOnTransactionWrapperIsNoOp(t *testing.T) {
 	t.Parallel()
 
-	db := openTestDB(t)
+	db := newTestDBWithUsers(t)
 	ctx := context.Background()
 
 	err := db.WithTransaction(ctx, func(tx contract.Database) error {
@@ -311,7 +451,7 @@ func TestCloseOnTransactionWrapperIsNoOp(t *testing.T) {
 func TestConfigureSetsPoolLimits(t *testing.T) {
 	t.Parallel()
 
-	db := openTestDB(t)
+	db := newTestDB(t)
 
 	db.Configure(func(raw *sql.DB) {
 		raw.SetMaxOpenConns(10)

@@ -220,3 +220,29 @@ func TestCORSNonPreflightOptionsPassesToNext(t *testing.T) {
 		res.Header.Get("Access-Control-Allow-Origin"),
 	)
 }
+
+func TestCORSPanicsOnCredentialsWithWildcard(t *testing.T) {
+	t.Parallel()
+
+	require.PanicsWithValue(
+		t,
+		"cors: AllowCredentials must not be used with wildcard AllowedOrigins",
+		func() {
+			middleware.CORS(middleware.CORSOptions{
+				AllowedOrigins:   []string{"*"},
+				AllowCredentials: true,
+			})
+		},
+	)
+}
+
+func TestCORSDoesNotPanicOnCredentialsWithExplicitOrigins(t *testing.T) {
+	t.Parallel()
+
+	require.NotPanics(t, func() {
+		middleware.CORS(middleware.CORSOptions{
+			AllowedOrigins:   []string{"https://example.com"},
+			AllowCredentials: true,
+		})
+	})
+}

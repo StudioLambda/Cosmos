@@ -370,7 +370,7 @@ func (router *Router[H]) Trace(pattern string, handler H) {
 // the handler interface, making it possible to be used
 // as a handler in places like [http.Server].
 func (router *Router[H]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	router.native.ServeHTTP(w, r)
+	router.mux().ServeHTTP(w, r)
 }
 
 // Has reports whether the given pattern is registered in the router
@@ -416,7 +416,7 @@ func (router *Router[H]) Handler(method string, pattern string) (h H, ok bool) {
 func (router *Router[H]) HandlerMatch(request *http.Request) (h H, ok bool) {
 	// We can look for that specific handler in the
 	// native [http.ServeMux] and return it if found.
-	if handler, pattern := router.native.Handler(request); pattern != "" {
+	if handler, pattern := router.mux().Handler(request); pattern != "" {
 		if typed, ok := handler.(H); ok {
 			return typed, true
 		}

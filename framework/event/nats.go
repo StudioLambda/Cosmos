@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -271,6 +273,12 @@ func (broker *NATSBroker) Subscribe(
 	subject := convertSubject(event)
 
 	sub, err := broker.conn.Subscribe(subject, func(msg *nats.Msg) {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("panic in nats event handler", "subject", subject, "panic", fmt.Sprint(r))
+			}
+		}()
+
 		handler(func(dest any) error {
 			return json.Unmarshal(msg.Data, dest)
 		})

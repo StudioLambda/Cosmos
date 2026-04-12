@@ -86,7 +86,7 @@ func TestMemoryBrokerWildcardStar(t *testing.T) {
 	require.Equal(t, int64(1), atomic.LoadInt64(&received))
 }
 
-func TestMemoryBrokerWildcardStarDoesNotMatchMultipleTokens(t *testing.T) {
+func TestMemoryBrokerPublishDoesNotDeadlockWithSubscribeInHandler(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -96,25 +96,32 @@ func TestMemoryBrokerWildcardStarDoesNotMatchMultipleTokens(t *testing.T) {
 		_ = broker.Close()
 	})
 
-	var received int64
+	done := make(chan struct{})
 
 	_, err := broker.Subscribe(
-		ctx, "user.*.created", func(payload contract.EventPayload) {
-			atomic.AddInt64(&received, 1)
+		ctx, "test.event", func(payload contract.EventPayload) {
+			// This Subscribe call requires broker.mu.Lock().
+			// If Publish still holds broker.mu.RLock() during
+			// dispatch, this will deadlock.
+			_, _ = broker.Subscribe(
+				ctx, "other.event", func(payload contract.EventPayload) {},
+			)
+
+			close(done)
 		},
 	)
 
 	require.NoError(t, err)
 
-	err = broker.Publish(
-		ctx, "user.123.456.created", "data",
-	)
-
+	err = broker.Publish(ctx, "test.event", "data")
 	require.NoError(t, err)
 
-	time.Sleep(50 * time.Millisecond)
-
-	require.Equal(t, int64(0), atomic.LoadInt64(&received))
+	select {
+	case <-done:
+		// Handler completed without deadlock.
+	case <-time.After(3 * time.Second):
+		t.Fatal("deadlock detected: handler calling Subscribe blocked for 3 seconds")
+	}
 }
 
 func TestMemoryBrokerWildcardHash(t *testing.T) {

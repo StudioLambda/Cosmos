@@ -1,6 +1,7 @@
 package request_test
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -38,14 +39,15 @@ func TestBytesErrorOnFailedRead(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestLimitedBytesReadsUpToLimit(t *testing.T) {
+func TestLimitedBytesReturnsErrorWhenBodyExceedsLimit(t *testing.T) {
+	t.Parallel()
+
 	body := "abcdefghij"
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
 
-	result, err := request.LimitedBytes(r, 5)
+	_, err := request.LimitedBytes(r, 5)
 
-	require.NoError(t, err)
-	require.Len(t, result, 6)
+	require.ErrorIs(t, err, request.ErrBodyTooLarge)
 }
 
 func TestLimitedBytesReadsFullBodyUnderLimit(t *testing.T) {
@@ -95,14 +97,15 @@ func TestStringErrorOnFailedRead(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestLimitedStringReadsUpToLimit(t *testing.T) {
+func TestLimitedStringReturnsErrorWhenBodyExceedsLimit(t *testing.T) {
+	t.Parallel()
+
 	body := "abcdefghij"
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
 
-	result, err := request.LimitedString(r, 5)
+	_, err := request.LimitedString(r, 5)
 
-	require.NoError(t, err)
-	require.Len(t, result, 6)
+	require.ErrorIs(t, err, request.ErrBodyTooLarge)
 }
 
 func TestLimitedStringReadsFullBodyUnderLimit(t *testing.T) {
@@ -413,6 +416,98 @@ func TestLimitedXMLReturnsErrorOnInvalidPayload(t *testing.T) {
 	_, err := request.LimitedXML[payload](r, 1024)
 
 	require.Error(t, err)
+}
+
+func TestLimitedBytesReturnsDataWhenBodyWithinLimit(t *testing.T) {
+	t.Parallel()
+
+	body := "hello"
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+
+	result, err := request.LimitedBytes(r, 10)
+
+	require.NoError(t, err)
+	require.Equal(t, []byte("hello"), result)
+}
+
+func TestLimitedBytesReturnsDataWhenBodyExactlyAtLimit(t *testing.T) {
+	t.Parallel()
+
+	body := "12345"
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+
+	result, err := request.LimitedBytes(r, 5)
+
+	require.NoError(t, err)
+	require.Equal(t, []byte("12345"), result)
+}
+
+func TestLimitedStringReturnsDataWhenBodyWithinLimit(t *testing.T) {
+	t.Parallel()
+
+	body := "hello"
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+
+	result, err := request.LimitedString(r, 10)
+
+	require.NoError(t, err)
+	require.Equal(t, "hello", result)
+}
+
+func TestLimitedJSONReturnsErrorWhenBodyExceedsLimit(t *testing.T) {
+	t.Parallel()
+
+	type payload struct {
+		Name string `json:"name"`
+	}
+
+	body := `{"name":"this is a very long name that exceeds the limit"}`
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+
+	_, err := request.LimitedJSON[payload](r, 10)
+
+	require.ErrorIs(t, err, request.ErrBodyTooLarge)
+}
+
+func TestStrictLimitedJSONReturnsErrorWhenBodyExceedsLimit(t *testing.T) {
+	t.Parallel()
+
+	type payload struct {
+		Name string `json:"name"`
+	}
+
+	body := `{"name":"this is a very long name that exceeds the limit"}`
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+
+	_, err := request.StrictLimitedJSON[payload](r, 10)
+
+	require.ErrorIs(t, err, request.ErrBodyTooLarge)
+}
+
+func TestLimitedXMLReturnsErrorWhenBodyExceedsLimit(t *testing.T) {
+	t.Parallel()
+
+	type payload struct {
+		Name string `xml:"name"`
+	}
+
+	body := `<payload><name>this is a very long name that exceeds the limit</name></payload>`
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+
+	_, err := request.LimitedXML[payload](r, 10)
+
+	require.ErrorIs(t, err, request.ErrBodyTooLarge)
+}
+
+func TestErrBodyTooLargeIsCheckableWithErrorsIs(t *testing.T) {
+	t.Parallel()
+
+	body := "abcdefghij"
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+
+	_, err := request.LimitedBytes(r, 5)
+
+	require.True(t, errors.Is(err, request.ErrBodyTooLarge))
 }
 
 // errReader is an io.Reader that always returns an error.

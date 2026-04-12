@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strconv"
 	"strings"
@@ -53,6 +54,14 @@ type MQTTBroker struct {
 	// nextID generates unique handler identifiers for
 	// proper unsubscribe behavior.
 	nextID atomic.Uint64
+
+	// sem limits the number of concurrent delivery goroutines
+	// to prevent resource exhaustion under high throughput.
+	sem chan struct{}
+
+	// routeWg tracks in-flight handler deliveries so Close
+	// can wait for them to complete.
+	routeWg sync.WaitGroup
 }
 
 // MQTTBrokerOptions configures the creation of a new MQTTBroker,
@@ -190,6 +199,7 @@ func NewMQTTBrokerWith(options *MQTTBrokerOptions) (*MQTTBroker, error) {
 		qos:           qos,
 		handlers:      make(map[string]map[string]contract.EventHandler),
 		subscriptions: make(map[string]bool),
+		sem:           make(chan struct{}, DefaultMaxConcurrentDeliveries),
 	}
 
 	cfg := autopaho.ClientConfig{
@@ -200,11 +210,7 @@ func NewMQTTBrokerWith(options *MQTTBrokerOptions) (*MQTTBroker, error) {
 		ClientConfig: paho.ClientConfig{
 			ClientID: "",
 			OnPublishReceived: []func(paho.PublishReceived) (bool, error){
-				func(pr paho.PublishReceived) (bool, error) {
-					broker.route(pr.Packet)
-
-					return true, nil
-				},
+				broker.HandlePublish,
 			},
 		},
 	}
@@ -229,6 +235,19 @@ func NewMQTTBrokerWith(options *MQTTBrokerOptions) (*MQTTBroker, error) {
 // autopaho ConnectionManager and QoS level. This constructor is
 // useful for advanced scenarios where the user needs full control
 // over the MQTT connection configuration.
+//
+// Because autopaho.ConnectionManager does not allow post-creation
+// configuration changes, the caller must wire up message routing
+// when building the paho config. Use [MQTTBroker.HandlePublish] in
+// the ClientConfig.OnPublishReceived slice:
+//
+//	broker := event.NewMQTTBrokerFrom(nil, 1)
+//	cfg.ClientConfig.OnPublishReceived = []func(paho.PublishReceived) (bool, error){
+//	    broker.HandlePublish,
+//	}
+//	cm, err := autopaho.NewConnection(ctx, cfg)
+//	// then set the client so Publish/Subscribe/Close work:
+//	broker.SetClient(cm)
 func NewMQTTBrokerFrom(
 	client *autopaho.ConnectionManager,
 	qos byte,
@@ -238,26 +257,100 @@ func NewMQTTBrokerFrom(
 		qos:           qos,
 		handlers:      make(map[string]map[string]contract.EventHandler),
 		subscriptions: make(map[string]bool),
+		sem:           make(chan struct{}, DefaultMaxConcurrentDeliveries),
 	}
+}
+
+// SetClient sets the underlying autopaho ConnectionManager. This is
+// intended for use with [NewMQTTBrokerFrom] when the broker must be
+// created before the ConnectionManager so that [MQTTBroker.HandlePublish]
+// can be wired into the paho config.
+func (broker *MQTTBroker) SetClient(client *autopaho.ConnectionManager) {
+	broker.client = client
+}
+
+// HandlePublish is a paho OnPublishReceived callback that routes
+// incoming MQTT messages to registered handlers. Callers using
+// [NewMQTTBrokerFrom] must include this method in the paho
+// ClientConfig.OnPublishReceived slice so that subscribed handlers
+// receive messages.
+func (broker *MQTTBroker) HandlePublish(pr paho.PublishReceived) (bool, error) {
+	broker.route(pr.Packet)
+
+	return true, nil
 }
 
 // route delivers an incoming MQTT message to all matching
 // handlers based on topic pattern matching. This implements
 // fan-out behavior where multiple handlers can receive the
 // same message if they subscribed to matching patterns.
+//
+// Handlers are dispatched asynchronously in separate goroutines
+// with semaphore-bounded concurrency and panic recovery to
+// prevent a slow or failing handler from blocking all message
+// delivery.
 func (broker *MQTTBroker) route(pb *paho.Publish) {
 	broker.mu.RLock()
-	defer broker.mu.RUnlock()
+
+	var matched []contract.EventHandler
 
 	for pattern, handlers := range broker.handlers {
 		if matchTopic(pattern, pb.Topic) {
 			for _, handler := range handlers {
-				handler(func(dest any) error {
-					return json.Unmarshal(pb.Payload, dest)
-				})
+				matched = append(matched, handler)
 			}
 		}
 	}
+
+	broker.mu.RUnlock()
+
+	for _, handler := range matched {
+		broker.routeWg.Add(1)
+		broker.sem <- struct{}{}
+
+		go func(h contract.EventHandler) {
+			defer func() {
+				<-broker.sem
+				broker.routeWg.Done()
+			}()
+
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					slog.Error(
+						"event handler panicked",
+						"error", recovered,
+					)
+				}
+			}()
+
+			h(func(dest any) error {
+				return json.Unmarshal(pb.Payload, dest)
+			})
+		}(handler)
+	}
+}
+
+// deliverToHandler invokes a single handler with panic recovery.
+// Recovered panics are logged via slog so they remain visible for
+// debugging without propagating to the caller.
+func (broker *MQTTBroker) deliverToHandler(
+	handler contract.EventHandler,
+	topic string,
+	payload []byte,
+) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			slog.Error(
+				"mqtt event handler panicked",
+				"topic", topic,
+				"error", recovered,
+			)
+		}
+	}()
+
+	handler(func(dest any) error {
+		return json.Unmarshal(payload, dest)
+	})
 }
 
 // Publish sends an event with the given name and payload to all
@@ -322,11 +415,43 @@ func (broker *MQTTBroker) Subscribe(
 	handlerID := strconv.FormatUint(broker.nextID.Add(1), 10)
 
 	broker.mu.Lock()
-	first := !broker.subscriptions[topic]
 
-	if first {
-		broker.subscriptions[topic] = true
+	if broker.subscriptions[topic] {
+		// Already subscribed at MQTT level; just append the handler.
+		if broker.handlers[topic] == nil {
+			broker.handlers[topic] = make(map[string]contract.EventHandler)
+		}
+
+		broker.handlers[topic][handlerID] = handler
+		broker.mu.Unlock()
+
+		return broker.unsubscribeFunc(ctx, topic, handlerID), nil
 	}
+
+	broker.mu.Unlock()
+
+	// First subscriber for this pattern: subscribe at the MQTT
+	// broker level before registering the handler so that on
+	// failure the handler is never visible to route().
+	_, err := broker.client.Subscribe(ctx, &paho.Subscribe{
+		Subscriptions: []paho.SubscribeOptions{
+			{
+				Topic: topic,
+				QoS:   broker.qos,
+			},
+		},
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	broker.mu.Lock()
+
+	// Mark the MQTT-level subscription. Another goroutine may
+	// have raced and already registered; that is harmless since
+	// duplicate MQTT subscribes are idempotent.
+	broker.subscriptions[topic] = true
 
 	if broker.handlers[topic] == nil {
 		broker.handlers[topic] = make(map[string]contract.EventHandler)
@@ -335,31 +460,17 @@ func (broker *MQTTBroker) Subscribe(
 	broker.handlers[topic][handlerID] = handler
 	broker.mu.Unlock()
 
-	if first {
-		_, err := broker.client.Subscribe(ctx, &paho.Subscribe{
-			Subscriptions: []paho.SubscribeOptions{
-				{
-					Topic: topic,
-					QoS:   broker.qos,
-				},
-			},
-		})
+	return broker.unsubscribeFunc(ctx, topic, handlerID), nil
+}
 
-		if err != nil {
-			broker.mu.Lock()
-			delete(broker.handlers[topic], handlerID)
-
-			if len(broker.handlers[topic]) == 0 {
-				delete(broker.handlers, topic)
-				delete(broker.subscriptions, topic)
-			}
-
-			broker.mu.Unlock()
-
-			return nil, err
-		}
-	}
-
+// unsubscribeFunc returns a function that removes a specific
+// handler and unsubscribes from the MQTT broker when the last
+// handler for the topic is removed.
+func (broker *MQTTBroker) unsubscribeFunc(
+	ctx context.Context,
+	topic string,
+	handlerID string,
+) contract.EventUnsubscribeFunc {
 	return func() error {
 		broker.mu.Lock()
 		delete(broker.handlers[topic], handlerID)
@@ -384,12 +495,15 @@ func (broker *MQTTBroker) Subscribe(
 		}
 
 		return nil
-	}, nil
+	}
 }
 
 // Close gracefully disconnects from the MQTT broker and releases
-// all resources. This will terminate all active subscriptions and
-// close the underlying connection.
+// all resources. It waits for all in-flight handler deliveries to
+// complete before disconnecting. This will terminate all active
+// subscriptions and close the underlying connection.
 func (broker *MQTTBroker) Close() error {
+	broker.routeWg.Wait()
+
 	return broker.client.Disconnect(context.Background())
 }

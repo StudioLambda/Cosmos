@@ -346,6 +346,39 @@ func TestMiddlewareSessionNotSavedWhenUnchanged(t *testing.T) {
 	require.Empty(t, cookies)
 }
 
+func TestMiddlewareDoesNotSetCookieWhenSaveFails(t *testing.T) {
+	t.Parallel()
+
+	driver := mock.NewSessionDriverMock(t)
+	saveErr := errors.New("save failed")
+
+	driver.On(
+		"Save", tmock.Anything, tmock.Anything, tmock.Anything,
+	).Return(saveErr).Once()
+
+	var capturedErr error
+
+	handler := framework.Handler(
+		func(w http.ResponseWriter, r *http.Request) error {
+			return nil
+		},
+	)
+
+	handlerWithSessions := session.MiddlewareWith(
+		driver, session.MiddlewareOptions{
+			ErrorHandler: func(err error) {
+				capturedErr = err
+			},
+		},
+	)(handler)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	res := handlerWithSessions.Record(req)
+
+	require.ErrorIs(t, capturedErr, saveErr)
+	require.Empty(t, res.Cookies(), "no Set-Cookie header should be set when Save fails")
+}
+
 func TestMiddlewareRegenerateDeletesOldSession(t *testing.T) {
 	t.Parallel()
 

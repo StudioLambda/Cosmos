@@ -68,6 +68,14 @@ var DefaultCORSOptions = CORSOptions{
 //
 // For the default configuration, pass [DefaultCORSOptions].
 func CORS(options CORSOptions) framework.Middleware {
+	if options.AllowCredentials {
+		for _, origin := range options.AllowedOrigins {
+			if origin == "*" {
+				panic("cors: AllowCredentials must not be used with wildcard AllowedOrigins")
+			}
+		}
+	}
+
 	return func(next framework.Handler) framework.Handler {
 		return func(
 			w http.ResponseWriter,
