@@ -2,11 +2,11 @@
 
 ## Project Overview
 
-Cosmos is a Go monorepo with four HTTP modules: contract (interfaces), router (HTTP routing), problem (RFC 9457 errors), framework (complete framework). Go 1.25.0 workspace with replace directives.
+Cosmos is a Go monorepo with four HTTP modules: contract (interfaces), router (HTTP routing), problem (RFC 9457 errors), framework (complete framework). Go workspace with replace directives.
 
-Dependency hierarchy: contract (zero deps) → router/problem (standalone) → framework (uses all)
+Dependency hierarchy: problem (zero deps) → contract (depends on problem) → router (standalone) → framework (uses all)
 
-Current versions: contract v0.9.0, framework v0.10.0, problem v0.3.0, router v0.3.0
+Current versions: contract v0.10.0, framework v0.11.0, problem v0.4.0, router v0.4.0
 
 ## Setup Commands
 
@@ -36,6 +36,7 @@ Always run tests from workspace root for proper module resolution. Each module h
 ## Framework Patterns
 
 Error-returning handlers (unlike stdlib, Cosmos handlers return errors):
+
 ```go
 func handler(w http.ResponseWriter, r *http.Request) error {
     return response.JSON(w, http.StatusOK, data)
@@ -43,6 +44,7 @@ func handler(w http.ResponseWriter, r *http.Request) error {
 ```
 
 Middleware composition:
+
 ```go
 func MyMiddleware() framework.Middleware {
     return func(next framework.Handler) framework.Handler {
@@ -55,6 +57,7 @@ func MyMiddleware() framework.Middleware {
 ```
 
 Secure server (always use instead of http.ListenAndServe):
+
 ```go
 server := framework.NewServer(":8080", app) // has timeout defaults
 server.ListenAndServe()
@@ -63,6 +66,7 @@ server.ListenAndServe()
 ## Common Patterns
 
 Router:
+
 ```go
 r := router.New[http.Handler]()
 r.Use(middleware)
@@ -70,11 +74,13 @@ r.Get("/users/{id}", handler)
 ```
 
 Problem Details:
+
 ```go
 ErrNotFound.With("resource_id", id).ServeHTTP(w, r)
 ```
 
 Cache:
+
 ```go
 cache.Remember(ctx, key, ttl, func() (any, error) {
     return computeValue(), nil
@@ -82,6 +88,7 @@ cache.Remember(ctx, key, ttl, func() (any, error) {
 ```
 
 Database transactions:
+
 ```go
 db.WithTransaction(ctx, func(tx contract.Database) error {
     return tx.Exec(ctx, query, args...)
@@ -89,6 +96,7 @@ db.WithTransaction(ctx, func(tx contract.Database) error {
 ```
 
 Database connection pool:
+
 ```go
 db.Configure(func(raw *sql.DB) {
     raw.SetMaxOpenConns(25)
@@ -98,6 +106,7 @@ db.Configure(func(raw *sql.DB) {
 ```
 
 Sessions:
+
 ```go
 session := request.MustSession(r)
 session.Put("user_id", 123)
@@ -105,6 +114,7 @@ session.Regenerate() // After auth
 ```
 
 Request helpers:
+
 ```go
 id, err := request.ParamInt(r, "id")        // typed int parsing
 body, err := request.LimitedJSON[T](r, -1)  // size-limited body (default 10MB)
@@ -113,11 +123,13 @@ hooks, ok := request.TryHooks(r)            // non-panicking hooks access
 ```
 
 Response helpers:
+
 ```go
 response.SafeRedirect(w, http.StatusFound, "/dashboard") // validates relative path
 ```
 
 Encryption with AAD and key zeroing:
+
 ```go
 enc, _ := crypto.NewAES(key)
 enc.AdditionalData = []byte("context-binding")
@@ -128,6 +140,7 @@ defer enc.Close() // zeros key material
 ## Built-in Middleware
 
 Available in `framework/middleware`:
+
 - `Recover()` / `RecoverWith(fn)` — panic recovery with error wrapping
 - `Logger(slog.Logger)` — structured request logging (fires AfterResponse)
 - `CSRF(origins...)` / `CSRFWith(csrf, problem)` — cross-origin protection
@@ -138,6 +151,7 @@ Available in `framework/middleware`:
 - `HTTP(func(http.Handler) http.Handler)` — stdlib middleware adapter
 
 Session middleware in `framework/session`:
+
 - `Middleware(driver)` / `MiddlewareWith(driver, opts)` — session lifecycle
 
 ## Common Gotchas
@@ -177,41 +191,41 @@ Session middleware in `framework/session`:
 
 ## Test Coverage
 
-| Module | Coverage | Notes |
-|---|---|---|
-| contract/request | 100% | |
-| contract/response | 100% | |
-| router | 100% | Dead code removed |
-| problem | 100% | |
-| problem/internal | 100% | |
-| framework (root) | 100% | |
-| framework/middleware | 100% | |
-| framework/session | 95.4% | Remaining: rand failure path |
-| framework/cache | memory 100%, redis 0% | Redis requires external server |
-| framework/crypto | 90.2% | Remaining: rand failure paths |
-| framework/hash | 95.8% | Remaining: bcrypt internal error |
-| framework/event | memory 100%, pure logic 100% | External brokers require servers |
-| framework/database | 0% | Pure sqlx adapter, requires DB |
+| Module               | Coverage                     | Notes                            |
+| -------------------- | ---------------------------- | -------------------------------- |
+| contract/request     | 100%                         |                                  |
+| contract/response    | 100%                         |                                  |
+| router               | 100%                         | Dead code removed                |
+| problem              | 100%                         |                                  |
+| problem/internal     | 100%                         |                                  |
+| framework (root)     | 100%                         |                                  |
+| framework/middleware | 100%                         |                                  |
+| framework/session    | 95.4%                        | Remaining: rand failure path     |
+| framework/cache      | memory 100%, redis 0%        | Redis requires external server   |
+| framework/crypto     | 90.2%                        | Remaining: rand failure paths    |
+| framework/hash       | 95.8%                        | Remaining: bcrypt internal error |
+| framework/event      | memory 100%, pure logic 100% | External brokers require servers |
+| framework/database   | 0%                           | Pure sqlx adapter, requires DB   |
 
 ## File Locations
 
 - Workspace: go.work
-- Module configs: */go.mod
+- Module configs: \*/go.mod
 - Mock config: contract/.mockery.yml
-- CI workflows: .github/workflows/*.yml
-- Contracts: contract/*.go
-- Request helpers: contract/request/*.go
-- Response helpers: contract/response/*.go
+- CI workflows: .github/workflows/\*.yml
+- Contracts: contract/\*.go
+- Request helpers: contract/request/\*.go
+- Response helpers: contract/response/\*.go
 - Framework core: framework/handler.go, framework/framework.go, framework/server.go
 - Framework hooks: framework/hooks.go, framework/hooks_writer.go
 - Router: router/router.go
 - Problem: problem/problem.go
-- Middleware: framework/middleware/*.go
-- Session: framework/session/*.go
+- Middleware: framework/middleware/\*.go
+- Session: framework/session/\*.go
 - Cache: framework/cache/memory.go, framework/cache/redis.go
 - Crypto: framework/crypto/aes.go, framework/crypto/chacha20.go
 - Hash: framework/hash/argon2.go, framework/hash/bcrypt.go
 - Database: framework/database/sql.go
 - Events: framework/event/memory.go, framework/event/redis.go, framework/event/nats.go, framework/event/amqp.go, framework/event/mqtt.go
-- Agent skills: .agents/skills/cosmos-*/
+- Agent skills: .agents/skills/cosmos-\*/
 - Docs site: ../docs/src/content/docs/cosmos/

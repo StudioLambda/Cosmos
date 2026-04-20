@@ -2,10 +2,10 @@
 
 ## Module Overview
 
-Contract module: service interfaces (Cache, Database, Session, Crypto, Hash) and request/response helpers. Zero dependencies except testing. Foundation for all Cosmos modules.
+Contract module: service interfaces (Cache, Database, Session, Crypto, Hash) and request/response helpers. Foundation for all Cosmos modules.
 
 Module: github.com/studiolambda/cosmos/contract
-Dependencies: Zero (testify for tests, mockery as tool)
+Dependencies: problem (request/hooks.go, request/session.go use problem types), testify for tests, mockery as tool
 
 ## Setup Commands
 
@@ -99,7 +99,7 @@ contract/
 
 ## Common Gotchas
 
-- Zero dependencies: no external imports
+- Depends on problem module (not zero-dep): request helpers use problem types
 - Type assertions for session values: val.(int)
 - Context always first parameter
 - Mock expectations must match exactly

@@ -5,7 +5,7 @@
 Framework module: complete HTTP framework with error-returning handlers, middleware, sessions, caching, crypto, hashing, database. Built on router, problem, and contract modules.
 
 Module: github.com/studiolambda/cosmos/framework
-Dependencies: router, problem, contract, sqlx, go-redis, go-cache, golang.org/x/crypto
+Dependencies: router v0.4.0, problem v0.4.0, contract v0.10.0, sqlx, go-redis, go-cache, golang.org/x/crypto, golang.org/x/time, argon2, nats, amqp091, paho.golang (MQTT), sqlite3
 
 ## Setup Commands
 
