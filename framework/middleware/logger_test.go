@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/studiolambda/cosmos/framework"
+	"github.com/studiolambda/cosmos/framework/correlation"
 	"github.com/studiolambda/cosmos/framework/middleware"
 
 	"github.com/stretchr/testify/require"
@@ -166,4 +167,48 @@ func TestLoggerLogsPathWithoutQueryString(t *testing.T) {
 	require.NotContains(t, output, "secret123")
 	require.NotContains(t, output, "token=")
 	require.NotContains(t, output, "page=2")
+}
+
+func TestLoggerIncludesCorrelationID(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	logger := slog.New(correlation.Handler(slog.NewTextHandler(&buf, nil)))
+
+	handler := correlation.Middleware()(
+		middleware.Logger(logger)(framework.Handler(func(
+			w http.ResponseWriter,
+			r *http.Request,
+		) error {
+			return errors.New("fail")
+		})),
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Correlation-ID", "test-correlation-id")
+	handler.Record(req)
+
+	output := buf.String()
+	require.Contains(t, output, "correlation_id")
+	require.Contains(t, output, "test-correlation-id")
+}
+
+func TestLoggerOmitsCorrelationIDWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+
+	handler := middleware.Logger(logger)(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		return errors.New("fail")
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	handler.Record(req)
+
+	output := buf.String()
+	require.NotContains(t, output, "correlation_id")
 }
