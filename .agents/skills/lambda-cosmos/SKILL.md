@@ -172,6 +172,14 @@ middleware.HTTP(stdlibMiddleware)        // adapt stdlib middleware
 
 ## Subpackages
 
+### Correlation
+
+```go
+app.Use(correlation.Middleware())           // ensures correlation ID on every request
+logger := slog.New(correlation.Handler(h))  // injects correlation_id into log records
+id := correlation.From(r)                   // retrieve from request context
+```
+
 ### Sessions
 
 ```go

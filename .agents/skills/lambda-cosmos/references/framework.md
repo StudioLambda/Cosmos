@@ -76,6 +76,7 @@ func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 ```
 
 Key points:
+
 - Uses `errors.As` (not type assertions) for wrapped error support.
 - `problem.Problem` implements both `HTTPStatus` and `http.Handler`,
   so it takes the `http.Handler` branch and renders itself.
@@ -304,17 +305,17 @@ func handler(w http.ResponseWriter, r *http.Request) error {
 - Sessions are loaded from the driver at the start of each request.
 - Changes are persisted via a BeforeWriteHeader hook (fires just
   before the HTTP status line).
-- New sessions get a UUID v7 ID and are marked as changed.
+- New sessions get a unique ID and are marked as changed.
 - `ExpirationDelta` controls automatic session extension: if the
   session expires within `delta` of the current time, it is
   automatically extended.
 
 ### Constants
 
-| Constant | Value |
-|---|---|
-| `DefaultCookie` | `"cosmos.session"` |
-| `DefaultTTL` | `2 * time.Hour` |
+| Constant                 | Value              |
+| ------------------------ | ------------------ |
+| `DefaultCookie`          | `"cosmos.session"` |
+| `DefaultTTL`             | `2 * time.Hour`    |
 | `DefaultExpirationDelta` | `15 * time.Minute` |
 
 ---
@@ -414,6 +415,7 @@ The nonce is randomly generated for each `Encrypt` call and prepended
 to the output. `Decrypt` reads the nonce from the front.
 
 Sentinel errors:
+
 - `crypto.ErrMismatchedAESNonceSize` — ciphertext too short for AES.
 - `crypto.ErrMismatchedChaCha20NonceSize` — ciphertext too short for
   ChaCha20.
@@ -525,13 +527,13 @@ Package: `github.com/studiolambda/cosmos/framework/event`
 
 ### Broker Implementations
 
-| Broker | Backend | Constructor |
-|---|---|---|
-| `MemoryBroker` | In-memory | `NewMemoryBroker()` |
-| `RedisBroker` | Redis Pub/Sub | `NewRedisBroker(options)` |
-| `NATSBroker` | NATS | `NewNATSBroker(url)` |
-| `AMQPBroker` | RabbitMQ | `NewAMQPBroker(url)` |
-| `MQTTBroker` | MQTT v5 | `NewMQTTBroker(url)` |
+| Broker         | Backend       | Constructor               |
+| -------------- | ------------- | ------------------------- |
+| `MemoryBroker` | In-memory     | `NewMemoryBroker()`       |
+| `RedisBroker`  | Redis Pub/Sub | `NewRedisBroker(options)` |
+| `NATSBroker`   | NATS          | `NewNATSBroker(url)`      |
+| `AMQPBroker`   | RabbitMQ      | `NewAMQPBroker(url)`      |
+| `MQTTBroker`   | MQTT v5       | `NewMQTTBroker(url)`      |
 
 All implement `contract.Events`.
 
@@ -558,11 +560,11 @@ err := broker.Publish(ctx, "user.42.created", user)
 
 ### Wildcard Syntax
 
-| Pattern | Meaning | MemoryBroker | Redis | NATS | AMQP | MQTT |
-|---|---|---|---|---|---|---|
-| `*` | Single token | `*` | `*` | `*` | `*` | `+` (auto-converted) |
-| `#` | Zero or more tokens | `#` | `*` (auto-converted) | `>` (auto-converted) | `#` | `#` |
-| `.` | Token separator | `.` | `.` | `.` | `.` | `/` (auto-converted) |
+| Pattern | Meaning             | MemoryBroker | Redis                | NATS                 | AMQP | MQTT                 |
+| ------- | ------------------- | ------------ | -------------------- | -------------------- | ---- | -------------------- |
+| `*`     | Single token        | `*`          | `*`                  | `*`                  | `*`  | `+` (auto-converted) |
+| `#`     | Zero or more tokens | `#`          | `*` (auto-converted) | `>` (auto-converted) | `#`  | `#`                  |
+| `.`     | Token separator     | `.`          | `.`                  | `.`                  | `.`  | `/` (auto-converted) |
 
 Write patterns using `*` and `#` with `.` separators. The broker
 translates to the native wildcard syntax automatically.
