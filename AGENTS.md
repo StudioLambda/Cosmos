@@ -234,5 +234,5 @@ Session middleware in `framework/session`:
 - Hash: framework/hash/argon2.go, framework/hash/bcrypt.go
 - Database: framework/database/sql.go
 - Events: framework/event/memory.go, framework/event/redis.go, framework/event/nats.go, framework/event/amqp.go, framework/event/mqtt.go
-- Agent skills: .agents/skills/cosmos-\*/
+- Agent skills: .agents/skills/cosmos-\*/, skills/lambda-cosmos/
 - Docs site: ../docs/src/content/docs/cosmos/
