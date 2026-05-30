@@ -44,19 +44,9 @@ type Cursor[T any] struct {
 // current page number, and items per page. It computes the last
 // page automatically. The current page is clamped to [1, LastPage].
 func NewPage[T any](items []T, total int64, page, perPage int) Page[T] {
-	if perPage < 1 {
-		perPage = 1
-	}
-
+	perPage = max(perPage, 1)
 	lastPage := max(int((total+int64(perPage)-1)/int64(perPage)), 1)
-
-	if page < 1 {
-		page = 1
-	}
-
-	if page > lastPage {
-		page = lastPage
-	}
+	page = min(max(page, 1), lastPage)
 
 	if items == nil {
 		items = []T{}
