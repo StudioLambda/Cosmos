@@ -101,7 +101,7 @@ func (handler Handler) ServeHTTP(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	hooks := NewHooks()
+	hooks := contract.NewHooks()
 	wrapped := NewResponseWriter(w, hooks)
 	ctx := context.WithValue(r.Context(), contract.HooksKey, hooks)
 	err := handler(wrapped, r.WithContext(ctx))

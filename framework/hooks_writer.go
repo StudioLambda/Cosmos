@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 	"sync/atomic"
+
+	"github.com/studiolambda/cosmos/contract"
 )
 
 // ResponseWriter wraps an http.ResponseWriter to intercept
@@ -14,7 +16,7 @@ import (
 // sync/atomic for safe concurrent access.
 type ResponseWriter struct {
 	http.ResponseWriter
-	*Hooks
+	*contract.Hooks
 	writeHeaderCalled atomic.Bool
 }
 
@@ -40,7 +42,7 @@ type WrappedResponseWriter interface {
 // the given hooks on write operations. If the underlying writer
 // implements http.Flusher, the returned value also satisfies
 // http.Flusher via ResponseWriterFlusher.
-func NewResponseWriter(writer http.ResponseWriter, hooks *Hooks) WrappedResponseWriter {
+func NewResponseWriter(writer http.ResponseWriter, hooks *contract.Hooks) WrappedResponseWriter {
 	wrapped := &ResponseWriter{
 		ResponseWriter: writer,
 		Hooks:          hooks,

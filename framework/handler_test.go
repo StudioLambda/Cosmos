@@ -159,7 +159,7 @@ func TestServeHTTPAfterResponseHooksRun(t *testing.T) {
 	var receivedErr atomic.Value
 
 	h := framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
-		hooks := r.Context().Value(contract.HooksKey).(contract.Hooks)
+		hooks := r.Context().Value(contract.HooksKey).(*contract.Hooks)
 		hooks.AfterResponse(func(err error) {
 			hookCalled.Store(true)
 			receivedErr.Store(err)
@@ -180,7 +180,7 @@ func TestServeHTTPAfterResponseHookPanicRecovered(t *testing.T) {
 	t.Parallel()
 
 	h := framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
-		hooks := r.Context().Value(contract.HooksKey).(contract.Hooks)
+		hooks := r.Context().Value(contract.HooksKey).(*contract.Hooks)
 		hooks.AfterResponse(func(err error) {
 			panic("hook panic")
 		})
@@ -203,7 +203,7 @@ func TestServeHTTPHooksInContext(t *testing.T) {
 	var foundHooks atomic.Bool
 
 	h := framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
-		hooks, ok := r.Context().Value(contract.HooksKey).(contract.Hooks)
+		hooks, ok := r.Context().Value(contract.HooksKey).(*contract.Hooks)
 		foundHooks.Store(ok && hooks != nil)
 
 		return nil
@@ -223,7 +223,7 @@ func TestServeHTTPAfterResponseHookReceivesNilOnSuccess(t *testing.T) {
 	errChan := make(chan error, 1)
 
 	h := framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
-		hooks := r.Context().Value(contract.HooksKey).(contract.Hooks)
+		hooks := r.Context().Value(contract.HooksKey).(*contract.Hooks)
 		hooks.AfterResponse(func(err error) {
 			hookCalled.Store(true)
 			errChan <- err
