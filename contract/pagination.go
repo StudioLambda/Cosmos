@@ -48,11 +48,7 @@ func NewPage[T any](items []T, total int64, page, perPage int) Page[T] {
 		perPage = 1
 	}
 
-	lastPage := int((total + int64(perPage) - 1) / int64(perPage))
-
-	if lastPage < 1 {
-		lastPage = 1
-	}
+	lastPage := max(int((total+int64(perPage)-1)/int64(perPage)), 1)
 
 	if page < 1 {
 		page = 1
