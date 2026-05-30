@@ -302,7 +302,7 @@ func TestWithTransactionCommitsOnSuccess(t *testing.T) {
 	db := newTestDBWithUsers(t)
 	ctx := context.Background()
 
-	err := db.WithTransaction(ctx, func(tx contract.Database) error {
+	err := db.WithTransaction(ctx, func(tx contract.DatabaseDriver) error {
 		_, err := tx.Exec(ctx, "INSERT INTO users (name, email) VALUES (?, ?)", "alice", "a@x.com")
 		return err
 	})
@@ -328,7 +328,7 @@ func TestWithTransactionRollsBackOnError(t *testing.T) {
 
 	sentinel := errors.New("rollback me")
 
-	err := db.WithTransaction(ctx, func(tx contract.Database) error {
+	err := db.WithTransaction(ctx, func(tx contract.DatabaseDriver) error {
 		_, err := tx.Exec(ctx, "INSERT INTO users (name, email) VALUES (?, ?)", "alice", "a@x.com")
 		require.NoError(t, err)
 
@@ -354,8 +354,8 @@ func TestWithTransactionRejectsNesting(t *testing.T) {
 	db := newTestDB(t)
 	ctx := context.Background()
 
-	err := db.WithTransaction(ctx, func(tx contract.Database) error {
-		return tx.WithTransaction(ctx, func(inner contract.Database) error {
+	err := db.WithTransaction(ctx, func(tx contract.DatabaseDriver) error {
+		return tx.WithTransaction(ctx, func(inner contract.DatabaseDriver) error {
 			return nil
 		})
 	})
@@ -374,7 +374,7 @@ func TestWithTransactionPanicRollsBack(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Panics(t, func() {
-		_ = db.WithTransaction(ctx, func(tx contract.Database) error {
+		_ = db.WithTransaction(ctx, func(tx contract.DatabaseDriver) error {
 			_, err := tx.Exec(ctx, "INSERT INTO items (name) VALUES (?)", "should-be-rolled-back")
 
 			if err != nil {
@@ -406,7 +406,7 @@ func TestWithTransactionPanicPreservesValue(t *testing.T) {
 			recovered = recover()
 		}()
 
-		_ = db.WithTransaction(ctx, func(tx contract.Database) error {
+		_ = db.WithTransaction(ctx, func(tx contract.DatabaseDriver) error {
 			panic("test-panic-value")
 		})
 	}()
@@ -420,7 +420,7 @@ func TestCloseOnTransactionWrapperIsNoOp(t *testing.T) {
 	db := newTestDBWithUsers(t)
 	ctx := context.Background()
 
-	err := db.WithTransaction(ctx, func(tx contract.Database) error {
+	err := db.WithTransaction(ctx, func(tx contract.DatabaseDriver) error {
 		// Closing the transaction wrapper should be a no-op and
 		// must not close the underlying connection pool.
 		err := tx.Close()

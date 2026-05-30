@@ -2,7 +2,6 @@ package event
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -324,16 +323,12 @@ func (broker *MQTTBroker) route(pb *paho.Publish) {
 				}
 			}()
 
-			h(func(dest any) error {
-				return json.Unmarshal(pb.Payload, dest)
-			})
+			h(pb.Payload)
 		}(handler)
 	}
 }
 
 // deliverToHandler invokes a single handler with panic recovery.
-// Recovered panics are logged via slog so they remain visible for
-// debugging without propagating to the caller.
 func (broker *MQTTBroker) deliverToHandler(
 	handler contract.EventHandler,
 	topic string,
@@ -349,41 +344,27 @@ func (broker *MQTTBroker) deliverToHandler(
 		}
 	}()
 
-	handler(func(dest any) error {
-		return json.Unmarshal(payload, dest)
-	})
+	handler(payload)
 }
 
-// Publish sends an event with the given name and payload to all
-// subscribers listening for that event. The payload is serialized
-// to JSON and the event name is converted to MQTT topic format.
-//
-// Publishing is thread-safe and respects context cancellation.
-// The operation uses the configured QoS level for delivery
-// guarantees.
+// Publish sends raw payload bytes to all subscribers of the named event.
 func (broker *MQTTBroker) Publish(
 	ctx context.Context,
 	event string,
-	payload any,
+	payload []byte,
 ) error {
 	if err := validateEvent(event); err != nil {
 		return err
 	}
 
-	encoded, err := json.Marshal(payload)
-
-	if err != nil {
-		return err
-	}
-
 	topic := convertTopic(event)
 
-	_, err = broker.client.Publish(ctx, &paho.Publish{
+	_, err := broker.client.Publish(ctx, &paho.Publish{
 		Topic:   topic,
 		QoS:     broker.qos,
-		Payload: encoded,
+		Payload: payload,
 		Properties: &paho.PublishProperties{
-			ContentType: "application/json",
+			ContentType: "application/octet-stream",
 		},
 	})
 

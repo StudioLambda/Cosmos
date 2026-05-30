@@ -2,7 +2,6 @@ package event
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"strconv"
@@ -13,62 +12,28 @@ import (
 	"github.com/studiolambda/cosmos/contract"
 )
 
-// ErrBrokerClosed is returned when attempting operations on a closed
-// broker.
-// Once a broker is closed, it cannot be reused and a new instance
-// must be created.
+// ErrBrokerClosed is returned when attempting operations on a closed broker.
 var ErrBrokerClosed = errors.New("broker is closed")
 
 // DefaultMaxConcurrentDeliveries is the maximum number of
 // concurrent handler goroutines allowed per MemoryBroker.
-// This prevents goroutine exhaustion under high event throughput
-// with slow handlers.
 const DefaultMaxConcurrentDeliveries = 1024
 
-// MemoryBroker implements the EventBroker interface using only in-memory
+// MemoryBroker implements [contract.EventDriver] using only in-memory
 // data structures with no external dependencies.
-// It provides a lightweight, zero-configuration broker ideal for testing,
-// local development, and single-instance applications.
-// All message delivery happens asynchronously in separate goroutines with
-// panic recovery to ensure one handler's failure doesn't affect others.
-// Concurrent deliveries are bounded by a semaphore to prevent goroutine
-// exhaustion.
 //
 // Wildcard patterns: '*' matches a single dot-separated token,
 // '#' matches zero or more tokens (must be the last token in the pattern).
 type MemoryBroker struct {
-	// mu protects concurrent access to the handlers map during
-	// subscribe and unsubscribe operations.
-	mu sync.RWMutex
-
-	// handlers stores event handlers organized by subscription pattern
-	// and unique handler ID.
-	// The outer map key is the pattern (which may contain wildcards),
-	// and the inner map associates handler IDs with their handlers.
+	mu       sync.RWMutex
 	handlers map[string]map[string]contract.EventHandler
-
-	// nextID generates unique identifiers for each subscribed handler
-	// to enable precise unsubscribe operations.
-	nextID atomic.Uint64
-
-	// closed indicates whether the broker has been closed.
-	// Once closed, all operations return ErrBrokerClosed.
-	closed atomic.Bool
-
-	// sem limits the number of concurrent delivery goroutines to
-	// prevent resource exhaustion under high throughput.
-	sem chan struct{}
-
-	// wg tracks in-flight deliveries so [Close] can wait for
-	// them to complete.
-	wg sync.WaitGroup
+	nextID   atomic.Uint64
+	closed   atomic.Bool
+	sem      chan struct{}
+	wg       sync.WaitGroup
 }
 
-// NewMemoryBroker creates a new in-memory event broker with no external
-// dependencies or configuration required.
-// The broker is ready to use immediately and supports concurrent access
-// from multiple goroutines.
-// It must be closed with Close when no longer needed to release resources.
+// NewMemoryBroker creates a new in-memory event broker.
 func NewMemoryBroker() *MemoryBroker {
 	return &MemoryBroker{
 		handlers: make(map[string]map[string]contract.EventHandler),
@@ -76,24 +41,12 @@ func NewMemoryBroker() *MemoryBroker {
 	}
 }
 
-// Publish sends an event with the given payload to all matching subscribers.
-// The payload is JSON-encoded and delivered asynchronously to handlers
-// whose subscription patterns match the event name.
-// Handlers are invoked in separate goroutines with panic recovery,
-// ensuring one handler's failure doesn't affect others.
-//
-// Wildcard matching supports:
-//   - "*" matches a single token (e.g., "user.*.created" matches
-//     "user.123.created")
-//   - "#" matches zero or more tokens (e.g., "logs.#" matches "logs",
-//     "logs.error", "logs.error.database")
-//
-// Returns an error if JSON encoding fails or if the broker is closed.
-// The context is checked once at the start of the publish operation.
+// Publish sends raw payload bytes to all matching subscribers.
+// Handlers are invoked asynchronously with panic recovery.
 func (broker *MemoryBroker) Publish(
 	ctx context.Context,
 	event string,
-	payload any,
+	payload []byte,
 ) error {
 	if broker.closed.Load() {
 		return ErrBrokerClosed
@@ -104,12 +57,6 @@ func (broker *MemoryBroker) Publish(
 	}
 
 	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	encoded, err := json.Marshal(payload)
-
-	if err != nil {
 		return err
 	}
 
@@ -137,7 +84,7 @@ func (broker *MemoryBroker) Publish(
 				broker.wg.Done()
 			}()
 
-			broker.deliverToHandler(handler, encoded)
+			broker.deliverToHandler(handler, payload)
 		}()
 	}
 
@@ -145,19 +92,7 @@ func (broker *MemoryBroker) Publish(
 }
 
 // Subscribe registers a handler for events matching the given pattern.
-// The pattern supports wildcards:
-//   - "*" matches a single token (e.g., "user.*.created")
-//   - "#" matches zero or more tokens (e.g., "logs.#")
-//
-// Multiple handlers can subscribe to the same pattern and all will receive
-// messages (fan-out).
-// Handlers are invoked asynchronously in separate goroutines.
-//
-// Returns an unsubscribe function that removes only this specific handler
-// subscription.
-// Returns an error if the broker is closed.
-// The context is used only for the subscription setup, not for the handler
-// lifecycle.
+// Returns an unsubscribe function.
 func (broker *MemoryBroker) Subscribe(
 	ctx context.Context,
 	event string,
@@ -198,10 +133,7 @@ func (broker *MemoryBroker) Subscribe(
 	}, nil
 }
 
-// Close shuts down the broker and removes all subscribed handlers.
-// After Close is called, all operations return ErrBrokerClosed and the
-// broker cannot be reused.
-// Close waits for all in-flight deliveries to complete before returning.
+// Close shuts down the broker and waits for in-flight deliveries.
 func (broker *MemoryBroker) Close() error {
 	broker.closed.Store(true)
 
@@ -215,12 +147,11 @@ func (broker *MemoryBroker) Close() error {
 	return nil
 }
 
-// deliverToHandler invokes a handler with the encoded payload,
-// recovering from any panic to prevent handler failures from
-// affecting the broker.
+// deliverToHandler invokes a handler with the raw payload,
+// recovering from any panic.
 func (broker *MemoryBroker) deliverToHandler(
 	handler contract.EventHandler,
-	encoded []byte,
+	payload []byte,
 ) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
@@ -231,15 +162,10 @@ func (broker *MemoryBroker) deliverToHandler(
 		}
 	}()
 
-	handler(func(dest any) error {
-		return json.Unmarshal(encoded, dest)
-	})
+	handler(payload)
 }
 
-// matchEvent checks if a subscription pattern matches an
-// event name. It supports dot-separated tokens with wildcards:
-//   - "*" matches exactly one token
-//   - "#" matches zero or more tokens
+// matchEvent checks if a subscription pattern matches an event name.
 func matchEvent(pattern, event string) bool {
 	if pattern == event {
 		return true
@@ -251,9 +177,7 @@ func matchEvent(pattern, event string) bool {
 	return matchEventParts(patternParts, eventParts)
 }
 
-// matchEventParts recursively matches event parts against
-// pattern parts with wildcard support. It handles "*" for
-// single-token and "#" for multi-token matching.
+// matchEventParts recursively matches event parts against pattern parts.
 func matchEventParts(pattern, event []string) bool {
 	if len(pattern) == 0 {
 		return len(event) == 0

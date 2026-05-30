@@ -2,51 +2,52 @@ package session
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/studiolambda/cosmos/contract"
 )
 
-// CacheDriver implements contract.SessionDriver by storing sessions
-// in any contract.Cache backend. Sessions are keyed with a
-// configurable prefix to avoid collisions with other cached data.
+// CacheDriver implements [contract.SessionDriver] by storing sessions
+// in any [contract.CacheDriver] backend. Sessions are JSON-serialized
+// and keyed with a configurable prefix to avoid collisions.
 //
-// WARNING: Session data is stored as-is without encryption. When
-// using a remote backend such as Redis, session contents are
-// transmitted and persisted in plaintext. For applications that
-// store sensitive data in sessions, callers should either encrypt
-// values before calling Put or use a cache backend that provides
-// transport and at-rest encryption (e.g., Redis with TLS and disk
-// encryption).
+// WARNING: Session data is stored without encryption. When using a
+// remote backend such as Redis, session contents are transmitted and
+// persisted in plaintext. For sensitive data, callers should encrypt
+// values before calling Put or use a backend with transport/at-rest
+// encryption.
 type CacheDriver struct {
-	cache   contract.Cache
+	cache   contract.CacheDriver
 	options CacheDriverOptions
 }
 
 // CacheDriverOptions holds configuration for the CacheDriver.
-// The Prefix is prepended to session IDs when forming cache keys.
 type CacheDriverOptions struct {
 	Prefix string
 }
 
-// ErrCacheDriverInvalidType is returned when a value retrieved from the
-// cache cannot be type-asserted to contract.Session, indicating a
-// serialization mismatch or cache key collision.
-var ErrCacheDriverInvalidType = errors.New("invalid cache type")
+// sessionData is the serializable representation of a session for
+// storage in the cache backend.
+type sessionData struct {
+	ID        string         `json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	ExpiresAt time.Time      `json:"expires_at"`
+	Storage   map[string]any `json:"storage"`
+}
 
 // NewCacheDriver creates a CacheDriver with the default key prefix
-// "cosmos.sessions". Use NewCacheDriverWith for custom options.
-func NewCacheDriver(cache contract.Cache) *CacheDriver {
+// "cosmos.sessions".
+func NewCacheDriver(cache contract.CacheDriver) *CacheDriver {
 	return NewCacheDriverWith(cache, CacheDriverOptions{
 		Prefix: "cosmos.sessions",
 	})
 }
 
 // NewCacheDriverWith creates a CacheDriver with the given cache
-// backend and options, allowing a custom key prefix.
-func NewCacheDriverWith(cache contract.Cache, options CacheDriverOptions) *CacheDriver {
+// backend and options.
+func NewCacheDriverWith(cache contract.CacheDriver, options CacheDriverOptions) *CacheDriver {
 	return &CacheDriver{
 		cache:   cache,
 		options: options,
@@ -59,27 +60,39 @@ func (driver *CacheDriver) key(id string) string {
 	return fmt.Sprintf("%s.%s", driver.options.Prefix, id)
 }
 
-// Get retrieves a session from the cache by its ID. It returns
-// ErrCacheDriverInvalidType if the cached value is not a valid
-// contract.Session.
-func (driver *CacheDriver) Get(ctx context.Context, id string) (contract.Session, error) {
-	cacheKey := driver.key(id)
-	value, err := driver.cache.Get(ctx, cacheKey)
+// Get retrieves a session from the cache by its ID.
+func (driver *CacheDriver) Get(ctx context.Context, id string) (*contract.Session, error) {
+	raw, err := driver.cache.Get(ctx, driver.key(id))
 
 	if err != nil {
 		return nil, err
 	}
 
-	if session, ok := value.(contract.Session); ok {
-		return session, nil
+	var data sessionData
+
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return nil, err
 	}
 
-	return nil, ErrCacheDriverInvalidType
+	return contract.NewSessionFrom(data.ID, data.CreatedAt, data.ExpiresAt, data.Storage), nil
 }
 
 // Save persists a session in the cache with the given TTL.
-func (driver *CacheDriver) Save(ctx context.Context, session contract.Session, ttl time.Duration) error {
-	return driver.cache.Put(ctx, driver.key(session.SessionID()), session, ttl)
+func (driver *CacheDriver) Save(ctx context.Context, session *contract.Session, ttl time.Duration) error {
+	data := sessionData{
+		ID:        session.SessionID(),
+		CreatedAt: session.CreatedAt(),
+		ExpiresAt: session.ExpiresAt(),
+		Storage:   session.All(),
+	}
+
+	raw, err := json.Marshal(data)
+
+	if err != nil {
+		return err
+	}
+
+	return driver.cache.Put(ctx, driver.key(session.SessionID()), raw, ttl)
 }
 
 // Delete removes a session from the cache by its ID.

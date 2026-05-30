@@ -166,7 +166,7 @@ func TestMQTTBrokerRouteDeliversToMatchingHandler(t *testing.T) {
 
 	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
 		"user/created": {
-			"1": func(payload contract.EventPayload) {
+			"1": func(payload []byte) {
 				called.Store(true)
 			},
 		},
@@ -189,7 +189,7 @@ func TestMQTTBrokerRouteDeliversToWildcardHandler(t *testing.T) {
 
 	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
 		"user/+": {
-			"1": func(payload contract.EventPayload) {
+			"1": func(payload []byte) {
 				called.Store(true)
 			},
 		},
@@ -212,7 +212,7 @@ func TestMQTTBrokerRouteDoesNotDeliverToNonMatching(t *testing.T) {
 
 	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
 		"user/created": {
-			"1": func(payload contract.EventPayload) {
+			"1": func(payload []byte) {
 				called.Store(true)
 			},
 		},
@@ -235,10 +235,10 @@ func TestMQTTBrokerRouteDeliversToMultipleHandlersSamePattern(t *testing.T) {
 
 	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
 		"user/created": {
-			"1": func(payload contract.EventPayload) {
+			"1": func(payload []byte) {
 				count.Add(1)
 			},
-			"2": func(payload contract.EventPayload) {
+			"2": func(payload []byte) {
 				count.Add(1)
 			},
 		},
@@ -261,12 +261,12 @@ func TestMQTTBrokerRouteFanOutAcrossPatterns(t *testing.T) {
 
 	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
 		"user/created": {
-			"1": func(payload contract.EventPayload) {
+			"1": func(payload []byte) {
 				count.Add(1)
 			},
 		},
 		"user/+": {
-			"2": func(payload contract.EventPayload) {
+			"2": func(payload []byte) {
 				count.Add(1)
 			},
 		},
@@ -289,10 +289,10 @@ func TestMQTTBrokerRouteUnmarshalsJSONPayload(t *testing.T) {
 
 	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
 		"user/created": {
-			"1": func(payload contract.EventPayload) {
+			"1": func(payload []byte) {
 				var value string
 
-				_ = payload(&value)
+				_ = json.Unmarshal(payload, &value)
 
 				received.Store(value)
 			},
@@ -326,12 +326,12 @@ func TestMQTTBrokerRouteDispatchesAsynchronously(t *testing.T) {
 
 	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
 		"events/test": {
-			"1": func(payload contract.EventPayload) {
+			"1": func(payload []byte) {
 				started.Done()
 				<-gate
 				finished.Done()
 			},
-			"2": func(payload contract.EventPayload) {
+			"2": func(payload []byte) {
 				started.Done()
 				<-gate
 				finished.Done()
@@ -374,12 +374,12 @@ func TestMQTTBrokerRouteRecoversPanic(t *testing.T) {
 
 	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
 		"events/panic": {
-			"1": func(payload contract.EventPayload) {
+			"1": func(payload []byte) {
 				panic("test panic")
 			},
 		},
 		"events/+": {
-			"2": func(payload contract.EventPayload) {
+			"2": func(payload []byte) {
 				secondCalled.Store(true)
 			},
 		},
@@ -401,7 +401,7 @@ func TestMQTTBrokerRoutePanicDoesNotPropagate(t *testing.T) {
 	broker := &MQTTBroker{
 		handlers: map[string]map[string]contract.EventHandler{
 			"user/created": {
-				"1": func(payload contract.EventPayload) {
+				"1": func(payload []byte) {
 					panic("handler panic")
 				},
 			},
@@ -426,10 +426,10 @@ func TestMQTTBrokerRoutePanicDoesNotAffectOtherHandlers(t *testing.T) {
 	broker := &MQTTBroker{
 		handlers: map[string]map[string]contract.EventHandler{
 			"user/created": {
-				"1": func(payload contract.EventPayload) {
+				"1": func(payload []byte) {
 					panic("handler panic")
 				},
-				"2": func(payload contract.EventPayload) {
+				"2": func(payload []byte) {
 					called.Store(true)
 				},
 			},
@@ -455,7 +455,7 @@ func TestMQTTBrokerHandlePublishRoutesMessage(t *testing.T) {
 	broker := &MQTTBroker{
 		handlers: map[string]map[string]contract.EventHandler{
 			"user/created": {
-				"1": func(payload contract.EventPayload) {
+				"1": func(payload []byte) {
 					called.Store(true)
 				},
 			},
@@ -483,7 +483,7 @@ func TestMQTTBrokerHandlePublishRecoversPanic(t *testing.T) {
 	broker := &MQTTBroker{
 		handlers: map[string]map[string]contract.EventHandler{
 			"user/created": {
-				"1": func(payload contract.EventPayload) {
+				"1": func(payload []byte) {
 					panic("handler panic")
 				},
 			},

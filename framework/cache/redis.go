@@ -15,9 +15,8 @@ import (
 // of the go-redis package.
 type RedisOptions = redis.Options
 
-// RedisClient implements contract.Cache using Redis as the backing
-// store. It is defined as a type conversion of redis.Client so that
-// cache methods can be attached without wrapping in a separate struct.
+// RedisClient implements [contract.CacheDriver] and [contract.CacheCounter]
+// using Redis as the backing store.
 type RedisClient redis.Client
 
 // NewRedis creates a RedisClient from the given connection options.
@@ -31,12 +30,10 @@ func NewRedisFrom(client *redis.Client) *RedisClient {
 	return (*RedisClient)(client)
 }
 
-// Get retrieves a value by key. Returns
-// contract.ErrCacheKeyNotFound when the key does not exist.
-// The key is intentionally omitted from the error to prevent
-// cache key enumeration attacks.
-func (client *RedisClient) Get(ctx context.Context, key string) (any, error) {
-	value, err := (*redis.Client)(client).Get(ctx, key).Result()
+// Get retrieves raw bytes by key. Returns
+// [contract.ErrCacheKeyNotFound] when the key does not exist.
+func (client *RedisClient) Get(ctx context.Context, key string) ([]byte, error) {
+	value, err := (*redis.Client)(client).Get(ctx, key).Bytes()
 
 	if errors.Is(err, redis.Nil) {
 		return nil, contract.ErrCacheKeyNotFound
@@ -49,9 +46,9 @@ func (client *RedisClient) Get(ctx context.Context, key string) (any, error) {
 	return value, nil
 }
 
-// Put stores a value with the given TTL. A zero TTL means the key
+// Put stores raw bytes with the given TTL. A zero TTL means the key
 // will not expire.
-func (client *RedisClient) Put(ctx context.Context, key string, value any, ttl time.Duration) error {
+func (client *RedisClient) Put(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	return (*redis.Client)(client).Set(ctx, key, value, ttl).Err()
 }
 
@@ -71,80 +68,16 @@ func (client *RedisClient) Has(ctx context.Context, key string) (bool, error) {
 	return count > 0, nil
 }
 
-// Pull atomically retrieves and deletes a key using Redis GETDEL.
-// Returns [contract.ErrCacheKeyNotFound] when the key does not exist.
-func (client *RedisClient) Pull(ctx context.Context, key string) (any, error) {
-	value, err := (*redis.Client)(client).GetDel(ctx, key).Result()
-
-	if errors.Is(err, redis.Nil) {
-		return nil, contract.ErrCacheKeyNotFound
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return value, nil
-}
-
-// Forever stores a value with no expiration. Values are serialized for storage.
-func (client *RedisClient) Forever(ctx context.Context, key string, value any) error {
-	return client.Put(ctx, key, value, 0)
-}
-
 // Increment atomically increases the integer value stored at key by
-// the given amount. Unlike the in-memory implementation, Redis
-// auto-creates the key with value 0 if it does not exist before
-// incrementing.
-func (client *RedisClient) Increment(ctx context.Context, key string, by int64) (int64, error) {
-	return (*redis.Client)(client).IncrBy(ctx, key, by).Result()
+// the given amount. Redis auto-creates the key with value 0 if it
+// does not exist before incrementing.
+func (client *RedisClient) Increment(ctx context.Context, key string, delta int64) (int64, error) {
+	return (*redis.Client)(client).IncrBy(ctx, key, delta).Result()
 }
 
 // Decrement atomically decreases the integer value stored at key by
-// the given amount. Unlike the in-memory implementation, Redis
-// auto-creates the key with value 0 if it does not exist before
-// decrementing.
-func (client *RedisClient) Decrement(ctx context.Context, key string, by int64) (int64, error) {
-	return (*redis.Client)(client).DecrBy(ctx, key, by).Result()
-}
-
-// Remember retrieves the cached value for key, or computes and
-// stores it with the given TTL on a cache miss. Non-"key not
-// found" errors from Get are returned immediately without calling
-// compute.
-//
-// WARNING: This method is not protected against thundering herd
-// (cache stampede). Under high concurrency, multiple goroutines
-// may observe a cache miss simultaneously and all invoke the
-// compute function. For expensive computations, callers should
-// use golang.org/x/sync/singleflight to deduplicate concurrent
-// calls for the same key.
-func (client *RedisClient) Remember(ctx context.Context, key string, ttl time.Duration, compute func() (any, error)) (any, error) {
-	val, err := client.Get(ctx, key)
-
-	if err == nil {
-		return val, nil
-	}
-
-	if !errors.Is(err, contract.ErrCacheKeyNotFound) {
-		return nil, err
-	}
-
-	val, err = compute()
-
-	if err != nil {
-		return nil, err
-	}
-
-	if err := client.Put(ctx, key, val, ttl); err != nil {
-		return nil, err
-	}
-
-	return val, nil
-}
-
-// RememberForever retrieves the cached value for key, or computes
-// and stores it permanently on a cache miss.
-func (client *RedisClient) RememberForever(ctx context.Context, key string, compute func() (any, error)) (any, error) {
-	return client.Remember(ctx, key, 0, compute)
+// the given amount. Redis auto-creates the key with value 0 if it
+// does not exist before decrementing.
+func (client *RedisClient) Decrement(ctx context.Context, key string, delta int64) (int64, error) {
+	return (*redis.Client)(client).DecrBy(ctx, key, delta).Result()
 }
