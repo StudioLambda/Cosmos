@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/studiolambda/cosmos/framework/session"
+	"github.com/studiolambda/cosmos/contract"
 
 	"github.com/stretchr/testify/require"
 )
@@ -12,7 +12,7 @@ import (
 func TestNewSessionReturnsNonNilSession(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -24,7 +24,7 @@ func TestNewSessionReturnsNonNilSession(t *testing.T) {
 func TestNewSessionGeneratesSessionID(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -36,7 +36,7 @@ func TestNewSessionGeneratesSessionID(t *testing.T) {
 func TestNewSessionSetsOriginalIDSameAsSessionID(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -48,7 +48,7 @@ func TestNewSessionSetsOriginalIDSameAsSessionID(t *testing.T) {
 func TestNewSessionIsMarkedAsChanged(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -62,7 +62,7 @@ func TestNewSessionSetsCreatedAt(t *testing.T) {
 
 	before := time.Now()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -77,7 +77,7 @@ func TestNewSessionSetsExpiresAt(t *testing.T) {
 
 	expiresAt := time.Now().Add(2 * time.Hour)
 
-	sess, err := session.NewSession(expiresAt, map[string]any{})
+	sess, err := contract.NewSession(expiresAt, map[string]any{})
 
 	require.NoError(t, err)
 	require.Equal(t, expiresAt, sess.ExpiresAt())
@@ -88,7 +88,7 @@ func TestNewSessionWithInitialStorage(t *testing.T) {
 
 	storage := map[string]any{"user_id": 42}
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		storage,
 	)
@@ -104,13 +104,13 @@ func TestNewSessionWithInitialStorage(t *testing.T) {
 func TestNewSessionGeneratesUniqueIDs(t *testing.T) {
 	t.Parallel()
 
-	sess1, err := session.NewSession(
+	sess1, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
 	require.NoError(t, err)
 
-	sess2, err := session.NewSession(
+	sess2, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -122,7 +122,7 @@ func TestNewSessionGeneratesUniqueIDs(t *testing.T) {
 func TestSessionGetReturnsStoredValue(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{"key": "value"},
 	)
@@ -138,7 +138,7 @@ func TestSessionGetReturnsStoredValue(t *testing.T) {
 func TestSessionGetReturnsFalseForMissingKey(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -153,7 +153,7 @@ func TestSessionGetReturnsFalseForMissingKey(t *testing.T) {
 func TestSessionPutStoresValue(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -172,7 +172,7 @@ func TestSessionPutStoresValue(t *testing.T) {
 func TestSessionPutMarksAsChanged(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -188,7 +188,7 @@ func TestSessionPutMarksAsChanged(t *testing.T) {
 func TestSessionPutOverwritesExistingValue(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{"key": "old"},
 	)
@@ -206,7 +206,7 @@ func TestSessionPutOverwritesExistingValue(t *testing.T) {
 func TestSessionDeleteRemovesKey(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{"key": "value"},
 	)
@@ -223,7 +223,7 @@ func TestSessionDeleteRemovesKey(t *testing.T) {
 func TestSessionDeleteMarksAsChanged(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{"key": "value"},
 	)
@@ -239,7 +239,7 @@ func TestSessionDeleteMarksAsChanged(t *testing.T) {
 func TestSessionDeleteMissingKeyIsNoOp(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -255,7 +255,7 @@ func TestSessionDeleteMissingKeyIsNoOp(t *testing.T) {
 func TestSessionClearRemovesAllData(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{"a": 1, "b": 2, "c": 3},
 	)
@@ -276,7 +276,7 @@ func TestSessionClearRemovesAllData(t *testing.T) {
 func TestSessionClearMarksAsChanged(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{"key": "value"},
 	)
@@ -292,7 +292,7 @@ func TestSessionClearMarksAsChanged(t *testing.T) {
 func TestSessionExtendUpdatesExpiresAt(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(1*time.Hour),
 		map[string]any{},
 	)
@@ -308,7 +308,7 @@ func TestSessionExtendUpdatesExpiresAt(t *testing.T) {
 func TestSessionExtendMarksAsChanged(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(1*time.Hour),
 		map[string]any{},
 	)
@@ -324,7 +324,7 @@ func TestSessionExtendMarksAsChanged(t *testing.T) {
 func TestSessionRegenerateChangesSessionID(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -342,7 +342,7 @@ func TestSessionRegenerateChangesSessionID(t *testing.T) {
 func TestSessionRegeneratePreservesOriginalID(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -360,7 +360,7 @@ func TestSessionRegeneratePreservesOriginalID(t *testing.T) {
 func TestSessionRegenerateMarksAsChanged(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -378,7 +378,7 @@ func TestSessionRegenerateMarksAsChanged(t *testing.T) {
 func TestSessionHasExpiredWhenPastExpiresAt(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(-1*time.Hour),
 		map[string]any{},
 	)
@@ -390,7 +390,7 @@ func TestSessionHasExpiredWhenPastExpiresAt(t *testing.T) {
 func TestSessionHasNotExpiredWhenBeforeExpiresAt(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -402,7 +402,7 @@ func TestSessionHasNotExpiredWhenBeforeExpiresAt(t *testing.T) {
 func TestSessionExpiresSoonWhenWithinDelta(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(5*time.Minute),
 		map[string]any{},
 	)
@@ -414,7 +414,7 @@ func TestSessionExpiresSoonWhenWithinDelta(t *testing.T) {
 func TestSessionExpiresSoonReturnsFalseWhenFarFromExpiry(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -426,7 +426,7 @@ func TestSessionExpiresSoonReturnsFalseWhenFarFromExpiry(t *testing.T) {
 func TestSessionExpiresSoonReturnsFalseWhenAlreadyExpired(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(-1*time.Hour),
 		map[string]any{},
 	)
@@ -438,7 +438,7 @@ func TestSessionExpiresSoonReturnsFalseWhenAlreadyExpired(t *testing.T) {
 func TestSessionHasRegeneratedAfterRegenerate(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -455,7 +455,7 @@ func TestSessionHasRegeneratedAfterRegenerate(t *testing.T) {
 func TestSessionMarkAsUnchangedResetsChangedFlag(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -471,7 +471,7 @@ func TestSessionMarkAsUnchangedResetsChangedFlag(t *testing.T) {
 func TestSessionRegenerateGeneratesValidID(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -487,7 +487,7 @@ func TestSessionRegenerateGeneratesValidID(t *testing.T) {
 func TestSessionPreservesDataAfterRegenerate(t *testing.T) {
 	t.Parallel()
 
-	sess, err := session.NewSession(
+	sess, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{"user_id": 42},
 	)

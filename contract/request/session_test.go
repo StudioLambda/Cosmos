@@ -12,35 +12,18 @@ import (
 	"github.com/studiolambda/cosmos/contract/request"
 )
 
-// stubSession is a minimal implementation of contract.Session for testing.
-type stubSession struct {
-	id string
+func newTestSession(id string) *contract.Session {
+	return contract.NewSessionFrom(id, time.Now(), time.Now().Add(time.Hour), map[string]any{})
 }
-
-func (s stubSession) SessionID() string              { return s.id }
-func (s stubSession) OriginalSessionID() string      { return s.id }
-func (s stubSession) Get(string) (any, bool)         { return nil, false }
-func (s stubSession) Put(string, any)                {}
-func (s stubSession) Delete(string)                  {}
-func (s stubSession) Extend(time.Time)               {}
-func (s stubSession) Regenerate() error              { return nil }
-func (s stubSession) Clear()                         {}
-func (s stubSession) CreatedAt() time.Time           { return time.Time{} }
-func (s stubSession) ExpiresAt() time.Time           { return time.Time{} }
-func (s stubSession) HasExpired() bool               { return false }
-func (s stubSession) ExpiresSoon(time.Duration) bool { return false }
-func (s stubSession) HasChanged() bool               { return false }
-func (s stubSession) HasRegenerated() bool           { return false }
-func (s stubSession) MarkAsUnchanged()               {}
 
 func TestSessionReturnsTrueWhenPresent(t *testing.T) {
 	t.Parallel()
 
-	sess := stubSession{id: "sess-1"}
+	sess := newTestSession("sess-1")
 	ctx := context.WithValue(
 		context.Background(),
 		contract.SessionKey,
-		contract.Session(sess),
+		sess,
 	)
 	r := httptest.NewRequest(
 		http.MethodGet, "/", nil,
@@ -67,11 +50,11 @@ func TestSessionKeyedReturnsTrueWhenPresent(t *testing.T) {
 	t.Parallel()
 
 	type customKey struct{}
-	sess := stubSession{id: "sess-2"}
+	sess := newTestSession("sess-2")
 	ctx := context.WithValue(
 		context.Background(),
 		customKey{},
-		contract.Session(sess),
+		sess,
 	)
 	r := httptest.NewRequest(
 		http.MethodGet, "/", nil,
@@ -116,11 +99,11 @@ func TestSessionKeyedReturnsFalseWhenWrongType(t *testing.T) {
 func TestMustSessionReturnsSessionWhenPresent(t *testing.T) {
 	t.Parallel()
 
-	sess := stubSession{id: "sess-3"}
+	sess := newTestSession("sess-3")
 	ctx := context.WithValue(
 		context.Background(),
 		contract.SessionKey,
-		contract.Session(sess),
+		sess,
 	)
 	r := httptest.NewRequest(
 		http.MethodGet, "/", nil,
@@ -158,11 +141,11 @@ func TestMustSessionKeyedReturnsSessionWhenPresent(t *testing.T) {
 	t.Parallel()
 
 	type customKey struct{}
-	sess := stubSession{id: "sess-4"}
+	sess := newTestSession("sess-4")
 	ctx := context.WithValue(
 		context.Background(),
 		customKey{},
-		contract.Session(sess),
+		sess,
 	)
 	r := httptest.NewRequest(
 		http.MethodGet, "/", nil,

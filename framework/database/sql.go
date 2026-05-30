@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// SQL implements contract.Database using sqlx for query execution,
+// SQL implements [contract.DatabaseDriver] using sqlx for query execution,
 // named parameters, and struct scanning. It supports both direct
 // connections and transactions through the shared [sqlx.ExtContext]
 // interface.
@@ -38,10 +38,7 @@ func (tx *sqlTx) Close() error {
 //
 // WARNING: No default query timeout is applied. Long-running or
 // runaway queries will block indefinitely unless the caller
-// passes a context.Context with a deadline or timeout. For
-// production use, configure statement timeouts at the database
-// driver level (e.g., statement_timeout for PostgreSQL) or wrap
-// all query contexts with context.WithTimeout.
+// passes a context.Context with a deadline or timeout.
 //
 // WARNING: The default connection pool has no limits on open connections.
 // Use [SQL.Configure] to set appropriate pool limits for production:
@@ -62,32 +59,17 @@ func NewSQL(driver string, dsn string) (*SQL, error) {
 }
 
 // NewSQLFrom wraps an existing sqlx.DB connection in a SQL instance.
-// This is useful when you need to configure the connection pool or
-// driver options before handing it to the framework.
-//
-// WARNING: No default query timeout is applied. See [NewSQL] for
-// recommendations on configuring query timeouts.
-//
-// WARNING: The default connection pool has no limits on open connections.
-// Use [SQL.Configure] to set appropriate pool limits for production:
-//
-//	db.Configure(func(raw *sql.DB) {
-//	    raw.SetMaxOpenConns(25)
-//	    raw.SetMaxIdleConns(5)
-//	    raw.SetConnMaxLifetime(5 * time.Minute)
-//	})
 func NewSQLFrom(db *sqlx.DB) *SQL {
 	return &SQL{db: db, raw: db}
 }
 
-// Ping verifies that the database connection is still alive,
-// returning an error if the check fails.
+// Ping verifies that the database connection is still alive.
 func (database *SQL) Ping(ctx context.Context) error {
 	return database.raw.PingContext(ctx)
 }
 
 // Exec executes a query that modifies data (INSERT, UPDATE, DELETE)
-// using positional arguments. It returns the number of rows affected.
+// using positional arguments. Returns the number of rows affected.
 func (database *SQL) Exec(ctx context.Context, query string, args ...any) (int64, error) {
 	result, err := database.db.ExecContext(ctx, query, args...)
 
@@ -99,7 +81,7 @@ func (database *SQL) Exec(ctx context.Context, query string, args ...any) (int64
 }
 
 // ExecNamed executes a query that modifies data using a named
-// parameter struct or map. It returns the number of rows affected.
+// parameter struct or map. Returns the number of rows affected.
 func (database *SQL) ExecNamed(ctx context.Context, query string, arg any) (int64, error) {
 	result, err := sqlx.NamedExecContext(ctx, database.db, query, arg)
 
@@ -116,9 +98,8 @@ func (database *SQL) Select(ctx context.Context, query string, dest any, args ..
 	return sqlx.SelectContext(ctx, database.db, dest, query, args...)
 }
 
-// SelectNamed executes a query that returns multiple rows, scanning
-// the results into the dest slice using a named parameter struct or
-// map.
+// SelectNamed executes a query that returns multiple rows using
+// named parameters.
 func (database *SQL) SelectNamed(ctx context.Context, query string, dest any, arg any) error {
 	rows, err := sqlx.NamedQueryContext(ctx, database.db, query, arg)
 
@@ -133,7 +114,7 @@ func (database *SQL) SelectNamed(ctx context.Context, query string, dest any, ar
 
 // Find executes a query expected to return a single row, scanning
 // the result into dest. If no row is found, the returned error wraps
-// both sql.ErrNoRows and contract.ErrDatabaseNoRows.
+// both sql.ErrNoRows and [contract.ErrDatabaseNoRows].
 func (database *SQL) Find(ctx context.Context, query string, dest any, args ...any) error {
 	if err := sqlx.GetContext(ctx, database.db, dest, query, args...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -146,10 +127,8 @@ func (database *SQL) Find(ctx context.Context, query string, dest any, args ...a
 	return nil
 }
 
-// FindNamed executes a query expected to return a single row using a
-// named parameter struct or map, scanning the result into dest. If no
-// row is found, the returned error wraps both sql.ErrNoRows and
-// contract.ErrDatabaseNoRows.
+// FindNamed executes a query expected to return a single row using
+// named parameters.
 func (database *SQL) FindNamed(ctx context.Context, query string, dest any, arg any) error {
 	rows, err := sqlx.NamedQueryContext(ctx, database.db, query, arg)
 
@@ -175,14 +154,12 @@ func (database *SQL) FindNamed(ctx context.Context, query string, dest any, arg 
 }
 
 // WithTransaction executes fn inside a database transaction. If fn
-// returns an error, the transaction is rolled back and both the
-// original error and any rollback error are joined. If fn succeeds,
-// the transaction is committed. Nested transactions are not supported
-// and return contract.ErrDatabaseNestedTransaction.
+// returns an error, the transaction is rolled back. If fn succeeds,
+// the transaction is committed. Nested transactions are not supported.
 //
 // If fn panics, the transaction is rolled back before the panic is
 // re-raised, preventing connection pool leaks.
-func (database *SQL) WithTransaction(ctx context.Context, fn func(tx contract.Database) error) (retErr error) {
+func (database *SQL) WithTransaction(ctx context.Context, fn func(tx contract.DatabaseDriver) error) (retErr error) {
 	if _, ok := database.db.(*sqlx.Tx); ok {
 		return contract.ErrDatabaseNestedTransaction
 	}
@@ -221,19 +198,7 @@ func (database *SQL) Close() error {
 	return database.raw.Close()
 }
 
-// Configure exposes the underlying *sql.DB for connection pool
-// tuning. The provided function receives the raw *sql.DB so
-// callers can set pool parameters such as SetMaxOpenConns,
-// SetMaxIdleConns, and SetConnMaxLifetime without importing
-// database/sql directly.
-//
-// Example:
-//
-//	db.Configure(func(raw *sql.DB) {
-//	    raw.SetMaxOpenConns(25)
-//	    raw.SetMaxIdleConns(10)
-//	    raw.SetConnMaxLifetime(5 * time.Minute)
-//	})
+// Configure exposes the underlying *sql.DB for connection pool tuning.
 func (database *SQL) Configure(fn func(*sql.DB)) {
 	fn(database.raw.DB)
 }

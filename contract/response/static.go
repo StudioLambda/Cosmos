@@ -5,12 +5,19 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	htmltemplate "html/template"
 	"net/http"
 	"net/url"
 	"strings"
 	"text/template"
 )
+
+// ErrUnsafeRedirect is returned by [SafeRedirect] when the target
+// URL is not a safe relative path. This prevents open redirect
+// attacks where an attacker tricks users into visiting a malicious
+// external site via your application's redirect endpoint.
+var ErrUnsafeRedirect = errors.New("unsafe redirect URL")
 
 // Raw writes raw byte data to the response writer with
 // the specified status code. If no Content-Type header has
@@ -206,12 +213,6 @@ func Redirect(w http.ResponseWriter, status int, url string) error {
 	return Status(w, status)
 }
 
-// ErrUnsafeRedirect is returned by [SafeRedirect] when the target
-// URL is not a safe relative path. This prevents open redirect
-// attacks where an attacker tricks users into visiting a malicious
-// external site via your application's redirect endpoint.
-var ErrUnsafeRedirect = errors.New("unsafe redirect URL: must be a relative path")
-
 // SafeRedirect sends an HTTP redirect response only if the target
 // URL is a safe relative path (starts with "/" and does not contain
 // a scheme, host, or protocol-relative prefix "//"). This prevents
@@ -226,7 +227,7 @@ var ErrUnsafeRedirect = errors.New("unsafe redirect URL: must be a relative path
 //   - rawURL: The URL to redirect the user to (must be a relative path)
 func SafeRedirect(w http.ResponseWriter, status int, rawURL string) error {
 	if !isRelativePath(rawURL) {
-		return ErrUnsafeRedirect
+		return fmt.Errorf("%w: `%s` must be a relative path", ErrUnsafeRedirect, rawURL)
 	}
 
 	return Redirect(w, status, rawURL)

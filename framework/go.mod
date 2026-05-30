@@ -6,7 +6,6 @@ require (
 	github.com/eclipse/paho.golang v0.23.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/matthewhartstonge/argon2 v1.4.3
-	github.com/mattn/go-sqlite3 v1.14.42
 	github.com/nats-io/nats.go v1.48.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/rabbitmq/amqp091-go v1.10.0
@@ -26,6 +25,7 @@ require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
+	github.com/mattn/go-sqlite3 v1.14.42 // indirect
 	github.com/nats-io/nkeys v0.4.12 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect

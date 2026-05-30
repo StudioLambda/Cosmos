@@ -2,7 +2,6 @@ package event
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -143,40 +142,28 @@ func NewAMQPBrokerFrom(
 	}, nil
 }
 
-// Publish sends an event with the given name and payload to all
-// subscribers listening for that event. The payload is serialized
-// to JSON before being published to the topic exchange using the
-// event name as the routing key.
-//
-// Publishing is thread-safe and respects context cancellation.
-// If the context is cancelled before the publish completes, the
-// operation will be aborted and an error returned.
+// Publish sends raw payload bytes to all subscribers of the named event.
 func (broker *AMQPBroker) Publish(
 	ctx context.Context,
 	event string,
-	payload any,
+	payload []byte,
 ) error {
 	if err := validateEvent(event); err != nil {
-		return err
-	}
-
-	encoded, err := json.Marshal(payload)
-	if err != nil {
 		return err
 	}
 
 	broker.mu.Lock()
 	defer broker.mu.Unlock()
 
-	err = broker.pubCh.PublishWithContext(
+	err := broker.pubCh.PublishWithContext(
 		ctx,
 		broker.exchange,
 		event,
 		false,
 		false,
 		amqp091.Publishing{
-			ContentType: "application/json",
-			Body:        encoded,
+			ContentType: "application/octet-stream",
+			Body:        payload,
 		},
 	)
 
@@ -195,8 +182,8 @@ func (broker *AMQPBroker) Publish(
 			false,
 			false,
 			amqp091.Publishing{
-				ContentType: "application/json",
-				Body:        encoded,
+				ContentType: "application/octet-stream",
+				Body:        payload,
 			},
 		)
 	}
@@ -292,9 +279,7 @@ func (broker *AMQPBroker) Subscribe(
 					}
 				}()
 
-				handler(func(dest any) error {
-					return json.Unmarshal(delivery.Body, dest)
-				})
+			handler(delivery.Body)
 			}()
 		}
 	})

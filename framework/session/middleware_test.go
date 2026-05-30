@@ -37,14 +37,14 @@ func TestMiddlewareCookieExists(t *testing.T) {
 
 	require.Len(t, cookies, 1)
 	require.Len(t, cache.Calls, 1)
-	require.Equal(t, cache.Calls[0].Arguments.Get(1).(contract.Session).SessionID(), cookies[0].Value)
+	require.Equal(t, cache.Calls[0].Arguments.Get(1).(*contract.Session).SessionID(), cookies[0].Value)
 	require.Equal(t, session.DefaultCookie, cookies[0].Name)
 }
 
 func TestMiddlewareLoadsExistingSession(t *testing.T) {
 	t.Parallel()
 
-	existingSession, err := session.NewSession(
+	existingSession, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{"user_id": 42},
 	)
@@ -159,7 +159,7 @@ func TestMiddlewareCreatesNewSessionWhenDriverFails(t *testing.T) {
 func TestMiddlewareWithExpiredSessionRegenerates(t *testing.T) {
 	t.Parallel()
 
-	expiredSession, err := session.NewSession(
+	expiredSession, err := contract.NewSession(
 		time.Now().Add(-1*time.Hour),
 		map[string]any{},
 	)
@@ -203,7 +203,7 @@ func TestMiddlewareWithExpiredSessionRegenerates(t *testing.T) {
 func TestMiddlewareWithExpirationDeltaExtendsSession(t *testing.T) {
 	t.Parallel()
 
-	soonSession, err := session.NewSession(
+	soonSession, err := contract.NewSession(
 		time.Now().Add(5*time.Minute),
 		map[string]any{},
 	)
@@ -309,7 +309,7 @@ func TestMiddlewareErrorHandlerCalledOnSaveError(t *testing.T) {
 func TestMiddlewareSessionNotSavedWhenUnchanged(t *testing.T) {
 	t.Parallel()
 
-	existingSession, err := session.NewSession(
+	existingSession, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -383,7 +383,7 @@ func TestMiddlewareDoesNotSetCookieWhenSaveFails(t *testing.T) {
 func TestMiddlewareRegenerateDeletesOldSession(t *testing.T) {
 	t.Parallel()
 
-	existingSession, err := session.NewSession(
+	existingSession, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{},
 	)
@@ -430,7 +430,7 @@ func TestMiddlewareRegenerateDeletesOldSession(t *testing.T) {
 func TestMiddlewareCreatesNewSessionWhenExpired(t *testing.T) {
 	t.Parallel()
 
-	expiredSession, err := session.NewSession(
+	expiredSession, err := contract.NewSession(
 		time.Now().Add(-1*time.Hour),
 		map[string]any{"stale": true},
 	)
@@ -484,7 +484,7 @@ func TestMiddlewareCreatesNewSessionWhenExpired(t *testing.T) {
 func TestMiddlewareWithDefaultsMaxLifetime(t *testing.T) {
 	t.Parallel()
 
-	oldSession, err := session.NewSession(
+	oldSession, err := contract.NewSession(
 		time.Now().Add(2*time.Hour),
 		map[string]any{"user_id": 7},
 	)

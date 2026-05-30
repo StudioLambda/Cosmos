@@ -3,7 +3,7 @@ package event
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
+
 	"fmt"
 	"log/slog"
 	"strings"
@@ -227,28 +227,17 @@ func NewNATSBrokerFrom(conn *nats.Conn) *NATSBroker {
 	}
 }
 
-// Publish sends an event with the given payload to all subscribers.
-// The payload is JSON-encoded before transmission.
-// The event name is used as the NATS subject.
-//
-// Returns an error if JSON encoding fails or if the publish operation fails.
-// The context is used for operation timeout and cancellation.
+// Publish sends raw payload bytes to all subscribers of the named event.
 func (broker *NATSBroker) Publish(
 	ctx context.Context,
 	event string,
-	payload any,
+	payload []byte,
 ) error {
 	if err := validateEvent(event); err != nil {
 		return err
 	}
 
-	encoded, err := json.Marshal(payload)
-
-	if err != nil {
-		return err
-	}
-
-	return broker.conn.Publish(event, encoded)
+	return broker.conn.Publish(event, payload)
 }
 
 // Subscribe registers a handler for events matching the given pattern.
@@ -280,9 +269,7 @@ func (broker *NATSBroker) Subscribe(
 			}
 		}()
 
-		handler(func(dest any) error {
-			return json.Unmarshal(msg.Data, dest)
-		})
+		handler(msg.Data)
 	})
 
 	if err != nil {

@@ -2,6 +2,7 @@ package event_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"sync"
@@ -9,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework/event"
 
 	"github.com/stretchr/testify/require"
@@ -31,12 +31,12 @@ func TestMemoryBrokerPublishAndSubscribe(t *testing.T) {
 	wg.Add(1)
 
 	unsub, err := broker.Subscribe(
-		ctx, "user.created", func(payload contract.EventPayload) {
+		ctx, "user.created", func(payload []byte) {
 			defer wg.Done()
 
 			var msg string
 
-			_ = payload(&msg)
+			_ = json.Unmarshal(payload, &msg)
 
 			received = msg
 		},
@@ -45,7 +45,9 @@ func TestMemoryBrokerPublishAndSubscribe(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, unsub)
 
-	err = broker.Publish(ctx, "user.created", "hello")
+	data, _ := json.Marshal("hello")
+
+	err = broker.Publish(ctx, "user.created", data)
 
 	require.NoError(t, err)
 
@@ -70,7 +72,7 @@ func TestMemoryBrokerWildcardStar(t *testing.T) {
 	wg.Add(1)
 
 	_, err := broker.Subscribe(
-		ctx, "user.*.created", func(payload contract.EventPayload) {
+		ctx, "user.*.created", func(payload []byte) {
 			defer wg.Done()
 			atomic.AddInt64(&received, 1)
 		},
@@ -78,7 +80,7 @@ func TestMemoryBrokerWildcardStar(t *testing.T) {
 
 	require.NoError(t, err)
 
-	err = broker.Publish(ctx, "user.123.created", "data")
+	err = broker.Publish(ctx, "user.123.created", []byte("data"))
 
 	require.NoError(t, err)
 
@@ -100,12 +102,12 @@ func TestMemoryBrokerPublishDoesNotDeadlockWithSubscribeInHandler(t *testing.T) 
 	done := make(chan struct{})
 
 	_, err := broker.Subscribe(
-		ctx, "test.event", func(payload contract.EventPayload) {
+		ctx, "test.event", func(payload []byte) {
 			// This Subscribe call requires broker.mu.Lock().
 			// If Publish still holds broker.mu.RLock() during
 			// dispatch, this will deadlock.
 			_, _ = broker.Subscribe(
-				ctx, "other.event", func(payload contract.EventPayload) {},
+				ctx, "other.event", func(payload []byte) {},
 			)
 
 			close(done)
@@ -114,7 +116,7 @@ func TestMemoryBrokerPublishDoesNotDeadlockWithSubscribeInHandler(t *testing.T) 
 
 	require.NoError(t, err)
 
-	err = broker.Publish(ctx, "test.event", "data")
+	err = broker.Publish(ctx, "test.event", []byte("data"))
 	require.NoError(t, err)
 
 	select {
@@ -141,7 +143,7 @@ func TestMemoryBrokerWildcardHash(t *testing.T) {
 	wg.Add(3)
 
 	_, err := broker.Subscribe(
-		ctx, "logs.#", func(payload contract.EventPayload) {
+		ctx, "logs.#", func(payload []byte) {
 			defer wg.Done()
 			atomic.AddInt64(&received, 1)
 		},
@@ -149,13 +151,13 @@ func TestMemoryBrokerWildcardHash(t *testing.T) {
 
 	require.NoError(t, err)
 
-	err = broker.Publish(ctx, "logs", "data1")
+	err = broker.Publish(ctx, "logs", []byte("data1"))
 	require.NoError(t, err)
 
-	err = broker.Publish(ctx, "logs.error", "data2")
+	err = broker.Publish(ctx, "logs.error", []byte("data2"))
 	require.NoError(t, err)
 
-	err = broker.Publish(ctx, "logs.error.database", "data3")
+	err = broker.Publish(ctx, "logs.error.database", []byte("data3"))
 	require.NoError(t, err)
 
 	wg.Wait()
@@ -179,7 +181,7 @@ func TestMemoryBrokerExactMatch(t *testing.T) {
 	wg.Add(1)
 
 	_, err := broker.Subscribe(
-		ctx, "user.created", func(payload contract.EventPayload) {
+		ctx, "user.created", func(payload []byte) {
 			defer wg.Done()
 			atomic.AddInt64(&received, 1)
 		},
@@ -187,7 +189,7 @@ func TestMemoryBrokerExactMatch(t *testing.T) {
 
 	require.NoError(t, err)
 
-	err = broker.Publish(ctx, "user.created", "data")
+	err = broker.Publish(ctx, "user.created", []byte("data"))
 	require.NoError(t, err)
 
 	wg.Wait()
@@ -208,14 +210,14 @@ func TestMemoryBrokerNoMatchDoesNotDeliver(t *testing.T) {
 	var received int64
 
 	_, err := broker.Subscribe(
-		ctx, "user.created", func(payload contract.EventPayload) {
+		ctx, "user.created", func(payload []byte) {
 			atomic.AddInt64(&received, 1)
 		},
 	)
 
 	require.NoError(t, err)
 
-	err = broker.Publish(ctx, "order.created", "data")
+	err = broker.Publish(ctx, "order.created", []byte("data"))
 	require.NoError(t, err)
 
 	time.Sleep(50 * time.Millisecond)
@@ -236,7 +238,7 @@ func TestMemoryBrokerUnsubscribeStopsDelivery(t *testing.T) {
 	var received int64
 
 	unsub, err := broker.Subscribe(
-		ctx, "user.created", func(payload contract.EventPayload) {
+		ctx, "user.created", func(payload []byte) {
 			atomic.AddInt64(&received, 1)
 		},
 	)
@@ -246,7 +248,7 @@ func TestMemoryBrokerUnsubscribeStopsDelivery(t *testing.T) {
 	err = unsub()
 	require.NoError(t, err)
 
-	err = broker.Publish(ctx, "user.created", "data")
+	err = broker.Publish(ctx, "user.created", []byte("data"))
 	require.NoError(t, err)
 
 	time.Sleep(50 * time.Millisecond)
@@ -273,7 +275,7 @@ func TestMemoryBrokerMultipleSubscribers(t *testing.T) {
 		_, err := broker.Subscribe(
 			ctx,
 			"user.created",
-			func(payload contract.EventPayload) {
+			func(payload []byte) {
 				defer wg.Done()
 				atomic.AddInt64(&received, 1)
 			},
@@ -281,7 +283,7 @@ func TestMemoryBrokerMultipleSubscribers(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	err := broker.Publish(ctx, "user.created", "data")
+	err := broker.Publish(ctx, "user.created", []byte("data"))
 	require.NoError(t, err)
 
 	wg.Wait()
@@ -298,7 +300,7 @@ func TestMemoryBrokerPublishAfterCloseReturnsError(t *testing.T) {
 	err := broker.Close()
 	require.NoError(t, err)
 
-	err = broker.Publish(ctx, "user.created", "data")
+	err = broker.Publish(ctx, "user.created", []byte("data"))
 
 	require.ErrorIs(t, err, event.ErrBrokerClosed)
 }
@@ -315,7 +317,7 @@ func TestMemoryBrokerSubscribeAfterCloseReturnsError(t *testing.T) {
 	_, err = broker.Subscribe(
 		ctx,
 		"user.created",
-		func(payload contract.EventPayload) {},
+		func(payload []byte) {},
 	)
 
 	require.ErrorIs(t, err, event.ErrBrokerClosed)
@@ -336,7 +338,7 @@ func TestMemoryBrokerHandlerPanicDoesNotCrashBroker(t *testing.T) {
 	wg.Add(1)
 
 	_, err := broker.Subscribe(
-		ctx, "user.created", func(payload contract.EventPayload) {
+		ctx, "user.created", func(payload []byte) {
 			defer wg.Done()
 			panic("handler panic")
 		},
@@ -344,7 +346,7 @@ func TestMemoryBrokerHandlerPanicDoesNotCrashBroker(t *testing.T) {
 
 	require.NoError(t, err)
 
-	err = broker.Publish(ctx, "user.created", "data")
+	err = broker.Publish(ctx, "user.created", []byte("data"))
 	require.NoError(t, err)
 
 	wg.Wait()
@@ -362,7 +364,7 @@ func TestMemoryBrokerContextCancellationStopsPublish(t *testing.T) {
 		_ = broker.Close()
 	})
 
-	err := broker.Publish(ctx, "user.created", "data")
+	err := broker.Publish(ctx, "user.created", []byte("data"))
 
 	require.Error(t, err)
 }
@@ -388,17 +390,19 @@ func TestMemoryBrokerPayloadUnmarshal(t *testing.T) {
 	wg.Add(1)
 
 	_, err := broker.Subscribe(
-		ctx, "user.created", func(payload contract.EventPayload) {
+		ctx, "user.created", func(payload []byte) {
 			defer wg.Done()
 
-			_ = payload(&receivedUser)
+			_ = json.Unmarshal(payload, &receivedUser)
 		},
 	)
 
 	require.NoError(t, err)
 
+	userData, _ := json.Marshal(User{Name: "Alice", Age: 30})
+
 	err = broker.Publish(
-		ctx, "user.created", User{Name: "Alice", Age: 30},
+		ctx, "user.created", userData,
 	)
 
 	require.NoError(t, err)
@@ -409,7 +413,7 @@ func TestMemoryBrokerPayloadUnmarshal(t *testing.T) {
 	require.Equal(t, 30, receivedUser.Age)
 }
 
-func TestMemoryBrokerPublishInvalidPayloadReturnsError(t *testing.T) {
+func TestMemoryBrokerPublishNilPayloadSucceeds(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -419,9 +423,9 @@ func TestMemoryBrokerPublishInvalidPayloadReturnsError(t *testing.T) {
 		_ = broker.Close()
 	})
 
-	err := broker.Publish(ctx, "user.created", make(chan int))
+	err := broker.Publish(ctx, "user.created", nil)
 
-	require.Error(t, err)
+	require.NoError(t, err)
 }
 
 func TestMemoryBrokerCloseWaitsForInFlightDeliveries(t *testing.T) {
@@ -433,7 +437,7 @@ func TestMemoryBrokerCloseWaitsForInFlightDeliveries(t *testing.T) {
 	var completed atomic.Bool
 
 	_, err := broker.Subscribe(
-		ctx, "slow.event", func(payload contract.EventPayload) {
+		ctx, "slow.event", func(payload []byte) {
 			time.Sleep(100 * time.Millisecond)
 			completed.Store(true)
 		},
@@ -441,7 +445,7 @@ func TestMemoryBrokerCloseWaitsForInFlightDeliveries(t *testing.T) {
 
 	require.NoError(t, err)
 
-	err = broker.Publish(ctx, "slow.event", "data")
+	err = broker.Publish(ctx, "slow.event", []byte("data"))
 	require.NoError(t, err)
 
 	err = broker.Close()
@@ -459,7 +463,7 @@ func TestMemoryBrokerCloseClearsHandlers(t *testing.T) {
 	_, err := broker.Subscribe(
 		ctx,
 		"user.created",
-		func(payload contract.EventPayload) {},
+		func(payload []byte) {},
 	)
 
 	require.NoError(t, err)
@@ -467,7 +471,7 @@ func TestMemoryBrokerCloseClearsHandlers(t *testing.T) {
 	err = broker.Close()
 	require.NoError(t, err)
 
-	err = broker.Publish(ctx, "user.created", "data")
+	err = broker.Publish(ctx, "user.created", []byte("data"))
 
 	require.ErrorIs(t, err, event.ErrBrokerClosed)
 }
@@ -486,7 +490,7 @@ func TestMemoryBrokerUnsubscribeOneDoesNotAffectOther(t *testing.T) {
 	var wg sync.WaitGroup
 
 	unsub1, err := broker.Subscribe(
-		ctx, "user.created", func(payload contract.EventPayload) {
+		ctx, "user.created", func(payload []byte) {
 			atomic.AddInt64(&received, 1)
 		},
 	)
@@ -496,7 +500,7 @@ func TestMemoryBrokerUnsubscribeOneDoesNotAffectOther(t *testing.T) {
 	wg.Add(1)
 
 	_, err = broker.Subscribe(
-		ctx, "user.created", func(payload contract.EventPayload) {
+		ctx, "user.created", func(payload []byte) {
 			defer wg.Done()
 			atomic.AddInt64(&received, 1)
 		},
@@ -507,7 +511,7 @@ func TestMemoryBrokerUnsubscribeOneDoesNotAffectOther(t *testing.T) {
 	err = unsub1()
 	require.NoError(t, err)
 
-	err = broker.Publish(ctx, "user.created", "data")
+	err = broker.Publish(ctx, "user.created", []byte("data"))
 	require.NoError(t, err)
 
 	wg.Wait()
@@ -525,7 +529,7 @@ func TestMemoryBrokerPublishRejectsEmptyEvent(t *testing.T) {
 		_ = broker.Close()
 	})
 
-	err := broker.Publish(ctx, "", "data")
+	err := broker.Publish(ctx, "", []byte("data"))
 
 	require.Error(t, err)
 	require.ErrorIs(t, err, event.ErrInvalidEvent)
@@ -541,7 +545,7 @@ func TestMemoryBrokerPublishRejectsControlCharacters(t *testing.T) {
 		_ = broker.Close()
 	})
 
-	err := broker.Publish(ctx, "user.\tcreated", "data")
+	err := broker.Publish(ctx, "user.\tcreated", []byte("data"))
 
 	require.Error(t, err)
 	require.ErrorIs(t, err, event.ErrInvalidEvent)
@@ -559,7 +563,7 @@ func TestMemoryBrokerPublishRejectsTooLongEvent(t *testing.T) {
 
 	longEvent := strings.Repeat("a", 256)
 
-	err := broker.Publish(ctx, longEvent, "data")
+	err := broker.Publish(ctx, longEvent, []byte("data"))
 
 	require.Error(t, err)
 	require.ErrorIs(t, err, event.ErrInvalidEvent)
@@ -576,7 +580,7 @@ func TestMemoryBrokerSubscribeRejectsEmptyEvent(t *testing.T) {
 	})
 
 	unsub, err := broker.Subscribe(
-		ctx, "", func(payload contract.EventPayload) {},
+		ctx, "", func(payload []byte) {},
 	)
 
 	require.Nil(t, unsub)
@@ -594,7 +598,7 @@ func TestMemoryBrokerValidationErrorsWrapErrInvalidEvent(t *testing.T) {
 		_ = broker.Close()
 	})
 
-	err := broker.Publish(ctx, "", "data")
+	err := broker.Publish(ctx, "", []byte("data"))
 
 	require.Error(t, err)
 	require.True(t, errors.Is(err, event.ErrInvalidEvent))

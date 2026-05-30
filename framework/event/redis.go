@@ -2,7 +2,6 @@ package event
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -13,14 +12,9 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// RedisBroker implements contract.EventBus using Redis Pub/Sub.
+// RedisBroker implements [contract.EventDriver] using Redis Pub/Sub.
 // It maps the "#" multi-level wildcard to Redis's "*" glob pattern
 // for topic subscriptions.
-//
-// Wildcard patterns: '#' is translated to Redis glob '*' which matches
-// any characters including dots. Single-token matching ('*') is not
-// faithfully represented in Redis Pub/Sub and may match across token
-// boundaries.
 type RedisBroker struct {
 	client *redis.Client
 	wg     sync.WaitGroup
@@ -47,26 +41,17 @@ func NewRedisBrokerFrom(client *redis.Client) *RedisBroker {
 	}
 }
 
-// Publish serializes the payload as JSON and publishes it to the
-// given Redis channel.
-func (broker *RedisBroker) Publish(ctx context.Context, event string, payload any) error {
+// Publish sends raw payload bytes to the given Redis channel.
+func (broker *RedisBroker) Publish(ctx context.Context, event string, payload []byte) error {
 	if err := validateEvent(event); err != nil {
 		return err
 	}
 
-	encoded, err := json.Marshal(payload)
-
-	if err != nil {
-		return err
-	}
-
-	return broker.client.Publish(ctx, event, encoded).Err()
+	return broker.client.Publish(ctx, event, payload).Err()
 }
 
 // Subscribe registers a handler for messages matching the given
 // event pattern. The "#" wildcard is translated to Redis's "*" glob.
-// It returns an unsubscribe function that closes the subscription
-// and waits for the delivery goroutine to finish.
 func (broker *RedisBroker) Subscribe(
 	ctx context.Context,
 	event string,
@@ -92,9 +77,7 @@ func (broker *RedisBroker) Subscribe(
 					}
 				}()
 
-				handler(func(dest any) error {
-					return json.Unmarshal([]byte(message.Payload), dest)
-				})
+				handler([]byte(message.Payload))
 			}()
 		}
 	}()
