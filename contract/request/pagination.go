@@ -15,20 +15,8 @@ func Pagination(r *http.Request) (page, perPage int) {
 // defaults and maximum per-page limit. The page is floored at 1 and
 // the per-page is clamped between 1 and maxPerPage.
 func PaginationWith(r *http.Request, defaultPage, defaultPerPage, maxPerPage int) (page, perPage int) {
-	page = QueryIntOr(r, "page", defaultPage)
-	perPage = QueryIntOr(r, "per_page", defaultPerPage)
-
-	if page < 1 {
-		page = 1
-	}
-
-	if perPage < 1 {
-		perPage = 1
-	}
-
-	if perPage > maxPerPage {
-		perPage = maxPerPage
-	}
+	page = max(QueryIntOr(r, "page", defaultPage), 1)
+	perPage = min(max(QueryIntOr(r, "per_page", defaultPerPage), 1), maxPerPage)
 
 	return page, perPage
 }
@@ -47,15 +35,7 @@ func CursorPagination(r *http.Request) (cursor string, perPage int) {
 // between 1 and maxPerPage.
 func CursorPaginationWith(r *http.Request, defaultPerPage, maxPerPage int) (cursor string, perPage int) {
 	cursor = Query(r, "cursor")
-	perPage = QueryIntOr(r, "per_page", defaultPerPage)
-
-	if perPage < 1 {
-		perPage = 1
-	}
-
-	if perPage > maxPerPage {
-		perPage = maxPerPage
-	}
+	perPage = min(max(QueryIntOr(r, "per_page", defaultPerPage), 1), maxPerPage)
 
 	return cursor, perPage
 }
