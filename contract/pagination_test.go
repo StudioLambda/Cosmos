@@ -82,7 +82,9 @@ func TestNewCursorEncodesNextCursor(t *testing.T) {
 	t.Parallel()
 
 	items := []int{1, 2, 3}
-	cursor, err := contract.NewCursor(items, 3, true, false, func(item int) any { return item })
+	cursor, err := contract.NewCursor(items, 3, true, false, func(item int) (string, error) {
+		return contract.MarshalCursor(item)
+	})
 
 	require.NoError(t, err)
 	require.NotEmpty(t, cursor.NextCursor)
@@ -93,7 +95,9 @@ func TestNewCursorEncodesPrevCursor(t *testing.T) {
 	t.Parallel()
 
 	items := []int{1, 2, 3}
-	cursor, err := contract.NewCursor(items, 3, false, true, func(item int) any { return item })
+	cursor, err := contract.NewCursor(items, 3, false, true, func(item int) (string, error) {
+		return contract.MarshalCursor(item)
+	})
 
 	require.NoError(t, err)
 	require.Empty(t, cursor.NextCursor)
@@ -104,7 +108,9 @@ func TestNewCursorEncodesBothCursors(t *testing.T) {
 	t.Parallel()
 
 	items := []int{1, 2, 3}
-	cursor, err := contract.NewCursor(items, 3, true, true, func(item int) any { return item })
+	cursor, err := contract.NewCursor(items, 3, true, true, func(item int) (string, error) {
+		return contract.MarshalCursor(item)
+	})
 
 	require.NoError(t, err)
 	require.NotEmpty(t, cursor.NextCursor)
@@ -114,7 +120,9 @@ func TestNewCursorEncodesBothCursors(t *testing.T) {
 func TestNewCursorEmptyItemsNoCursors(t *testing.T) {
 	t.Parallel()
 
-	cursor, err := contract.NewCursor([]int{}, 10, true, true, func(item int) any { return item })
+	cursor, err := contract.NewCursor([]int{}, 10, true, true, func(item int) (string, error) {
+		return contract.MarshalCursor(item)
+	})
 
 	require.NoError(t, err)
 	require.Empty(t, cursor.NextCursor)
@@ -124,7 +132,9 @@ func TestNewCursorEmptyItemsNoCursors(t *testing.T) {
 func TestNewCursorNilItemsBecomesEmptySlice(t *testing.T) {
 	t.Parallel()
 
-	cursor, err := contract.NewCursor[int](nil, 10, false, false, func(item int) any { return item })
+	cursor, err := contract.NewCursor[int](nil, 10, false, false, func(item int) (string, error) {
+		return contract.MarshalCursor(item)
+	})
 
 	require.NoError(t, err)
 	require.NotNil(t, cursor.Items)
@@ -134,20 +144,19 @@ func TestNewCursorNilItemsBecomesEmptySlice(t *testing.T) {
 func TestNewCursorPreservesPerPage(t *testing.T) {
 	t.Parallel()
 
-	cursor, err := contract.NewCursor([]int{1}, 25, false, false, func(item int) any { return item })
+	cursor, err := contract.NewCursor([]int{1}, 25, false, false, func(item int) (string, error) {
+		return contract.MarshalCursor(item)
+	})
 
 	require.NoError(t, err)
 	require.Equal(t, 25, cursor.PerPage)
 }
 
-func TestNewCursorEncodeErrorReturnsErrCursorEncode(t *testing.T) {
+func TestNewCursorNextEncodeErrorReturnsErrCursorEncode(t *testing.T) {
 	t.Parallel()
 
-	items := []int{1}
-
-	// Channels cannot be JSON-encoded.
-	_, err := contract.NewCursor(items, 10, true, false, func(item int) any {
-		return make(chan int)
+	_, err := contract.NewCursor([]int{1}, 10, true, false, func(item int) (string, error) {
+		return "", errors.New("encode failed")
 	})
 
 	require.ErrorIs(t, err, contract.ErrCursorEncode)
@@ -156,150 +165,113 @@ func TestNewCursorEncodeErrorReturnsErrCursorEncode(t *testing.T) {
 func TestNewCursorPrevEncodeErrorReturnsErrCursorEncode(t *testing.T) {
 	t.Parallel()
 
-	items := []int{1}
-
-	_, err := contract.NewCursor(items, 10, false, true, func(item int) any {
-		return make(chan int)
+	_, err := contract.NewCursor([]int{1}, 10, false, true, func(item int) (string, error) {
+		return "", errors.New("encode failed")
 	})
 
 	require.ErrorIs(t, err, contract.ErrCursorEncode)
 }
 
-func TestCursorValueRoundTrip(t *testing.T) {
-	t.Parallel()
-
-	items := []int{10, 20, 30}
-	cursor, err := contract.NewCursor(items, 3, true, false, func(item int) any { return item })
-
-	require.NoError(t, err)
-
-	value, err := contract.CursorValue[float64](cursor.NextCursor)
-
-	require.NoError(t, err)
-	require.Equal(t, float64(30), value)
-}
-
-func TestCursorValueInvalidBase64ReturnsErrCursorDecode(t *testing.T) {
-	t.Parallel()
-
-	_, err := contract.CursorValue[int]("not-valid-base64!!!")
-
-	require.ErrorIs(t, err, contract.ErrCursorDecode)
-}
-
-func TestCursorValueTypeMismatchReturnsErrCursorDecode(t *testing.T) {
-	t.Parallel()
-
-	items := []string{"hello"}
-	cursor, err := contract.NewCursor(items, 1, true, false, func(item string) any { return item })
-
-	require.NoError(t, err)
-
-	_, err = contract.CursorValue[int](cursor.NextCursor)
-
-	require.ErrorIs(t, err, contract.ErrCursorDecode)
-}
-
-type failEncoder struct{}
-
-func (failEncoder) Encode(value any) (string, error) {
-	return "", errors.New("encode failed")
-}
-
-func (failEncoder) Decode(cursor string) (any, error) {
-	return nil, errors.New("decode failed")
-}
-
-type idEncoder struct{}
-
-func (idEncoder) Encode(value any) (string, error) {
-	return "custom-cursor", nil
-}
-
-func (idEncoder) Decode(cursor string) (any, error) {
-	return cursor, nil
-}
-
-func TestNewCursorWithCustomEncoder(t *testing.T) {
+func TestNewCursorCustomEncoder(t *testing.T) {
 	t.Parallel()
 
 	items := []int{1, 2, 3}
-	cursor, err := contract.NewCursorWith(items, 3, true, false, idEncoder{})
+	cursor, err := contract.NewCursor(items, 3, true, false, func(item int) (string, error) {
+		return "custom-cursor", nil
+	})
 
 	require.NoError(t, err)
 	require.Equal(t, "custom-cursor", cursor.NextCursor)
 }
 
-func TestNewCursorWithEncoderErrorReturnsErrCursorEncode(t *testing.T) {
+func TestMarshalUnmarshalCursorRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	items := []int{1}
-	_, err := contract.NewCursorWith(items, 1, true, false, failEncoder{})
-
-	require.ErrorIs(t, err, contract.ErrCursorEncode)
-}
-
-func TestNewCursorWithPrevEncoderErrorReturnsErrCursorEncode(t *testing.T) {
-	t.Parallel()
-
-	items := []int{1}
-	_, err := contract.NewCursorWith(items, 1, false, true, failEncoder{})
-
-	require.ErrorIs(t, err, contract.ErrCursorEncode)
-}
-
-func TestNewCursorWithEmptyItems(t *testing.T) {
-	t.Parallel()
-
-	cursor, err := contract.NewCursorWith([]int{}, 10, true, true, idEncoder{})
+	encoded, err := contract.MarshalCursor(42)
 
 	require.NoError(t, err)
-	require.Empty(t, cursor.NextCursor)
-	require.Empty(t, cursor.PrevCursor)
-}
 
-func TestNewCursorWithNilItemsBecomesEmptySlice(t *testing.T) {
-	t.Parallel()
-
-	cursor, err := contract.NewCursorWith[int](nil, 10, false, false, idEncoder{})
+	value, err := contract.UnmarshalCursor[int](encoded)
 
 	require.NoError(t, err)
-	require.NotNil(t, cursor.Items)
+	require.Equal(t, 42, value)
 }
 
-func TestNewCursorWithEncodesBothCursors(t *testing.T) {
+func TestMarshalCursorStringRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	items := []int{1, 2, 3}
-	cursor, err := contract.NewCursorWith(items, 3, true, true, idEncoder{})
+	encoded, err := contract.MarshalCursor("hello")
 
 	require.NoError(t, err)
-	require.Equal(t, "custom-cursor", cursor.NextCursor)
-	require.Equal(t, "custom-cursor", cursor.PrevCursor)
+
+	value, err := contract.UnmarshalCursor[string](encoded)
+
+	require.NoError(t, err)
+	require.Equal(t, "hello", value)
 }
 
-func TestCursorValueInvalidJSONReturnsErrCursorDecode(t *testing.T) {
+func TestMarshalCursorStructRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	type key struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+
+	original := key{ID: 7, Name: "test"}
+	encoded, err := contract.MarshalCursor(original)
+
+	require.NoError(t, err)
+
+	value, err := contract.UnmarshalCursor[key](encoded)
+
+	require.NoError(t, err)
+	require.Equal(t, original, value)
+}
+
+func TestMarshalCursorUnencodableReturnsError(t *testing.T) {
+	t.Parallel()
+
+	_, err := contract.MarshalCursor(make(chan int))
+
+	require.Error(t, err)
+}
+
+func TestUnmarshalCursorInvalidBase64ReturnsErrCursorDecode(t *testing.T) {
+	t.Parallel()
+
+	_, err := contract.UnmarshalCursor[int]("not-valid-base64!!!")
+
+	require.ErrorIs(t, err, contract.ErrCursorDecode)
+}
+
+func TestUnmarshalCursorInvalidJSONReturnsErrCursorDecode(t *testing.T) {
 	t.Parallel()
 
 	// Valid base64 but invalid JSON.
-	_, err := contract.CursorValue[int]("bm90LWpzb24")
+	_, err := contract.UnmarshalCursor[int]("bm90LWpzb24")
 
 	require.ErrorIs(t, err, contract.ErrCursorDecode)
 }
 
-func TestCursorValueWithCustomDecoder(t *testing.T) {
+func TestNewCursorWithMarshalCursorEndToEnd(t *testing.T) {
 	t.Parallel()
 
-	value, err := contract.CursorValueWith("test-cursor", idEncoder{})
+	type User struct {
+		ID   int
+		Name string
+	}
+
+	users := []User{{ID: 10, Name: "Alice"}, {ID: 20, Name: "Bob"}}
+
+	cursor, err := contract.NewCursor(users, 2, true, false, func(u User) (string, error) {
+		return contract.MarshalCursor(u.ID)
+	})
 
 	require.NoError(t, err)
-	require.Equal(t, "test-cursor", value)
-}
 
-func TestCursorValueWithDecoderErrorReturnsErrCursorDecode(t *testing.T) {
-	t.Parallel()
+	id, err := contract.UnmarshalCursor[int](cursor.NextCursor)
 
-	_, err := contract.CursorValueWith("anything", failEncoder{})
-
-	require.ErrorIs(t, err, contract.ErrCursorDecode)
+	require.NoError(t, err)
+	require.Equal(t, 20, id)
 }
