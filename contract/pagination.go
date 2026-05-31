@@ -29,10 +29,20 @@ type Cursor[T any] struct {
 	PrevCursor string `json:"prev_cursor,omitempty"`
 }
 
-// NewPage creates a new [Page] from the given items, total count,
+// Paginate creates a new [Page] from the given items, total count,
 // current page number, and items per page. It computes the last
 // page automatically. The current page is clamped to [1, LastPage].
-func NewPage[T any](items []T, total int64, page, perPage int) Page[T] {
+//
+//	page, perPage := request.Pagination(r)
+//
+//	var users []User
+//	db.Select(ctx, "SELECT * FROM users LIMIT $1 OFFSET $2", &users, perPage, (page-1)*perPage)
+//
+//	var total int64
+//	db.Find(ctx, "SELECT COUNT(*) FROM users", &total)
+//
+//	result := contract.Paginate(users, total, page, perPage)
+func Paginate[T any](items []T, total int64, page, perPage int) Page[T] {
 	perPage = max(perPage, 1)
 	lastPage := max(int((total+int64(perPage)-1)/int64(perPage)), 1)
 	page = min(max(page, 1), lastPage)
@@ -50,12 +60,31 @@ func NewPage[T any](items []T, total int64, page, perPage int) Page[T] {
 	}
 }
 
-// NewCursor creates a new [Cursor] from the given items. The encode
+// CursorPaginate creates a new [Cursor] from the given items. The encode
 // function determines how each item is transformed into an opaque
 // cursor string. When hasNext is true, the last item is encoded to
 // produce the next cursor. When hasPrev is true, the first item is
 // encoded to produce the previous cursor.
-func NewCursor[T any](items []T, perPage int, hasNext, hasPrev bool, encode func(T) (string, error)) (Cursor[T], error) {
+//
+//	cursor, perPage := request.CursorPagination(r)
+//
+//	var startID int64
+//	if cursor != "" {
+//		startID, _ = contract.CursorDecode[int64](cursor)
+//	}
+//
+//	var items []FeedItem
+//	db.Select(ctx, "SELECT * FROM feed WHERE id > $1 ORDER BY id LIMIT $2", &items, startID, perPage+1)
+//
+//	hasNext := len(items) > perPage
+//	if hasNext {
+//		items = items[:perPage]
+//	}
+//
+//	result, err := contract.CursorPaginate(items, perPage, hasNext, cursor != "", func(item FeedItem) (string, error) {
+//		return contract.CursorEncode(item.ID)
+//	})
+func CursorPaginate[T any](items []T, perPage int, hasNext, hasPrev bool, encode func(T) (string, error)) (Cursor[T], error) {
 	if items == nil {
 		items = []T{}
 	}
@@ -92,10 +121,12 @@ func NewCursor[T any](items []T, perPage int, hasNext, hasPrev bool, encode func
 	return result, nil
 }
 
-// MarshalCursor encodes a value into an opaque cursor string using
+// CursorEncode encodes a value into an opaque cursor string using
 // JSON serialization and base64url encoding. Use this as the encoding
-// helper inside the encode function passed to [NewCursor].
-func MarshalCursor[V any](value V) (string, error) {
+// helper inside the encode function passed to [CursorPaginate].
+//
+//	encoded, err := contract.CursorEncode(user.ID)
+func CursorEncode[V any](value V) (string, error) {
 	data, err := json.Marshal(value)
 
 	if err != nil {
@@ -105,9 +136,11 @@ func MarshalCursor[V any](value V) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(data), nil
 }
 
-// UnmarshalCursor decodes an opaque cursor string back into a typed
-// value. It reverses the encoding performed by [MarshalCursor].
-func UnmarshalCursor[V any](cursor string) (V, error) {
+// CursorDecode decodes an opaque cursor string back into a typed
+// value. It reverses the encoding performed by [CursorEncode].
+//
+//	id, err := contract.CursorDecode[int64](cursorString)
+func CursorDecode[V any](cursor string) (V, error) {
 	var value V
 
 	data, err := base64.RawURLEncoding.DecodeString(cursor)
