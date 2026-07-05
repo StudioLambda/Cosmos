@@ -19,10 +19,12 @@ type Container struct {
 var ContainerKey containerKey
 var ErrServiceNotFound = errors.New("service not found in container")
 var ErrInvalidConversion = errors.New("invalid conversion")
+var ErrCallableNotFunction = errors.New("callable must be a function")
+var ErrVariadicCallableNotSupported = errors.New("variadic functions are not supported")
 
 func NewContainer() *Container {
 	return &Container{
-		//
+		resolvers: make(map[string]Resolver[any]),
 	}
 }
 
@@ -47,27 +49,34 @@ func FromRequest(r *http.Request) (*Container, bool) {
 }
 
 func Key[T any]() string {
-	reflected := reflect.TypeFor[T]()
+	return keyFromType(reflect.TypeFor[T]())
+}
 
-	return reflected.PkgPath() + "." + reflected.Name()
+func keyFromType(reflected reflect.Type) string {
+	if reflected == nil {
+		return ""
+	}
+
+	if reflected.Name() != "" {
+		return reflected.PkgPath() + "." + reflected.Name()
+	}
+
+	switch reflected.Kind() {
+	case reflect.Pointer:
+		return "*" + keyFromType(reflected.Elem())
+	case reflect.Slice:
+		return "[]" + keyFromType(reflected.Elem())
+	case reflect.Array:
+		return fmt.Sprintf("[%d]%s", reflected.Len(), keyFromType(reflected.Elem()))
+	case reflect.Map:
+		return "map[" + keyFromType(reflected.Key()) + "]" + keyFromType(reflected.Elem())
+	default:
+		return reflected.String()
+	}
 }
 
 func (c *Container) Context(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ContainerKey, c)
-}
-
-func (c *Container) Call[T Func](callable T) {
-	switch t := callable.(type) {
-
-	}
-}
-
-func Foo() {
-	//
-}
-
-func Bar(a, b int, c string) {
-	//
 }
 
 func (c *Container) MustResolve[T any]() T {

@@ -1,5 +1,7 @@
 package container
 
+import "sync"
+
 type Resolver[T any] = func(c *Container) (T, error)
 
 func NewResolver[T any](r Resolver[T]) Resolver[any] {
@@ -15,19 +17,19 @@ func NewSingleton(v any) Resolver[any] {
 }
 
 func NewLazySingleton[T any](r Resolver[T]) Resolver[any] {
+	var once sync.Once
 	var singleton T
-	var resolved bool
+	var resolveErr error
 
 	return func(c *Container) (any, error) {
-		if !resolved {
-			v, err := r(c)
+		once.Do(func() {
+			singleton, resolveErr = r(c)
+		})
 
-			if err != nil {
-				return v, err
-			}
+		if resolveErr != nil {
+			var zero T
 
-			singleton = v
-			resolved = true
+			return zero, resolveErr
 		}
 
 		return singleton, nil
