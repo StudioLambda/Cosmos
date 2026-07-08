@@ -1,0 +1,38 @@
+name: Test Framework
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - .github/workflows/contract.yml
+      - contract/**
+  pull_request:
+    branches: ["main"]
+    paths:
+      - .github/workflows/contract.yml
+      - contract/**
+
+jobs:
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./contract
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "contract/go.mod"
+          cache-dependency-path: "contract/go.sum"
+
+      - name: Link local modules
+        run: go mod edit -replace github.com/studiolambda/cosmos/contract=../contract -replace github.com/studiolambda/cosmos/problem=../problem -replace github.com/studiolambda/cosmos/router=../router
+
+      - name: Download Dependencies
+        run: go mod download
+
+      - name: Test
+        run: go test -v ./...
