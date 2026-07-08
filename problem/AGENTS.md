@@ -28,6 +28,7 @@ Define problems as package variables with consistent Type URIs. Methods return n
 ## Common Patterns
 
 Define:
+
 ```go
 var ErrNotFound = problem.Problem{
     Type:   "https://api.example.com/errors/not-found",
@@ -37,16 +38,19 @@ var ErrNotFound = problem.Problem{
 ```
 
 Serve:
+
 ```go
 ErrNotFound.With("user_id", id).ServeHTTP(w, r)
 ```
 
-From error:
+From error (preferred pattern):
+
 ```go
-problem.NewProblem(err, http.StatusInternalServerError).ServeHTTP(w, r)
+ErrInternal.WithError(err).ServeHTTP(w, r)
 ```
 
 Stack traces:
+
 ```go
 problem.WithStackTrace().ServeHTTP(w, r)
 // or
@@ -54,6 +58,7 @@ problem.ServeHTTPDev(w, r)
 ```
 
 Remove data:
+
 ```go
 problem.Without("debug_info").WithoutError().ServeHTTP(w, r)
 ```

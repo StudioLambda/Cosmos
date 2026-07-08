@@ -2,7 +2,7 @@ package contract
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 )
 
 // EventHandler is a callback function invoked when a subscribed
@@ -12,6 +12,8 @@ type EventHandler = func(payload []byte)
 // EventUnsubscribeFunc is a function returned by subscription
 // that cancels the subscription when called.
 type EventUnsubscribeFunc = func() error
+
+type EventDecoder[T any] = func() (T, error)
 
 // EventDriver defines the contract for a publish/subscribe event
 // system backend. Drivers handle raw byte delivery; the [Events]
@@ -25,31 +27,50 @@ type EventDriver interface {
 	// subscription.
 	Subscribe(ctx context.Context, event string, handler EventHandler) (EventUnsubscribeFunc, error)
 
+	// Ping verifies that the connection is still alive.
+	Ping(ctx context.Context) error
+
 	// Close shuts down the event system and releases resources.
 	Close() error
 }
 
 // Events provides a type-safe event bus over an [EventDriver].
 // It handles JSON serialization of payloads and deserialization
-// in subscriber callbacks. When generic methods become available
-// in Go, Publish and Subscribe will accept typed values directly.
+// in subscriber callbacks.
 type Events struct {
 	driver EventDriver
 }
 
 // NewEvents creates a new [Events] that delegates to the given driver.
+//
+// Example:
+//
+//	events := contract.NewEvents(driver)
+//	defer events.Close()
 func NewEvents(driver EventDriver) *Events {
 	return &Events{driver: driver}
 }
 
 // Driver returns the underlying [EventDriver].
+//
+// Example:
+//
+//	events := contract.NewEvents(driver)
+//	raw := events.Driver()
+//	_ = raw
 func (events *Events) Driver() EventDriver {
 	return events.driver
 }
 
 // Publish JSON-encodes the payload and sends it to all subscribers
 // of the named event.
-func (events *Events) Publish(ctx context.Context, event string, payload any) error {
+//
+// Example:
+//
+//	if err := events.Publish(ctx, "users.created", UserCreated{ID: 1}); err != nil {
+//		return err
+//	}
+func (events *Events) Publish[T any](ctx context.Context, event string, payload T) error {
 	encoded, err := json.Marshal(payload)
 
 	if err != nil {
@@ -62,15 +83,39 @@ func (events *Events) Publish(ctx context.Context, event string, payload any) er
 // Subscribe registers a handler for the named event. The handler
 // receives a decode function that unmarshals the event payload into
 // a destination pointer. Returns a function to cancel the subscription.
-func (events *Events) Subscribe(ctx context.Context, event string, handler func(func(dest any) error)) (EventUnsubscribeFunc, error) {
+//
+// Example:
+//
+//	unsubscribe, err := events.Subscribe[UserCreated](ctx, "users.created", func(decode EventDecoder[UserCreated]) {
+//		msg, err := decode()
+//		if err != nil {
+//			return
+//		}
+//		_ = msg
+//	})
+//	if err != nil {
+//		return err
+//	}
+//	defer unsubscribe()
+func (events *Events) Subscribe[T any](ctx context.Context, event string, handler func(decode EventDecoder[T])) (EventUnsubscribeFunc, error) {
 	return events.driver.Subscribe(ctx, event, func(payload []byte) {
-		handler(func(dest any) error {
-			return json.Unmarshal(payload, dest)
+		handler(func() (res T, err error) {
+			if err := json.Unmarshal(payload, &res); err != nil {
+				return res, err
+			}
+
+			return res, nil
 		})
 	})
 }
 
 // Close shuts down the event system and releases resources.
+//
+// Example:
+//
+//	if err := events.Close(); err != nil {
+//		return err
+//	}
 func (events *Events) Close() error {
 	return events.driver.Close()
 }

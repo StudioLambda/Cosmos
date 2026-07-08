@@ -7,6 +7,8 @@ import (
 	"io"
 	"runtime"
 
+	"github.com/studiolambda/cosmos/contract"
+
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
@@ -66,7 +68,7 @@ func NewChaCha20(key []byte) (*ChaCha20, error) {
 // the ciphertext and authentication tag.
 func (encrypter *ChaCha20) Encrypt(value []byte) ([]byte, error) {
 	if encrypter.aead == nil {
-		return nil, ErrEncrypterClosed
+		return nil, contract.ErrEncrypterClosed
 	}
 
 	nonce := make([]byte, encrypter.aead.NonceSize())
@@ -83,7 +85,7 @@ func (encrypter *ChaCha20) Encrypt(value []byte) ([]byte, error) {
 // too short to contain a valid nonce.
 func (encrypter *ChaCha20) Decrypt(value []byte) ([]byte, error) {
 	if encrypter.aead == nil {
-		return nil, ErrEncrypterClosed
+		return nil, contract.ErrEncrypterClosed
 	}
 
 	nonceSize := encrypter.aead.NonceSize()
@@ -107,9 +109,11 @@ func (encrypter *ChaCha20) Decrypt(value []byte) ([]byte, error) {
 // AEAD state that cannot be zeroed from user code. This is a limitation
 // of the Go standard library. Nilling the AEAD allows the garbage
 // collector to reclaim the cipher state. After Close, any calls to
-// [ChaCha20.Encrypt] or [ChaCha20.Decrypt] return [ErrEncrypterClosed].
-func (encrypter *ChaCha20) Close() {
+// [ChaCha20.Encrypt] or [ChaCha20.Decrypt] return [contract.ErrEncrypterClosed].
+func (encrypter *ChaCha20) Close() error {
 	clear(encrypter.key)
 	encrypter.aead = nil
 	runtime.KeepAlive(&encrypter.key)
+
+	return nil
 }

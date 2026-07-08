@@ -14,7 +14,7 @@ Cosmos follows these core principles:
 
 ## Modules
 
-This monorepo contains four independently publishable Go modules:
+This monorepo contains six independently publishable Go modules:
 
 ### router
 
@@ -23,6 +23,7 @@ A generic HTTP router built on top of `http.ServeMux` with middleware support an
 **Module:** `github.com/studiolambda/cosmos/router`
 
 **Key Features:**
+
 - Built on Go's standard `http.ServeMux`
 - Generic over any `http.Handler` implementation
 - Hierarchical routers with middleware inheritance
@@ -36,6 +37,7 @@ A pure Go implementation of RFC 9457 (Problem Details for HTTP APIs) that works 
 **Module:** `github.com/studiolambda/cosmos/problem`
 
 **Key Features:**
+
 - RFC 9457 compliant problem details
 - Automatic content negotiation (JSON, Problem+JSON, text)
 - Stack trace support for development
@@ -49,6 +51,7 @@ A collection of common service interfaces (Cache, Database, Session, Crypto, Has
 **Module:** `github.com/studiolambda/cosmos/contract`
 
 **Key Features:**
+
 - Zero dependencies for maximum portability
 - Request helpers with typed integer parsing (`ParamInt`, `QueryInt`)
 - Size-limited body parsing (`LimitedJSON`, `StrictJSON`)
@@ -57,6 +60,34 @@ A collection of common service interfaces (Cache, Database, Session, Crypto, Has
 - Hooks system for middleware lifecycle events
 - Mock implementations via mockery
 
+### container
+
+A lightweight dependency injection container for registering typed resolvers, eager singletons, and lazy singletons. It integrates with `context.Context` and `*http.Request` so applications can attach a container to request-scoped work without coupling to a specific framework.
+
+**Module:** `github.com/studiolambda/cosmos/container`
+
+**Key Features:**
+
+- Generic typed resolution via `Resolve[T]`
+- Eager and lazy singleton registration
+- Context and request integration helpers
+- Zero external dependencies
+- Minimal API surface for composition roots
+
+### lifecycle
+
+A standalone lifecycle coordinator for long-lived services. It aggregates health checks, tracks critical dependencies, and shuts resources down in reverse registration order using structural interfaces or explicit callback functions.
+
+**Module:** `github.com/studiolambda/cosmos/lifecycle`
+
+**Key Features:**
+
+- Zero external dependencies in production code
+- Automatic `Ping(context.Context) error` health checks
+- Automatic `Shutdown(context.Context) error` and `Close() error` cleanup
+- Explicit overrides for custom health and shutdown logic
+- Readiness reporting for critical services
+
 ### framework
 
 A complete HTTP framework that orchestrates the router, problem, and contract modules. Provides error-returning handlers, middleware composition, and extensive utilities for building web applications.
@@ -64,6 +95,7 @@ A complete HTTP framework that orchestrates the router, problem, and contract mo
 **Module:** `github.com/studiolambda/cosmos/framework`
 
 **Key Features:**
+
 - Error-returning handler pattern
 - First-class middleware system (CORS, CSRF, rate limiting, secure headers, recovery, logging)
 - Secure HTTP server with timeout defaults
@@ -86,9 +118,11 @@ go get github.com/studiolambda/cosmos/framework
 go get github.com/studiolambda/cosmos/router
 go get github.com/studiolambda/cosmos/problem
 go get github.com/studiolambda/cosmos/contract
+go get github.com/studiolambda/cosmos/container
+go get github.com/studiolambda/cosmos/lifecycle
 ```
 
-Requires **Go 1.25** or later.
+Requires **Go 1.27** or later.
 
 ## Quick Start
 
@@ -197,11 +231,12 @@ cd contract && go generate ./...
 ### Module Dependencies
 
 ```
+container (standalone)
 contract (zero dependencies)
-    ↓
+lifecycle (standalone)
 problem (standalone)
 router (standalone)
-    ↓
+
 framework (depends on: router, problem, contract)
 ```
 
@@ -216,6 +251,7 @@ type Handler func(w http.ResponseWriter, r *http.Request) error
 ```
 
 This pattern enables:
+
 - Centralized error handling
 - Cleaner handler code
 - Consistent error formatting via Problem Details
@@ -243,6 +279,7 @@ The hooks system allows middleware to inject behavior at key points in the reque
 
 ```
 cosmos/
+├── container/         # Dependency injection container
 ├── contract/          # Service interfaces and helpers
 │   ├── request/       # Request helper functions
 │   ├── response/      # Response helper functions
@@ -253,8 +290,9 @@ cosmos/
 │   ├── database/      # SQL database wrapper
 │   ├── event/         # Event brokers (Memory, Redis, NATS, AMQP, MQTT)
 │   ├── hash/          # Password hashing (Argon2, Bcrypt)
-│   ├── middleware/     # HTTP middleware
+│   ├── middleware/    # HTTP middleware
 │   └── session/       # Session management
+├── lifecycle/         # Health and shutdown coordination
 ├── problem/           # RFC 9457 implementation
 │   └── internal/      # Internal utilities
 ├── router/            # HTTP router

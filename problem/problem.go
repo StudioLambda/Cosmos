@@ -1,7 +1,7 @@
 package problem
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"maps"
 	"net/http"
@@ -111,6 +111,12 @@ const StackTraceKey = "stack_trace"
 
 // NewProblem creates a new [Problem] from
 // the given error and status code.
+//
+// For application code, prefer defining reusable package-level
+// [Problem] templates (for example, var ErrUserNotFound = problem.Problem{...})
+// and deriving request-specific values with [Problem.WithError] and [Problem.With].
+// Use NewProblem mainly for adapter/integration boundaries where no reusable
+// template exists.
 func NewProblem(err error, status int) Problem {
 	return Problem{
 		err:    err,
@@ -122,6 +128,11 @@ func NewProblem(err error, status int) Problem {
 //
 // Use [Problem.With] to add additional values.
 // Use [Problem.Without] to remove additional values.
+//
+// Example:
+//
+//	v, ok := ErrValidation.With("field", "email").Additional("field")
+//	_, _ = v, ok
 func (problem Problem) Additional(key string) (any, bool) {
 	additional, ok := problem.additional[key]
 
@@ -131,6 +142,11 @@ func (problem Problem) Additional(key string) (any, bool) {
 // With returns a new [Problem] with an additional value set for the given key.
 // The original [Problem] is not modified (copy-on-write).
 // Use [Problem.Without] to remove additional values.
+//
+// Example:
+//
+//	p := ErrValidation.With("resource_id", 42)
+//	_ = p
 func (problem Problem) With(key string, value any) Problem {
 	if problem.additional == nil {
 		problem.additional = map[string]any{key: value}
@@ -146,6 +162,11 @@ func (problem Problem) With(key string, value any) Problem {
 
 // WithError returns a new [Problem] with the given error
 // set as the underlying cause.
+//
+// Example:
+//
+//	p := ErrUserNotFound.WithError(err)
+//	_ = p
 func (problem Problem) WithError(err error) Problem {
 	problem.err = err
 
@@ -161,6 +182,11 @@ func (problem Problem) WithoutError() Problem {
 }
 
 // Without returns a new [Problem] with the additional value for the given key removed.
+//
+// Example:
+//
+//	p := ErrValidation.With("field", "email")
+//	p = p.Without("field")
 func (problem Problem) Without(key string) Problem {
 	if problem.additional == nil {
 		return problem
@@ -201,6 +227,11 @@ func (problem Problem) Unwrap() error {
 // using the current problem. It's important to first
 // setup the problem's error with either [NewProblem] or
 // by using [Problem.WithError] before calling this method.
+//
+// Example:
+//
+//	p := ErrInternal.WithError(err).WithStackTrace()
+//	_ = p
 func (problem Problem) WithStackTrace() Problem {
 	traces := problem.Errors()
 	messages := make([]string, len(traces))
@@ -276,6 +307,11 @@ func (problem *Problem) UnmarshalJSON(data []byte) error {
 // Defaulted returns a new [Problem] with zero-value fields filled with sensible
 // defaults: Type defaults to "about:blank", Status to 500, Title to
 // [http.StatusText] of the status, and Instance to the request URL path.
+//
+// Example:
+//
+//	resolved := p.Defaulted(r)
+//	_ = resolved
 func (problem Problem) Defaulted(request *http.Request) Problem {
 	if problem.Type == "" {
 		problem.Type = "about:blank"
@@ -324,7 +360,9 @@ func (problem Problem) jsonHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(problem.Status)
 
-	_ = json.NewEncoder(w).Encode(problem)
+	if encoded, err := json.Marshal(problem); err == nil {
+		_, _ = w.Write(append(encoded, '\n'))
+	}
 }
 
 // jsonProblemHandler writes the problem as an application/problem+json
@@ -333,7 +371,9 @@ func (problem Problem) jsonProblemHandler(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(problem.Status)
 
-	_ = json.NewEncoder(w).Encode(problem)
+	if encoded, err := json.Marshal(problem); err == nil {
+		_, _ = w.Write(append(encoded, '\n'))
+	}
 }
 
 // ServeHTTPDev serves the problem as an HTTP response with the full
@@ -344,6 +384,10 @@ func (problem Problem) jsonProblemHandler(w http.ResponseWriter, r *http.Request
 // full error stack traces to clients, which can reveal internal
 // implementation details, file paths, and sensitive debugging
 // information to attackers.
+//
+// Example:
+//
+//	ErrInternal.WithError(err).ServeHTTPDev(w, r)
 func (problem Problem) ServeHTTPDev(w http.ResponseWriter, r *http.Request) {
 	problem.WithStackTrace().ServeHTTP(w, r)
 }
@@ -351,6 +395,10 @@ func (problem Problem) ServeHTTPDev(w http.ResponseWriter, r *http.Request) {
 // ServeHTTP writes the problem as an HTTP response using content
 // negotiation. It supports application/problem+json, application/json,
 // and falls back to plain text.
+//
+// Example:
+//
+//	problem.Problem{Status: http.StatusNotFound, Title: "Not Found"}.ServeHTTP(w, r)
 func (problem Problem) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	problem = problem.Defaulted(r)
 	responses := map[string]http.Handler{
@@ -377,6 +425,11 @@ func (problem Problem) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // HTTPStatus returns the HTTP status code of the problem.
 // This is useful for error handlers that need to extract the
 // status code from the problem.
+//
+// Example:
+//
+//	status := errProblem.HTTPStatus()
+//	_ = status
 func (problem Problem) HTTPStatus() int {
 	return problem.Status
 }

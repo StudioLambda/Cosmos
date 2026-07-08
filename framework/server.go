@@ -36,6 +36,11 @@ type ServerOptions struct {
 // DefaultServerOptions returns the default server options with secure
 // timeout values. Each call returns a fresh copy, preventing
 // accidental mutation of shared defaults.
+//
+// Example:
+//
+//	opts := framework.DefaultServerOptions()
+//	opts.Addr = ":9090"
 func DefaultServerOptions() ServerOptions {
 	return ServerOptions{
 		Addr:              ":8080",
@@ -80,6 +85,14 @@ func (options ServerOptions) withDefaults() ServerOptions {
 // values, protecting against Slowloris and connection-exhaustion
 // attacks that are possible when using [http.ListenAndServe]
 // directly (which sets all timeouts to zero/infinite).
+//
+// Example:
+//
+//	app := framework.New()
+//	server := framework.NewServer(":8080", app)
+//	if err := server.ListenAndServe(); err != nil {
+//		return err
+//	}
 func NewServer(addr string, handler http.Handler) *http.Server {
 	opts := DefaultServerOptions()
 	opts.Addr = addr
@@ -90,6 +103,11 @@ func NewServer(addr string, handler http.Handler) *http.Server {
 // NewServerWith creates an [http.Server] with the provided
 // options and handler. Zero-valued timeout fields are replaced
 // with their secure defaults from [DefaultServerOptions].
+//
+// Example:
+//
+//	server := framework.NewServerWith(framework.ServerOptions{Addr: ":8443"}, app)
+//	_ = server
 func NewServerWith(opts ServerOptions, handler http.Handler) *http.Server {
 	opts = opts.withDefaults()
 

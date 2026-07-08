@@ -9,6 +9,13 @@ import (
 // CorrelationID retrieves the correlation ID from the request
 // context. Returns an empty string if no correlation ID middleware
 // was applied to the request.
+//
+// Example:
+//
+//	id := request.CorrelationID(r)
+//	if id != "" {
+//		logger.Info("request received", "correlation_id", id)
+//	}
 func CorrelationID(r *http.Request) string {
 	id, _ := r.Context().Value(contract.CorrelationIDKey).(string)
 

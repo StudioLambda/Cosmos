@@ -3,6 +3,7 @@ package crypto_test
 import (
 	"testing"
 
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework/crypto"
 
 	"github.com/stretchr/testify/require"
@@ -242,7 +243,7 @@ func TestAESEncryptAfterCloseReturnsError(t *testing.T) {
 
 	_, err = encrypter.Encrypt([]byte("Hello, World!"))
 
-	require.ErrorIs(t, err, crypto.ErrEncrypterClosed)
+	require.ErrorIs(t, err, contract.ErrEncrypterClosed)
 }
 
 func TestAESDecryptAfterCloseReturnsError(t *testing.T) {
@@ -257,7 +258,7 @@ func TestAESDecryptAfterCloseReturnsError(t *testing.T) {
 
 	_, err = encrypter.Decrypt([]byte("some ciphertext that is long enough"))
 
-	require.ErrorIs(t, err, crypto.ErrEncrypterClosed)
+	require.ErrorIs(t, err, contract.ErrEncrypterClosed)
 }
 
 func TestAESCloseNilsAEAD(t *testing.T) {
@@ -271,8 +272,8 @@ func TestAESCloseNilsAEAD(t *testing.T) {
 	encrypter.Close()
 
 	// After Close, the internal AEAD is nil, so Encrypt must fail
-	// with ErrEncrypterClosed rather than panicking.
+	// with contract.ErrEncrypterClosed rather than panicking.
 	_, err = encrypter.Encrypt([]byte("test"))
 
-	require.ErrorIs(t, err, crypto.ErrEncrypterClosed)
+	require.ErrorIs(t, err, contract.ErrEncrypterClosed)
 }

@@ -1,7 +1,7 @@
 package response_test
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"encoding/xml"
 	htmltemplate "html/template"
 	"net/http"
@@ -443,7 +443,7 @@ func TestErrUnsafeRedirectMessage(t *testing.T) {
 
 	require.Equal(
 		t,
-		"unsafe redirect URL: must be a relative path",
+		"unsafe redirect URL",
 		response.ErrUnsafeRedirect.Error(),
 	)
 }

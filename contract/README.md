@@ -42,6 +42,7 @@ type Cache interface {
 ```
 
 **Standard Errors:**
+
 - `ErrCacheKeyNotFound`: Key does not exist in cache
 - `ErrCacheUnsupportedOperation`: Operation not supported by backend
 
@@ -64,6 +65,7 @@ type Database interface {
 ```
 
 **Standard Errors:**
+
 - `ErrDatabaseNoRows`: No rows found
 - `ErrDatabaseNestedTransaction`: Nested transaction attempted
 
@@ -101,11 +103,14 @@ type SessionDriver interface {
 Encryption interface for authenticated encryption.
 
 ```go
-type Crypto interface {
-    Encrypt(ctx context.Context, plaintext []byte) ([]byte, error)
-    Decrypt(ctx context.Context, ciphertext []byte) ([]byte, error)
+type Encrypter interface {
+    Encrypt(value []byte) ([]byte, error)
+    Decrypt(value []byte) ([]byte, error)
+    Close() error
 }
 ```
+
+Sentinel error: `ErrEncrypterClosed`.
 
 ### Hash
 
@@ -287,17 +292,17 @@ Configuration is in `.mockery.yml`.
 func fetchUserData(ctx context.Context, cache contract.Cache, userID string) (*User, error) {
     // Try to get from cache
     key := fmt.Sprintf("user:%s", userID)
-    
+
     // Use Remember pattern for lazy-loading
     data, err := cache.Remember(ctx, key, 1*time.Hour, func() (any, error) {
         // Fetch from database if not cached
         return fetchUserFromDB(userID)
     })
-    
+
     if err != nil {
         return nil, err
     }
-    
+
     return data.(*User), nil
 }
 ```
@@ -307,19 +312,19 @@ func fetchUserData(ctx context.Context, cache contract.Cache, userID string) (*U
 ```go
 func createUser(ctx context.Context, db contract.Database, user *User) error {
     query := `INSERT INTO users (name, email) VALUES ($1, $2)`
-    
+
     _, err := db.Exec(ctx, query, user.Name, user.Email)
     return err
 }
 
 func getUserByEmail(ctx context.Context, db contract.Database, email string) (*User, error) {
     query := `SELECT id, name, email FROM users WHERE email = $1`
-    
+
     var user User
     if err := db.Find(ctx, query, &user, email); err != nil {
         return nil, err
     }
-    
+
     return &user, nil
 }
 ```
@@ -329,21 +334,21 @@ func getUserByEmail(ctx context.Context, db contract.Database, email string) (*U
 ```go
 func login(w http.ResponseWriter, r *http.Request) error {
     session := request.Session(r)
-    
+
     // Authenticate user
     user, err := authenticateUser(r)
     if err != nil {
         return err
     }
-    
+
     // Store user ID in session
     session.Put("user_id", user.ID)
-    
+
     // Regenerate session to prevent fixation
     if err := session.Regenerate(); err != nil {
         return err
     }
-    
+
     return response.JSON(w, http.StatusOK, user)
 }
 ```

@@ -40,6 +40,12 @@ type WrappedResponseWriter interface {
 // the given hooks on write operations. If the underlying writer
 // implements http.Flusher, the returned value also satisfies
 // http.Flusher via ResponseWriterFlusher.
+//
+// Example:
+//
+//	hooks := framework.NewHooks()
+//	wrapped := framework.NewResponseWriter(w, hooks)
+//	_ = wrapped
 func NewResponseWriter(writer http.ResponseWriter, hooks *Hooks) WrappedResponseWriter {
 	wrapped := &ResponseWriter{
 		ResponseWriter: writer,
@@ -59,6 +65,12 @@ func NewResponseWriter(writer http.ResponseWriter, hooks *Hooks) WrappedResponse
 // WriteHeaderCalled reports whether WriteHeader has already
 // been invoked on this writer. Useful for middleware that
 // needs to conditionally set a default status code.
+//
+// Example:
+//
+//	if !wrapped.WriteHeaderCalled() {
+//		wrapped.WriteHeader(http.StatusNoContent)
+//	}
 func (writer *ResponseWriter) WriteHeaderCalled() bool {
 	return writer.writeHeaderCalled.Load()
 }

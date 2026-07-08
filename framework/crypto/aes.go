@@ -7,6 +7,8 @@ import (
 	"errors"
 	"io"
 	"runtime"
+
+	"github.com/studiolambda/cosmos/contract"
 )
 
 // AES implements contract.Encrypter using AES-GCM (Galois/Counter
@@ -77,7 +79,7 @@ func NewAES(key []byte) (*AES, error) {
 // ciphertext and authentication tag.
 func (encrypter *AES) Encrypt(value []byte) ([]byte, error) {
 	if encrypter.gcm == nil {
-		return nil, ErrEncrypterClosed
+		return nil, contract.ErrEncrypterClosed
 	}
 
 	nonce := make([]byte, encrypter.gcm.NonceSize())
@@ -96,7 +98,7 @@ func (encrypter *AES) Encrypt(value []byte) ([]byte, error) {
 // too short to contain a valid nonce.
 func (encrypter *AES) Decrypt(value []byte) ([]byte, error) {
 	if encrypter.gcm == nil {
-		return nil, ErrEncrypterClosed
+		return nil, contract.ErrEncrypterClosed
 	}
 
 	nonceSize := encrypter.gcm.NonceSize()
@@ -122,9 +124,11 @@ func (encrypter *AES) Decrypt(value []byte) ([]byte, error) {
 // AEAD state that cannot be zeroed from user code. This is a limitation
 // of the Go standard library. Nilling the AEAD allows the garbage
 // collector to reclaim the cipher state. After Close, any calls to
-// [AES.Encrypt] or [AES.Decrypt] return [ErrEncrypterClosed].
-func (encrypter *AES) Close() {
+// [AES.Encrypt] or [AES.Decrypt] return [contract.ErrEncrypterClosed].
+func (encrypter *AES) Close() error {
 	clear(encrypter.key)
 	encrypter.gcm = nil
 	runtime.KeepAlive(&encrypter.key)
+
+	return nil
 }

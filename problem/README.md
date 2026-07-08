@@ -38,7 +38,7 @@ var (
         Detail: "The requested resource does not exist",
         Status: http.StatusNotFound,
     }
-    
+
     ErrUnauthorized = problem.Problem{
         Title:  "Unauthorized",
         Detail: "Authentication is required to access this resource",
@@ -78,8 +78,8 @@ When serving, missing fields are automatically filled:
 - `Type`: Defaults to "about:blank"
 - `Title`: Defaults to HTTP status text (e.g., "Not Found")
 - `Status`: Defaults to 500 Internal Server Error
-- `Instance`: Defaults to request URL
-- `Detail`: If error is wrapped, defaults to error message
+- `Instance`: Defaults to request URL path
+- `Detail`: Not auto-populated (set explicitly when needed)
 
 ## Basic Usage
 
@@ -92,13 +92,13 @@ var (
         Detail: "The requested resource does not exist",
         Status: http.StatusNotFound,
     }
-    
+
     ErrBadRequest = problem.Problem{
         Title:  "Invalid Request",
         Detail: "The request contains invalid data",
         Status: http.StatusBadRequest,
     }
-    
+
     ErrForbidden = problem.Problem{
         Title:  "Access Denied",
         Detail: "You do not have permission to access this resource",
@@ -116,13 +116,18 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-### Create from Error
+### Attach Runtime Error to a Reusable Template
 
 ```go
+var ErrInternal = problem.Problem{
+    Type:   "https://api.example.com/errors/internal",
+    Title:  "Internal Server Error",
+    Status: http.StatusInternalServerError,
+}
+
 err := someOperation()
 if err != nil {
-    problem := problem.NewProblem(err, http.StatusInternalServerError)
-    problem.ServeHTTP(w, r)
+    ErrInternal.WithError(err).ServeHTTP(w, r)
 }
 ```
 
@@ -140,15 +145,16 @@ ErrNotFound.
 ```
 
 JSON output:
+
 ```json
 {
-    "type": "about:blank",
-    "title": "Resource Not Found",
-    "detail": "The requested resource does not exist",
-    "status": 404,
-    "instance": "/api/users/123",
-    "resource_id": "123",
-    "resource_type": "user"
+  "type": "about:blank",
+  "title": "Resource Not Found",
+  "detail": "The requested resource does not exist",
+  "status": 404,
+  "instance": "/api/users/123",
+  "resource_id": "123",
+  "resource_type": "user"
 }
 ```
 
@@ -176,29 +182,31 @@ func handler(w http.ResponseWriter, r *http.Request) {
         problem := ErrInternalError.
             WithError(err).
             WithStackTrace()
-        
+
         problem.ServeHTTP(w, r)
     }
 }
 ```
 
 Development mode shortcut:
+
 ```go
 problem.ServeHTTPDev(w, r) // Automatically adds stack trace
 ```
 
 JSON output with stack trace:
+
 ```json
 {
-    "type": "about:blank",
-    "title": "Internal Server Error",
-    "detail": "database connection failed",
-    "status": 500,
-    "instance": "/api/users",
-    "stack_trace": [
-        "database connection failed",
-        "connection timeout: context deadline exceeded"
-    ]
+  "type": "about:blank",
+  "title": "Internal Server Error",
+  "detail": "database connection failed",
+  "status": 500,
+  "instance": "/api/users",
+  "stack_trace": [
+    "database connection failed",
+    "connection timeout: context deadline exceeded"
+  ]
 }
 ```
 
@@ -226,13 +234,14 @@ curl -H "Accept: application/json" http://localhost:8080/api/users/123
 ```
 
 Response:
+
 ```json
 {
-    "type": "about:blank",
-    "title": "Resource Not Found",
-    "detail": "The requested resource does not exist",
-    "status": 404,
-    "instance": "/api/users/123"
+  "type": "about:blank",
+  "title": "Resource Not Found",
+  "detail": "The requested resource does not exist",
+  "status": 404,
+  "instance": "/api/users/123"
 }
 ```
 
@@ -251,6 +260,7 @@ curl http://localhost:8080/api/users/123
 ```
 
 Response:
+
 ```
 404 Resource Not Found
 
@@ -264,11 +274,12 @@ The requested resource does not exist
 Problem implements Go's error interface:
 
 ```go
-var err error = problem.Problem{
+var ErrInternal = problem.Problem{
     Title:  "Something went wrong",
     Status: http.StatusInternalServerError,
 }
 
+var err error = ErrInternal
 fmt.Println(err.Error()) // "500 internal server error: something went wrong"
 ```
 
@@ -305,10 +316,15 @@ func (e CustomError) HTTPStatus() int {
     return http.StatusTeapot // 418
 }
 
-// When wrapped in Problem, status code is preserved
+// Attach runtime errors to reusable template values
+var ErrInternal = problem.Problem{
+    Title:  "Internal Server Error",
+    Status: http.StatusInternalServerError,
+}
+
 err := CustomError{message: "I'm a teapot"}
-problem := problem.NewProblem(err, http.StatusInternalServerError)
-problem.HTTPStatus() // Returns 418
+p := ErrInternal.WithError(err)
+p.HTTPStatus() // Returns 418
 ```
 
 ## JSON Serialization
@@ -333,14 +349,14 @@ err = json.Unmarshal(data, &restored)
 http.HandleFunc("/api/users/{id}", func(w http.ResponseWriter, r *http.Request) {
     id := r.PathValue("id")
     user, err := getUser(id)
-    
+
     if err != nil {
         ErrNotFound.
             With("user_id", id).
             ServeHTTP(w, r)
         return
     }
-    
+
     json.NewEncoder(w).Encode(user)
 })
 ```
@@ -353,12 +369,12 @@ import "github.com/studiolambda/cosmos/framework"
 func getUser(w http.ResponseWriter, r *http.Request) error {
     id := request.Param(r, "id")
     user, err := fetchUser(id)
-    
+
     if err != nil {
         // Return problem as error
         return ErrNotFound.With("user_id", id)
     }
-    
+
     return response.JSON(w, http.StatusOK, user)
 }
 
@@ -369,16 +385,19 @@ app.Get("/users/{id}", getUser)
 ### Middleware Error Handler
 
 ```go
+var ErrInternal = problem.Problem{
+    Title:  "Internal Server Error",
+    Status: http.StatusInternalServerError,
+}
+
 func errorHandler(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         defer func() {
             if err := recover(); err != nil {
-                problem := problem.Problem{
-                    Title:  "Internal Server Error",
-                    Detail: fmt.Sprintf("panic: %v", err),
-                    Status: http.StatusInternalServerError,
-                }
-                problem.WithStackTrace().ServeHTTP(w, r)
+                ErrInternal.
+                    With("panic", fmt.Sprint(err)).
+                    WithStackTrace().
+                    ServeHTTP(w, r)
             }
         }()
         next.ServeHTTP(w, r)
@@ -388,7 +407,7 @@ func errorHandler(next http.Handler) http.Handler {
 
 ## Best Practices
 
-1. **Define Problems as Variables**: Reuse problem definitions across handlers
+1. **Define Problems as Package-Level Variables (SHOULD)**: Treat `problem.Problem` values as top-level reusable error templates (for example `var ErrUserNotFound = problem.Problem{...}`) and derive request-specific values with `WithError` / `With`.
 2. **Use Appropriate Status Codes**: Match HTTP status with problem severity
 3. **Add Context**: Use `With()` to add relevant metadata
 4. **Stack Traces in Dev Only**: Only enable in development/staging
@@ -413,7 +432,7 @@ var (
         Title:  "Resource Not Found",
         Status: http.StatusNotFound,
     }
-    
+
     ErrValidation = problem.Problem{
         Type:   "https://api.example.com/errors/validation",
         Title:  "Validation Failed",
@@ -423,7 +442,7 @@ var (
 
 func getUser(w http.ResponseWriter, r *http.Request) {
     id := r.PathValue("id")
-    
+
     if id == "" {
         ErrValidation.
             With("field", "id").
@@ -431,7 +450,7 @@ func getUser(w http.ResponseWriter, r *http.Request) {
             ServeHTTP(w, r)
         return
     }
-    
+
     user, err := fetchUser(id)
     if errors.Is(err, sql.ErrNoRows) {
         ErrNotFound.
@@ -439,14 +458,15 @@ func getUser(w http.ResponseWriter, r *http.Request) {
             ServeHTTP(w, r)
         return
     }
-    
+
     if err != nil {
-        problem.NewProblem(err, http.StatusInternalServerError).
+        ErrInternal.
+            WithError(err).
             WithStackTrace().
             ServeHTTP(w, r)
         return
     }
-    
+
     // Success response
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(user)

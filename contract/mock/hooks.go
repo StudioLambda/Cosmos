@@ -54,9 +54,9 @@ type HooksMock_AfterResponse_Call struct {
 
 // AfterResponse is a helper method to define mock.On call
 //   - callbacks ...contract.AfterResponseHook
-func (_e *HooksMock_Expecter) AfterResponse(callbacks ...interface{}) *HooksMock_AfterResponse_Call {
+func (_e *HooksMock_Expecter) AfterResponse(callbacks ...any) *HooksMock_AfterResponse_Call {
 	return &HooksMock_AfterResponse_Call{Call: _e.mock.On("AfterResponse",
-		append([]interface{}{}, callbacks...)...)}
+		append([]any{}, callbacks...)...)}
 }
 
 func (_c *HooksMock_AfterResponse_Call) Run(run func(callbacks ...contract.AfterResponseHook)) *HooksMock_AfterResponse_Call {
@@ -148,9 +148,9 @@ type HooksMock_BeforeWrite_Call struct {
 
 // BeforeWrite is a helper method to define mock.On call
 //   - callbacks ...contract.BeforeWriteHook
-func (_e *HooksMock_Expecter) BeforeWrite(callbacks ...interface{}) *HooksMock_BeforeWrite_Call {
+func (_e *HooksMock_Expecter) BeforeWrite(callbacks ...any) *HooksMock_BeforeWrite_Call {
 	return &HooksMock_BeforeWrite_Call{Call: _e.mock.On("BeforeWrite",
-		append([]interface{}{}, callbacks...)...)}
+		append([]any{}, callbacks...)...)}
 }
 
 func (_c *HooksMock_BeforeWrite_Call) Run(run func(callbacks ...contract.BeforeWriteHook)) *HooksMock_BeforeWrite_Call {
@@ -242,9 +242,9 @@ type HooksMock_BeforeWriteHeader_Call struct {
 
 // BeforeWriteHeader is a helper method to define mock.On call
 //   - callbacks ...contract.BeforeWriteHeaderHook
-func (_e *HooksMock_Expecter) BeforeWriteHeader(callbacks ...interface{}) *HooksMock_BeforeWriteHeader_Call {
+func (_e *HooksMock_Expecter) BeforeWriteHeader(callbacks ...any) *HooksMock_BeforeWriteHeader_Call {
 	return &HooksMock_BeforeWriteHeader_Call{Call: _e.mock.On("BeforeWriteHeader",
-		append([]interface{}{}, callbacks...)...)}
+		append([]any{}, callbacks...)...)}
 }
 
 func (_c *HooksMock_BeforeWriteHeader_Call) Run(run func(callbacks ...contract.BeforeWriteHeaderHook)) *HooksMock_BeforeWriteHeader_Call {

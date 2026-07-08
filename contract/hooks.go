@@ -9,6 +9,11 @@ type hooksKey struct{}
 // HooksKey is the context key used to store and retrieve
 // the [Hooks] instance from a request's context. Middleware
 // should set this value so handlers can access lifecycle hooks.
+//
+// Example:
+//
+//	ctx := context.WithValue(r.Context(), contract.HooksKey, hooks)
+//	r = r.WithContext(ctx)
 var HooksKey = hooksKey{}
 
 // AfterResponseHook is a callback invoked after the full HTTP response

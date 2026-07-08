@@ -63,7 +63,7 @@ type SessionDriverMock_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id string
-func (_e *SessionDriverMock_Expecter) Delete(ctx interface{}, id interface{}) *SessionDriverMock_Delete_Call {
+func (_e *SessionDriverMock_Expecter) Delete(ctx any, id any) *SessionDriverMock_Delete_Call {
 	return &SessionDriverMock_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
 }
 
@@ -131,7 +131,7 @@ type SessionDriverMock_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id string
-func (_e *SessionDriverMock_Expecter) Get(ctx interface{}, id interface{}) *SessionDriverMock_Get_Call {
+func (_e *SessionDriverMock_Expecter) Get(ctx any, id any) *SessionDriverMock_Get_Call {
 	return &SessionDriverMock_Get_Call{Call: _e.mock.On("Get", ctx, id)}
 }
 
@@ -189,7 +189,7 @@ type SessionDriverMock_Save_Call struct {
 //   - ctx context.Context
 //   - session *contract.Session
 //   - ttl time.Duration
-func (_e *SessionDriverMock_Expecter) Save(ctx interface{}, session interface{}, ttl interface{}) *SessionDriverMock_Save_Call {
+func (_e *SessionDriverMock_Expecter) Save(ctx any, session any, ttl any) *SessionDriverMock_Save_Call {
 	return &SessionDriverMock_Save_Call{Call: _e.mock.On("Save", ctx, session, ttl)}
 }
 

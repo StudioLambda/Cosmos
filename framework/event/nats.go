@@ -281,6 +281,21 @@ func (broker *NATSBroker) Subscribe(
 	}, nil
 }
 
+// Ping verifies that the NATS connection is still alive.
+func (broker *NATSBroker) Ping(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, nats.DefaultTimeout)
+		defer cancel()
+	}
+
+	return broker.conn.FlushWithContext(ctx)
+}
+
 // Close gracefully shuts down the NATS connection.
 // It drains all pending messages before closing, ensuring no messages are
 // lost.

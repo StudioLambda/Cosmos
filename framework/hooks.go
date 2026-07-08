@@ -23,6 +23,13 @@ type Hooks struct {
 
 // NewHooks creates a Hooks instance with empty callback slices
 // ready to accept registrations via the Before* and After* methods.
+//
+// Example:
+//
+//	hooks := framework.NewHooks()
+//	hooks.AfterResponse(func(err error) {
+//		_ = err
+//	})
 func NewHooks() *Hooks {
 	return &Hooks{
 		beforeWriteHeaderHooks: []contract.BeforeWriteHeaderHook{},
@@ -34,6 +41,13 @@ func NewHooks() *Hooks {
 // BeforeWriteHeader registers one or more callbacks that will be
 // invoked just before the response status code is written. This
 // is the last opportunity to inspect or modify headers.
+//
+// Example:
+//
+//	hooks.BeforeWriteHeader(func(w http.ResponseWriter, status int) {
+//		_ = status
+//		w.Header().Set("X-App", "cosmos")
+//	})
 func (hooks *Hooks) BeforeWriteHeader(callbacks ...contract.BeforeWriteHeaderHook) {
 	hooks.mutex.Lock()
 	defer hooks.mutex.Unlock()
@@ -57,6 +71,13 @@ func (hooks *Hooks) BeforeWriteHeaderFuncs() []contract.BeforeWriteHeaderHook {
 // BeforeWrite registers one or more callbacks that will be
 // invoked just before the response body bytes are written.
 // This is useful for logging, metrics, or content transformation.
+//
+// Example:
+//
+//	hooks.BeforeWrite(func(w http.ResponseWriter, content []byte) {
+//		_ = w
+//		_ = len(content)
+//	})
 func (hooks *Hooks) BeforeWrite(callbacks ...contract.BeforeWriteHook) {
 	hooks.mutex.Lock()
 	defer hooks.mutex.Unlock()
@@ -81,6 +102,14 @@ func (hooks *Hooks) BeforeWriteFuncs() []contract.BeforeWriteHook {
 // invoked after the handler has completed and all response data
 // has been written. The callback receives the handler's error
 // (or nil if the handler succeeded).
+//
+// Example:
+//
+//	hooks.AfterResponse(func(err error) {
+//		if err != nil {
+//			logger.Error("request failed", "error", err)
+//		}
+//	})
 func (hooks *Hooks) AfterResponse(callbacks ...contract.AfterResponseHook) {
 	hooks.mutex.Lock()
 	defer hooks.mutex.Unlock()
