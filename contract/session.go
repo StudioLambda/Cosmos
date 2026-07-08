@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"maps"
 	"sync"
 	"time"
 )
@@ -106,9 +107,7 @@ func (session *Session) All() map[string]any {
 
 	result := make(map[string]any, len(session.storage))
 
-	for k, v := range session.storage {
-		result[k] = v
-	}
+	maps.Copy(result, session.storage)
 
 	return result
 }
