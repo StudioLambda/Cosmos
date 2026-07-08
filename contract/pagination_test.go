@@ -60,7 +60,7 @@ func TestPaginateZeroTotalSetsLastPageOne(t *testing.T) {
 func TestPaginateNilItemsBecomesEmptySlice(t *testing.T) {
 	t.Parallel()
 
-	page := contract.Paginate[string](nil, 0, 1, 10)
+	page := contract.Paginate[[]string](nil, 0, 1, 10)
 
 	require.NotNil(t, page.Items)
 	require.Empty(t, page.Items)
@@ -132,7 +132,7 @@ func TestCursorPaginateEmptyItemsNoCursors(t *testing.T) {
 func TestCursorPaginateNilItemsBecomesEmptySlice(t *testing.T) {
 	t.Parallel()
 
-	cursor, err := contract.CursorPaginate[int](nil, 10, false, false, func(item int) (string, error) {
+	cursor, err := contract.CursorPaginate[[]int](nil, 10, false, false, func(item int) (string, error) {
 		return contract.CursorEncode(item)
 	})
 
@@ -184,7 +184,7 @@ func TestCursorPaginateCustomEncoder(t *testing.T) {
 	require.Equal(t, "custom-cursor", cursor.NextCursor)
 }
 
-func TestCursorEncodeDecoderRoundTrip(t *testing.T) {
+func TestCursorEncodeDecodeRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	encoded, err := contract.CursorEncode(42)
@@ -254,7 +254,7 @@ func TestCursorDecodeInvalidJSONReturnsErrCursorDecode(t *testing.T) {
 	require.ErrorIs(t, err, contract.ErrCursorDecode)
 }
 
-func TestCursorPaginateWithMarshalCursorEndToEnd(t *testing.T) {
+func TestCursorPaginateEncodeDecodeEndToEnd(t *testing.T) {
 	t.Parallel()
 
 	type User struct {

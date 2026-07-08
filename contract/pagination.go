@@ -42,13 +42,13 @@ type Cursor[T any] struct {
 //	db.Find(ctx, "SELECT COUNT(*) FROM users", &total)
 //
 //	result := contract.Paginate(users, total, page, perPage)
-func Paginate[T any](items []T, total int64, page, perPage int) Page[T] {
+func Paginate[S ~[]T, T any](items S, total int64, page, perPage int) Page[T] {
 	perPage = max(perPage, 1)
 	lastPage := max(int((total+int64(perPage)-1)/int64(perPage)), 1)
 	page = min(max(page, 1), lastPage)
 
 	if items == nil {
-		items = []T{}
+		items = S{}
 	}
 
 	return Page[T]{
@@ -84,9 +84,9 @@ func Paginate[T any](items []T, total int64, page, perPage int) Page[T] {
 //	result, err := contract.CursorPaginate(items, perPage, hasNext, cursor != "", func(item FeedItem) (string, error) {
 //		return contract.CursorEncode(item.ID)
 //	})
-func CursorPaginate[T any](items []T, perPage int, hasNext, hasPrev bool, encode func(T) (string, error)) (Cursor[T], error) {
+func CursorPaginate[S ~[]T, T any](items S, perPage int, hasNext, hasPrev bool, encode func(T) (string, error)) (Cursor[T], error) {
 	if items == nil {
-		items = []T{}
+		items = S{}
 	}
 
 	result := Cursor[T]{
