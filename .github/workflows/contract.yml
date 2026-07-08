@@ -1,4 +1,4 @@
-name: Test Framework
+name: Test Contract
 
 on:
   push:
@@ -25,6 +25,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
+          go-version: 1.27rc2 # temp, remove when done.
           go-version-file: "contract/go.mod"
           cache-dependency-path: "contract/go.sum"
 
