@@ -1,34 +1,62 @@
 package collection
 
 import (
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"iter"
 	"slices"
 )
 
-type LazyCollection[T any] struct {
-	seq iter.Seq[T]
+// LazyCollection is a lazily-evaluated collection backed by an [iter.Seq].
+// Being a function type, it can be used directly in a for-range loop:
+//
+//	for v := range lazyCollection { ... }
+type LazyCollection[T any] func(yield func(T) bool)
+
+// NewLazy creates a new [LazyCollection] from the given iterator function.
+func NewLazy[T any](f func(yield func(T) bool)) LazyCollection[T] {
+	return LazyCollection[T](f)
 }
 
-func NewLazy[T any](seq iter.Seq[T]) *LazyCollection[T] {
-	return &LazyCollection[T]{
-		seq: seq,
-	}
+// Collection materializes the lazy collection into an eager [Collection].
+func (lazyCollection LazyCollection[T]) Collection() Collection[T] {
+	return New(lazyCollection.Slice())
 }
 
-func (c *LazyCollection[T]) Slice() []T {
-	return slices.Collect(c.seq)
+// Slice materializes all items from the iterator into a slice.
+func (lazyCollection LazyCollection[T]) Slice() []T {
+	return slices.Collect(iter.Seq[T](lazyCollection))
 }
 
-func (c *LazyCollection[T]) IsEmpty() bool {
-	for range c.seq {
+// IsEmpty reports whether the iterator yields no items.
+func (lazyCollection LazyCollection[T]) IsEmpty() bool {
+	for range lazyCollection {
 		return false
 	}
 
 	return true
 }
 
-func (c *LazyCollection[T]) Every(f func(T) bool) bool {
-	for v := range c.seq {
+// IsNotEmpty reports whether the iterator yields at least one item.
+func (lazyCollection LazyCollection[T]) IsNotEmpty() bool {
+	return !lazyCollection.IsEmpty()
+}
+
+// Len returns the total number of items yielded by the iterator.
+// It fully consumes the sequence.
+func (lazyCollection LazyCollection[T]) Len() int {
+	count := 0
+
+	for range lazyCollection {
+		count++
+	}
+
+	return count
+}
+
+// Every reports whether f returns true for every item yielded by the iterator.
+func (lazyCollection LazyCollection[T]) Every(f func(T) bool) bool {
+	for v := range lazyCollection {
 		if !f(v) {
 			return false
 		}
@@ -37,15 +65,17 @@ func (c *LazyCollection[T]) Every(f func(T) bool) bool {
 	return true
 }
 
-func (c *LazyCollection[T]) Each(f func(T)) {
-	for v := range c.seq {
+// Each calls f for every item yielded by the iterator.
+func (lazyCollection LazyCollection[T]) Each(f func(T)) {
+	for v := range lazyCollection {
 		f(v)
 	}
 }
 
-func (c *LazyCollection[T]) TapEach(f func(T)) *LazyCollection[T] {
+// TapEach returns a lazy collection that calls f on each item as it is consumed.
+func (lazyCollection LazyCollection[T]) TapEach(f func(T)) LazyCollection[T] {
 	return NewLazy(func(yield func(T) bool) {
-		for v := range c.seq {
+		for v := range lazyCollection {
 			f(v)
 
 			if !yield(v) {
@@ -55,9 +85,10 @@ func (c *LazyCollection[T]) TapEach(f func(T)) *LazyCollection[T] {
 	})
 }
 
-func (c *LazyCollection[T]) Filter(f func(T) bool) *LazyCollection[T] {
+// Filter returns a lazy collection containing only items for which f returns true.
+func (lazyCollection LazyCollection[T]) Filter(f func(T) bool) LazyCollection[T] {
 	return NewLazy(func(yield func(T) bool) {
-		for v := range c.seq {
+		for v := range lazyCollection {
 			if f(v) {
 				if !yield(v) {
 					return
@@ -67,9 +98,15 @@ func (c *LazyCollection[T]) Filter(f func(T) bool) *LazyCollection[T] {
 	})
 }
 
-func (c *LazyCollection[T]) Map[K any](f func(T) K) *LazyCollection[K] {
+// Reject returns a lazy collection containing only items for which f returns false.
+func (lazyCollection LazyCollection[T]) Reject(f func(T) bool) LazyCollection[T] {
+	return lazyCollection.Filter(func(v T) bool { return !f(v) })
+}
+
+// Map transforms each item using f and returns a new lazy collection of type K.
+func (lazyCollection LazyCollection[T]) Map[K any](f func(T) K) LazyCollection[K] {
 	return NewLazy(func(yield func(K) bool) {
-		for v := range c.seq {
+		for v := range lazyCollection {
 			if !yield(f(v)) {
 				return
 			}
@@ -77,19 +114,49 @@ func (c *LazyCollection[T]) Map[K any](f func(T) K) *LazyCollection[K] {
 	})
 }
 
-func (c *LazyCollection[T]) FirstWhere(f func(T) bool) (T, bool) {
-	for v := range c.seq {
+// FirstWhere returns the first item for which f returns true, along with a boolean
+// indicating whether such an item was found.
+func (lazyCollection LazyCollection[T]) FirstWhere(f func(T) bool) (result T, ok bool) {
+	for v := range lazyCollection {
 		if f(v) {
 			return v, true
 		}
 	}
 
-	var zero T
-
-	return zero, false
+	return result, false
 }
 
-func (c *LazyCollection[T]) Take(limit int) *LazyCollection[T] {
+// First returns the first item yielded by the iterator, along with a boolean
+// indicating whether the iterator was non-empty.
+func (lazyCollection LazyCollection[T]) First() (result T, ok bool) {
+	for v := range lazyCollection {
+		return v, true
+	}
+
+	return result, false
+}
+
+// Last returns the last item yielded by the iterator, along with a boolean
+// indicating whether the iterator was non-empty.
+// It fully consumes the sequence.
+func (lazyCollection LazyCollection[T]) Last() (result T, ok bool) {
+	for v := range lazyCollection {
+		result = v
+		ok = true
+	}
+
+	return result, ok
+}
+
+// Contains reports whether any item yielded by the iterator satisfies f.
+func (lazyCollection LazyCollection[T]) Contains(f func(T) bool) bool {
+	_, found := lazyCollection.FirstWhere(f)
+
+	return found
+}
+
+// Take returns a lazy collection that yields at most limit items.
+func (lazyCollection LazyCollection[T]) Take(limit int) LazyCollection[T] {
 	return NewLazy(func(yield func(T) bool) {
 		if limit <= 0 {
 			return
@@ -97,7 +164,7 @@ func (c *LazyCollection[T]) Take(limit int) *LazyCollection[T] {
 
 		count := 0
 
-		for v := range c.seq {
+		for v := range lazyCollection {
 			if !yield(v) {
 				return
 			}
@@ -111,7 +178,63 @@ func (c *LazyCollection[T]) Take(limit int) *LazyCollection[T] {
 	})
 }
 
-func (c *LazyCollection[T]) Chunk(size int) iter.Seq[[]T] {
+// Skip returns a lazy collection that skips the first n items.
+func (lazyCollection LazyCollection[T]) Skip(n int) LazyCollection[T] {
+	return NewLazy(func(yield func(T) bool) {
+		skipped := 0
+
+		for v := range lazyCollection {
+			if skipped < n {
+				skipped++
+
+				continue
+			}
+
+			if !yield(v) {
+				return
+			}
+		}
+	})
+}
+
+// TakeWhile returns a lazy collection that yields items until f first returns false.
+func (lazyCollection LazyCollection[T]) TakeWhile(f func(T) bool) LazyCollection[T] {
+	return NewLazy(func(yield func(T) bool) {
+		for v := range lazyCollection {
+			if !f(v) {
+				return
+			}
+
+			if !yield(v) {
+				return
+			}
+		}
+	})
+}
+
+// SkipWhile returns a lazy collection that skips items until f first returns false,
+// then yields all remaining items.
+func (lazyCollection LazyCollection[T]) SkipWhile(f func(T) bool) LazyCollection[T] {
+	return NewLazy(func(yield func(T) bool) {
+		skipping := true
+
+		for v := range lazyCollection {
+			if skipping && f(v) {
+				continue
+			}
+
+			skipping = false
+
+			if !yield(v) {
+				return
+			}
+		}
+	})
+}
+
+// Chunk returns an iterator over consecutive slices of the given size.
+// It panics if size is less than or equal to zero.
+func (lazyCollection LazyCollection[T]) Chunk(size int) iter.Seq[[]T] {
 	if size <= 0 {
 		panic("chunk size must be greater than zero")
 	}
@@ -119,7 +242,7 @@ func (c *LazyCollection[T]) Chunk(size int) iter.Seq[[]T] {
 	return func(yield func([]T) bool) {
 		var chunk []T
 
-		for v := range c.seq {
+		for v := range lazyCollection {
 			chunk = append(chunk, v)
 
 			if len(chunk) == size {
@@ -137,18 +260,226 @@ func (c *LazyCollection[T]) Chunk(size int) iter.Seq[[]T] {
 	}
 }
 
-func (c *LazyCollection[T]) Reduce[K any](f func(K, T) K, initial K) K {
+// Sliding returns an iterator over overlapping windows of the given size,
+// advancing by step items between each window. The step defaults to one if
+// not provided. Each yielded slice is a fresh copy.
+// It panics if size or step is less than or equal to zero.
+func (lazyCollection LazyCollection[T]) Sliding(size int, step ...int) iter.Seq[[]T] {
+	if size <= 0 {
+		panic("sliding window size must be greater than zero")
+	}
+
+	s := 1
+	if len(step) > 0 {
+		s = step[0]
+	}
+
+	if s <= 0 {
+		panic("sliding window step must be greater than zero")
+	}
+
+	return func(yield func([]T) bool) {
+		window := make([]T, 0, size)
+
+		for v := range lazyCollection {
+			window = append(window, v)
+
+			if len(window) == size {
+				if !yield(slices.Clone(window)) {
+					return
+				}
+
+				window = window[s:]
+			}
+		}
+	}
+}
+
+// Reduce reduces the lazy collection to a single value of type K by applying f
+// to each item starting from initial.
+func (lazyCollection LazyCollection[T]) Reduce[K any](f func(K, T) K, initial K) K {
 	acc := initial
 
-	for v := range c.seq {
+	for v := range lazyCollection {
 		acc = f(acc, v)
 	}
 
 	return acc
 }
 
-func (c *LazyCollection[T]) Contains(f func(T) bool) bool {
-	_, found := c.FirstWhere(f)
+// Reverse materializes the iterator and returns a new lazy collection with
+// items in reversed order.
+func (lazyCollection LazyCollection[T]) Reverse() LazyCollection[T] {
+	return NewLazy(func(yield func(T) bool) {
+		items := slices.Collect(iter.Seq[T](lazyCollection))
+		slices.Reverse(items)
 
-	return found
+		for _, v := range items {
+			if !yield(v) {
+				return
+			}
+		}
+	})
+}
+
+// Sort materializes the iterator, sorts items using the given comparison function,
+// and returns a new lazy collection over the sorted items.
+func (lazyCollection LazyCollection[T]) Sort(cmp func(T, T) int) LazyCollection[T] {
+	return NewLazy(func(yield func(T) bool) {
+		items := slices.Collect(iter.Seq[T](lazyCollection))
+		slices.SortFunc(items, cmp)
+
+		for _, v := range items {
+			if !yield(v) {
+				return
+			}
+		}
+	})
+}
+
+// Unique returns a lazy collection containing only the first occurrence of each
+// item, as determined by the key function.
+func (lazyCollection LazyCollection[T]) Unique[K comparable](key func(T) K) LazyCollection[T] {
+	return NewLazy(func(yield func(T) bool) {
+		seen := make(map[K]struct{})
+
+		for v := range lazyCollection {
+			k := key(v)
+
+			if _, exists := seen[k]; !exists {
+				seen[k] = struct{}{}
+
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	})
+}
+
+// Partition splits the iterator into two lazy collections: the first contains
+// items for which f returns true, the second contains the rest.
+// It fully consumes the sequence to allow both results to be independently iterated.
+func (lazyCollection LazyCollection[T]) Partition(f func(T) bool) (LazyCollection[T], LazyCollection[T]) {
+	var matching, rest []T
+
+	for v := range lazyCollection {
+		if f(v) {
+			matching = append(matching, v)
+		} else {
+			rest = append(rest, v)
+		}
+	}
+
+	return NewLazy(slices.Values(matching)), NewLazy(slices.Values(rest))
+}
+
+// Concat returns a lazy collection that yields all items from this collection
+// followed by all items from other.
+func (lazyCollection LazyCollection[T]) Concat(other LazyCollection[T]) LazyCollection[T] {
+	return NewLazy(func(yield func(T) bool) {
+		for v := range lazyCollection {
+			if !yield(v) {
+				return
+			}
+		}
+
+		for v := range other {
+			if !yield(v) {
+				return
+			}
+		}
+	})
+}
+
+// GroupBy groups all items by the key returned by the key function, returning a
+// map of sub-collections. It fully consumes the sequence.
+func (lazyCollection LazyCollection[T]) GroupBy[K comparable](key func(T) K) map[K]Collection[T] {
+	grouped := make(map[K][]T)
+
+	for v := range lazyCollection {
+		k := key(v)
+		grouped[k] = append(grouped[k], v)
+	}
+
+	result := make(map[K]Collection[T], len(grouped))
+
+	for k, items := range grouped {
+		result[k] = New(items)
+	}
+
+	return result
+}
+
+// Nth returns a lazy collection consisting of every nth item, starting at the
+// given offset. The offset defaults to zero if not provided.
+// It panics if n is less than or equal to zero.
+func (lazyCollection LazyCollection[T]) Nth(n int, offset ...int) LazyCollection[T] {
+	if n <= 0 {
+		panic("nth step must be greater than zero")
+	}
+
+	start := 0
+	if len(offset) > 0 {
+		start = offset[0]
+	}
+
+	return NewLazy(func(yield func(T) bool) {
+		i := 0
+
+		for v := range lazyCollection {
+			if i >= start && (i-start)%n == 0 {
+				if !yield(v) {
+					return
+				}
+			}
+
+			i++
+		}
+	})
+}
+
+// ForPage returns a lazy collection containing the items for the given
+// one-indexed page number and page size.
+func (lazyCollection LazyCollection[T]) ForPage(page, perPage int) LazyCollection[T] {
+	return lazyCollection.Skip((page - 1) * perPage).Take(perPage)
+}
+
+// MarshalJSONTo materializes the iterator and encodes it as a JSON array into enc.
+func (lazyCollection LazyCollection[T]) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return json.MarshalEncode(enc, lazyCollection.Slice())
+}
+
+// UnmarshalJSONFrom decodes a JSON array from dec into the lazy collection,
+// backed by the resulting slice.
+func (lazyCollection *LazyCollection[T]) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var items []T
+
+	if err := json.UnmarshalDecode(dec, &items); err != nil {
+		return err
+	}
+
+	*lazyCollection = NewLazy(slices.Values(items))
+
+	return nil
+}
+
+// MarshalJSON implements [encoding/json.Marshaler] for v1 compatibility.
+// When used with [encoding/json/v2], [LazyCollection.MarshalJSONTo] takes precedence.
+func (lazyCollection LazyCollection[T]) MarshalJSON() ([]byte, error) {
+	return json.Marshal(lazyCollection.Slice())
+}
+
+// UnmarshalJSON implements [encoding/json.Unmarshaler] for v1 compatibility.
+// When used with [encoding/json/v2], [LazyCollection.UnmarshalJSONFrom] takes precedence.
+func (lazyCollection *LazyCollection[T]) UnmarshalJSON(data []byte) error {
+	var items []T
+
+	if err := json.Unmarshal(data, &items); err != nil {
+		return err
+	}
+
+	*lazyCollection = NewLazy(slices.Values(items))
+
+	return nil
 }

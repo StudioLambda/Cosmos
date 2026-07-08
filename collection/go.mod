@@ -1,3 +1,3 @@
 module github.com/studiolambda/cosmos/collection
 
-go 1.27rc1
+go 1.27
