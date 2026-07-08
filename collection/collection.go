@@ -25,8 +25,8 @@ func (collection Collection[T]) Iter() iter.Seq[T] {
 	return slices.Values(collection.items)
 }
 
-// Lazy returns a [LazyCollection] backed by the items in the collection.
-func (collection Collection[T]) Lazy() LazyCollection[T] {
+// Lazy returns a [Lazy] backed by the items in the collection.
+func (collection Collection[T]) Lazy() Lazy[T] {
 	return NewLazy(slices.Values(collection.items))
 }
 
