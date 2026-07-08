@@ -11,24 +11,12 @@ import (
 	"github.com/studiolambda/cosmos/contract/request"
 )
 
-// stubHooks is a minimal implementation of contract.Hooks for testing.
-type stubHooks struct{}
-
-func (stubHooks) AfterResponse(...contract.AfterResponseHook)         {}
-func (stubHooks) AfterResponseFuncs() []contract.AfterResponseHook    { return nil }
-func (stubHooks) BeforeWrite(...contract.BeforeWriteHook)             {}
-func (stubHooks) BeforeWriteFuncs() []contract.BeforeWriteHook        { return nil }
-func (stubHooks) BeforeWriteHeader(...contract.BeforeWriteHeaderHook) {}
-func (stubHooks) BeforeWriteHeaderFuncs() []contract.BeforeWriteHeaderHook {
-	return nil
-}
-
 func TestHooksReturnsHooksFromContext(t *testing.T) {
 	t.Parallel()
 
-	hooks := stubHooks{}
+	hooks := contract.NewHooks()
 	ctx := context.WithValue(
-		context.Background(), contract.HooksKey, contract.Hooks(hooks),
+		context.Background(), contract.HooksKey, hooks,
 	)
 	r := httptest.NewRequest(
 		http.MethodGet, "/", nil,
@@ -65,9 +53,9 @@ func TestHooksPanicsWithErrNoHooksMiddleware(t *testing.T) {
 func TestTryHooksReturnsTrueWhenPresent(t *testing.T) {
 	t.Parallel()
 
-	hooks := stubHooks{}
+	hooks := contract.NewHooks()
 	ctx := context.WithValue(
-		context.Background(), contract.HooksKey, contract.Hooks(hooks),
+		context.Background(), contract.HooksKey, hooks,
 	)
 	r := httptest.NewRequest(
 		http.MethodGet, "/", nil,

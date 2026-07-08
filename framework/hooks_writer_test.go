@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework"
 
 	"github.com/stretchr/testify/require"
@@ -27,7 +28,7 @@ func (writer *flusherWriter) Flush() {
 func TestNewResponseWriterNonFlusher(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	wrapped := framework.NewResponseWriter(&plainWriter{rec}, hooks)
 
@@ -39,7 +40,7 @@ func TestNewResponseWriterNonFlusher(t *testing.T) {
 func TestNewResponseWriterFlusher(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	wrapped := framework.NewResponseWriter(
 		&flusherWriter{ResponseWriter: rec},
@@ -56,7 +57,7 @@ func TestNewResponseWriterFlusher(t *testing.T) {
 func TestWriteHeaderCalledInitiallyFalse(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	wrapped := framework.NewResponseWriter(rec, hooks)
 
@@ -66,7 +67,7 @@ func TestWriteHeaderCalledInitiallyFalse(t *testing.T) {
 func TestWriteHeaderSetsCalledFlag(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	wrapped := framework.NewResponseWriter(rec, hooks)
 
@@ -78,7 +79,7 @@ func TestWriteHeaderSetsCalledFlag(t *testing.T) {
 func TestWriteHeaderFiresBeforeWriteHeaderHooks(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	wrapped := framework.NewResponseWriter(rec, hooks)
 
@@ -99,7 +100,7 @@ func TestWriteHeaderFiresBeforeWriteHeaderHooks(t *testing.T) {
 func TestWriteHeaderSecondCallIsNoop(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	wrapped := framework.NewResponseWriter(rec, hooks)
 
@@ -121,7 +122,7 @@ func TestWriteHeaderSecondCallIsNoop(t *testing.T) {
 func TestWriteFiresBeforeWriteHooks(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	wrapped := framework.NewResponseWriter(rec, hooks)
 
@@ -145,7 +146,7 @@ func TestWriteFiresBeforeWriteHooks(t *testing.T) {
 func TestWriteAutoCallsWriteHeaderWith200(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	wrapped := framework.NewResponseWriter(rec, hooks)
 
@@ -159,7 +160,7 @@ func TestWriteAutoCallsWriteHeaderWith200(t *testing.T) {
 func TestWriteAfterWriteHeaderDoesNotCallAgain(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	wrapped := framework.NewResponseWriter(rec, hooks)
 
@@ -183,7 +184,7 @@ func TestWriteAfterWriteHeaderDoesNotCallAgain(t *testing.T) {
 func TestBeforeWriteHeaderHookPanicIsRecovered(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	wrapped := framework.NewResponseWriter(rec, hooks)
 
@@ -202,7 +203,7 @@ func TestBeforeWriteHeaderHookPanicIsRecovered(t *testing.T) {
 func TestBeforeWriteHookPanicIsRecovered(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	wrapped := framework.NewResponseWriter(rec, hooks)
 
@@ -226,7 +227,7 @@ func TestBeforeWriteHookPanicIsRecovered(t *testing.T) {
 func TestResponseWriterUnwrapReturnsUnderlying(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	plain := &plainWriter{rec}
 	wrapped := framework.NewResponseWriter(plain, hooks)
@@ -244,7 +245,7 @@ func TestResponseWriterUnwrapReturnsUnderlying(t *testing.T) {
 func TestResponseControllerFlushThroughWrappedWriter(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	fw := &flusherWriter{ResponseWriter: rec}
 	wrapped := framework.NewResponseWriter(fw, hooks)
@@ -259,7 +260,7 @@ func TestResponseControllerFlushThroughWrappedWriter(t *testing.T) {
 func TestResponseWriterFlusherUnwrapReturnsUnderlying(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	fw := &flusherWriter{ResponseWriter: rec}
 	wrapped := framework.NewResponseWriter(fw, hooks)
@@ -277,7 +278,7 @@ func TestResponseWriterFlusherUnwrapReturnsUnderlying(t *testing.T) {
 func TestWriteHeaderHookReceivesUnderlyingWriter(t *testing.T) {
 	t.Parallel()
 
-	hooks := framework.NewHooks()
+	hooks := contract.NewHooks()
 	rec := httptest.NewRecorder()
 	wrapped := framework.NewResponseWriter(rec, hooks)
 

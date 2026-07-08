@@ -31,8 +31,8 @@ var ErrNoHooksMiddleware = problem.Problem{
 //			logger.Error("request failed", "error", err)
 //		}
 //	})
-func Hooks(r *http.Request) contract.Hooks {
-	if hooks, ok := r.Context().Value(contract.HooksKey).(contract.Hooks); ok {
+func Hooks(r *http.Request) *contract.Hooks {
+	if hooks, ok := r.Context().Value(contract.HooksKey).(*contract.Hooks); ok {
 		return hooks
 	}
 
@@ -51,8 +51,8 @@ func Hooks(r *http.Request) contract.Hooks {
 //			_ = status
 //		})
 //	}
-func TryHooks(r *http.Request) (contract.Hooks, bool) {
-	hooks, ok := r.Context().Value(contract.HooksKey).(contract.Hooks)
+func TryHooks(r *http.Request) (*contract.Hooks, bool) {
+	hooks, ok := r.Context().Value(contract.HooksKey).(*contract.Hooks)
 
 	return hooks, ok
 }
