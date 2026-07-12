@@ -204,6 +204,22 @@ func TestLazyMapContainsFalseWhenNotFound(t *testing.T) {
 	require.False(t, lm.Contains(func(_ string, v int) bool { return v == 99 }))
 }
 
+func TestLazyMapHasAnyTrueWhenAnyKeyExists(t *testing.T) {
+	t.Parallel()
+
+	lm := orderedSource()
+
+	require.True(t, lm.HasAny("x", "b"))
+}
+
+func TestLazyMapHasAnyFalseWhenNoKeysExist(t *testing.T) {
+	t.Parallel()
+
+	lm := orderedSource()
+
+	require.False(t, lm.HasAny("x", "y"))
+}
+
 func TestLazyMapFilterOnlyMatchingEntriesWhenMaterialized(t *testing.T) {
 	t.Parallel()
 
@@ -229,6 +245,22 @@ func TestLazyMapRejectOnlyNonMatchingEntries(t *testing.T) {
 	rejected := lm.Reject(func(_ string, v int) bool { return v%2 == 0 }).Items()
 
 	require.Equal(t, map[string]int{"a": 1, "c": 3}, rejected)
+}
+
+func TestLazyMapOnlyKeepsRequestedKeys(t *testing.T) {
+	t.Parallel()
+
+	result := orderedSource().Only("b", "missing").Items()
+
+	require.Equal(t, map[string]int{"b": 2}, result)
+}
+
+func TestLazyMapExceptRemovesRequestedKeys(t *testing.T) {
+	t.Parallel()
+
+	result := orderedSource().Except("b", "missing").Items()
+
+	require.Equal(t, map[string]int{"a": 1, "c": 3}, result)
 }
 
 func TestLazyMapValuesTransformsValuesLazily(t *testing.T) {

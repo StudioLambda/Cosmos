@@ -267,6 +267,122 @@ func TestFilterReturnsEmptyOnEmptyInput(t *testing.T) {
 	require.True(t, result.IsEmpty())
 }
 
+// TestFlatMapFlattensMappedResults verifies that FlatMap maps each item to many
+// items and flattens the results.
+func TestFlatMapFlattensMappedResults(t *testing.T) {
+	t.Parallel()
+
+	c := collection.NewSlice([]int{1, 2, 3})
+
+	result := c.FlatMap(func(v int) []int {
+		return []int{v, v * 10}
+	})
+
+	require.Equal(t, []int{1, 10, 2, 20, 3, 30}, result.Items())
+}
+
+// TestFlatMapCanDropItems verifies that FlatMap supports zero-result mappings.
+func TestFlatMapCanDropItems(t *testing.T) {
+	t.Parallel()
+
+	c := collection.NewSlice([]int{1, 2, 3, 4})
+
+	result := c.FlatMap(func(v int) []int {
+		if v%2 == 0 {
+			return nil
+		}
+
+		return []int{v}
+	})
+
+	require.Equal(t, []int{1, 3}, result.Items())
+}
+
+// TestKeyByIndexesItemsByDerivedKey verifies that KeyBy builds a lookup map from a slice.
+func TestKeyByIndexesItemsByDerivedKey(t *testing.T) {
+	t.Parallel()
+
+	type user struct {
+		ID   int
+		Name string
+	}
+
+	c := collection.NewSlice([]user{{ID: 1, Name: "alice"}, {ID: 2, Name: "bob"}})
+
+	result := c.KeyBy(func(v user) int { return v.ID })
+
+	require.Equal(t, map[int]user{
+		1: {ID: 1, Name: "alice"},
+		2: {ID: 2, Name: "bob"},
+	}, result.Items())
+}
+
+// TestKeyByLastItemWinsOnCollision verifies that KeyBy keeps the last item for duplicate keys.
+func TestKeyByLastItemWinsOnCollision(t *testing.T) {
+	t.Parallel()
+
+	c := collection.NewSlice([]string{"ant", "ape", "bat"})
+
+	result := c.KeyBy(func(v string) byte { return v[0] })
+
+	require.Equal(t, map[byte]string{'a': "ape", 'b': "bat"}, result.Items())
+}
+
+// TestCountByCountsItemsPerDerivedKey verifies that CountBy aggregates counts by key.
+func TestCountByCountsItemsPerDerivedKey(t *testing.T) {
+	t.Parallel()
+
+	c := collection.NewSlice([]string{"ant", "ape", "bat", "bee"})
+
+	result := c.CountBy(func(v string) byte { return v[0] })
+
+	require.Equal(t, map[byte]int{'a': 2, 'b': 2}, result.Items())
+}
+
+// TestTakeUntilStopsBeforeMatchingItem verifies that TakeUntil excludes the first matching item.
+func TestTakeUntilStopsBeforeMatchingItem(t *testing.T) {
+	t.Parallel()
+
+	c := collection.NewSlice([]int{1, 2, 3, 4, 5})
+
+	result := c.TakeUntil(func(v int) bool { return v >= 4 })
+
+	require.Equal(t, []int{1, 2, 3}, result.Items())
+}
+
+// TestTakeUntilReturnsAllWhenNeverMatched verifies that TakeUntil returns the full slice when unmatched.
+func TestTakeUntilReturnsAllWhenNeverMatched(t *testing.T) {
+	t.Parallel()
+
+	c := collection.NewSlice([]int{1, 2, 3})
+
+	result := c.TakeUntil(func(v int) bool { return v > 10 })
+
+	require.Equal(t, []int{1, 2, 3}, result.Items())
+}
+
+// TestSkipUntilStartsAtFirstMatchingItem verifies that SkipUntil keeps items from the first match onward.
+func TestSkipUntilStartsAtFirstMatchingItem(t *testing.T) {
+	t.Parallel()
+
+	c := collection.NewSlice([]int{1, 2, 3, 4, 5})
+
+	result := c.SkipUntil(func(v int) bool { return v >= 4 })
+
+	require.Equal(t, []int{4, 5}, result.Items())
+}
+
+// TestSkipUntilReturnsEmptyWhenNeverMatched verifies that SkipUntil returns empty when no item matches.
+func TestSkipUntilReturnsEmptyWhenNeverMatched(t *testing.T) {
+	t.Parallel()
+
+	c := collection.NewSlice([]int{1, 2, 3})
+
+	result := c.SkipUntil(func(v int) bool { return v > 10 })
+
+	require.True(t, result.IsEmpty())
+}
+
 // TestRejectReturnsOnlyNonMatchingItems verifies that Reject keeps only items
 // for which the predicate is false.
 func TestRejectReturnsOnlyNonMatchingItems(t *testing.T) {

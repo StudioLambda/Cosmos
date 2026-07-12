@@ -25,7 +25,11 @@ func (lazySlice LazySlice[T]) Eager() Slice[T] {
 
 // Items materializes all items from the iterator into a Go slice.
 func (lazySlice LazySlice[T]) Items() []T {
-	return slices.Collect(iter.Seq[T](lazySlice))
+	return slices.Collect(lazySlice.Iter())
+}
+
+func (lazySlice LazySlice[T]) Iter() iter.Seq[T] {
+	return iter.Seq[T](lazySlice)
 }
 
 // IsEmpty reports whether the iterator yields no items.
@@ -112,6 +116,43 @@ func (lazySlice LazySlice[T]) Map[K any](f func(T) K) LazySlice[K] {
 			}
 		}
 	})
+}
+
+// FlatMap transforms each item into zero or more items and yields the flattened
+// results lazily.
+func (lazySlice LazySlice[T]) FlatMap[K any](f func(T) []K) LazySlice[K] {
+	return NewLazySlice(func(yield func(K) bool) {
+		for v := range lazySlice {
+			for _, mapped := range f(v) {
+				if !yield(mapped) {
+					return
+				}
+			}
+		}
+	})
+}
+
+// KeyBy indexes yielded items by the key returned from f. When multiple items
+// map to the same key, the last item wins.
+func (lazySlice LazySlice[T]) KeyBy[K comparable](f func(T) K) Map[K, T] {
+	indexed := make(map[K]T)
+
+	for v := range lazySlice {
+		indexed[f(v)] = v
+	}
+
+	return NewMap(indexed)
+}
+
+// CountBy counts yielded items by the key returned from f.
+func (lazySlice LazySlice[T]) CountBy[K comparable](f func(T) K) Map[K, int] {
+	counts := make(map[K]int)
+
+	for v := range lazySlice {
+		counts[f(v)]++
+	}
+
+	return NewMap(counts)
 }
 
 // FirstWhere returns the first item for which f returns true, along with a boolean
@@ -232,6 +273,17 @@ func (lazySlice LazySlice[T]) SkipWhile(f func(T) bool) LazySlice[T] {
 	})
 }
 
+// TakeUntil returns a lazy slice that yields items until f first returns true.
+func (lazySlice LazySlice[T]) TakeUntil(f func(T) bool) LazySlice[T] {
+	return lazySlice.TakeWhile(func(v T) bool { return !f(v) })
+}
+
+// SkipUntil returns a lazy slice that skips items until f first returns true,
+// then yields all remaining items.
+func (lazySlice LazySlice[T]) SkipUntil(f func(T) bool) LazySlice[T] {
+	return lazySlice.SkipWhile(func(v T) bool { return !f(v) })
+}
+
 // Chunk returns an iterator over consecutive slices of the given size.
 // It panics if size is less than or equal to zero.
 func (lazySlice LazySlice[T]) Chunk(size int) iter.Seq[[]T] {
@@ -311,7 +363,7 @@ func (lazySlice LazySlice[T]) Reduce[K any](f func(K, T) K, initial K) K {
 // items in reversed order.
 func (lazySlice LazySlice[T]) Reverse() LazySlice[T] {
 	return NewLazySlice(func(yield func(T) bool) {
-		items := slices.Collect(iter.Seq[T](lazySlice))
+		items := slices.Collect(lazySlice.Iter())
 		slices.Reverse(items)
 
 		for _, v := range items {
@@ -326,7 +378,7 @@ func (lazySlice LazySlice[T]) Reverse() LazySlice[T] {
 // and returns a new lazy slice over the sorted items.
 func (lazySlice LazySlice[T]) Sort(cmp func(T, T) int) LazySlice[T] {
 	return NewLazySlice(func(yield func(T) bool) {
-		items := slices.Collect(iter.Seq[T](lazySlice))
+		items := slices.Collect(lazySlice.Iter())
 		slices.SortFunc(items, cmp)
 
 		for _, v := range items {

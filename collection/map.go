@@ -3,7 +3,9 @@ package collection
 import (
 	"encoding/json/jsontext"
 	"encoding/json/v2"
+	"iter"
 	"maps"
+	"slices"
 )
 
 // Map is an eager, in-memory map collection of key-value pairs of type K and V.
@@ -16,14 +18,17 @@ func NewMap[K comparable, V any](items map[K]V) Map[K, V] {
 	return Map[K, V]{items: items}
 }
 
-// LazyOf returns a [LazyMap] backed by entries in the given [Map].
-func LazyOf[K comparable, V any](mapping Map[K, V]) LazyMap[K, V] {
-	return NewLazyMap(maps.All(mapping.items))
-}
-
 // Items returns the underlying map.
 func (mapping Map[K, V]) Items() map[K]V {
 	return mapping.items
+}
+
+func (mapping Map[K, V]) Iter() iter.Seq2[K, V] {
+	return maps.All(mapping.Items())
+}
+
+func (mapping Map[K, V]) Lazy() LazyMap[K, V] {
+	return NewLazyMap(mapping.Iter())
 }
 
 // Has reports whether the key exists in the map.
@@ -38,6 +43,17 @@ func (mapping Map[K, V]) Get(key K) (V, bool) {
 	v, ok := mapping.items[key]
 
 	return v, ok
+}
+
+// HasAny reports whether any of the given keys exists in the map.
+func (mapping Map[K, V]) HasAny(keys ...K) bool {
+	for _, key := range keys {
+		if mapping.Has(key) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Len returns the number of entries in the map.
@@ -95,7 +111,7 @@ func (mapping Map[K, V]) Contains(f func(K, V) bool) bool {
 
 // Filter returns a new [Map] containing only entries for which f returns true.
 func (mapping Map[K, V]) Filter(f func(K, V) bool) Map[K, V] {
-	result := make(map[K]V)
+	result := make(map[K]V, len(mapping.items))
 
 	for k, v := range mapping.items {
 		if f(k, v) {
@@ -109,6 +125,30 @@ func (mapping Map[K, V]) Filter(f func(K, V) bool) Map[K, V] {
 // Reject returns a new [Map] containing only entries for which f returns false.
 func (mapping Map[K, V]) Reject(f func(K, V) bool) Map[K, V] {
 	return mapping.Filter(func(k K, v V) bool { return !f(k, v) })
+}
+
+// Only returns a new [Map] containing only the entries whose keys were given.
+func (mapping Map[K, V]) Only(keys ...K) Map[K, V] {
+	result := make(map[K]V, len(keys))
+
+	for _, key := range keys {
+		if value, ok := mapping.items[key]; ok {
+			result[key] = value
+		}
+	}
+
+	return NewMap(result)
+}
+
+// Except returns a new [Map] containing all entries except those whose keys were given.
+func (mapping Map[K, V]) Except(keys ...K) Map[K, V] {
+	result := maps.Clone(mapping.items)
+
+	for _, key := range keys {
+		delete(result, key)
+	}
+
+	return NewMap(result)
 }
 
 // MapValues transforms values using f and returns a new [Map] with the same keys.
@@ -136,24 +176,12 @@ func MapKeys[K comparable, J comparable, V any](mapping Map[K, V], f func(K) J) 
 
 // rawKeys returns all keys as a plain Go slice.
 func (mapping Map[K, V]) rawKeys() []K {
-	keys := make([]K, 0, len(mapping.items))
-
-	for k := range mapping.items {
-		keys = append(keys, k)
-	}
-
-	return keys
+	return slices.Collect(maps.Keys(mapping.items))
 }
 
 // rawValues returns all values as a plain Go slice.
 func (mapping Map[K, V]) rawValues() []V {
-	values := make([]V, 0, len(mapping.items))
-
-	for _, v := range mapping.items {
-		values = append(values, v)
-	}
-
-	return values
+	return slices.Collect(maps.Values(mapping.items))
 }
 
 // Keys returns a [Slice] of all keys in the given [Map]. Order is not guaranteed.
@@ -170,10 +198,7 @@ func Values[K comparable, V any](mapping Map[K, V]) Slice[V] {
 // When keys collide, other's values take precedence.
 func (mapping Map[K, V]) Merge(other Map[K, V]) Map[K, V] {
 	result := maps.Clone(mapping.items)
-
-	for k, v := range other.items {
-		result[k] = v
-	}
+	maps.Copy(result, other.items)
 
 	return NewMap(result)
 }

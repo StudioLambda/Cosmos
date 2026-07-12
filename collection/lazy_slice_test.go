@@ -282,6 +282,88 @@ func TestLazySliceMapTransformsItemsToDifferentType(t *testing.T) {
 	require.Equal(t, []bool{true, false, true}, got)
 }
 
+// TestLazySliceFlatMapFlattensMappedResults verifies that FlatMap yields all mapped items in order.
+func TestLazySliceFlatMapFlattensMappedResults(t *testing.T) {
+	t.Parallel()
+
+	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+
+	got := lazy.FlatMap(func(v int) []int {
+		return []int{v, v * 10}
+	}).Items()
+
+	require.Equal(t, []int{1, 10, 2, 20, 3, 30}, got)
+}
+
+// TestLazySliceFlatMapIsLazy verifies that FlatMap does not consume the source until needed.
+func TestLazySliceFlatMapIsLazy(t *testing.T) {
+	t.Parallel()
+
+	called := 0
+	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	flatMapped := lazy.FlatMap(func(v int) []int {
+		called++
+
+		return []int{v}
+	})
+
+	require.Equal(t, 0, called)
+	_ = flatMapped.Items()
+	require.Equal(t, 3, called)
+}
+
+// TestLazySliceKeyByIndexesItemsByDerivedKey verifies that KeyBy materializes a lookup map.
+func TestLazySliceKeyByIndexesItemsByDerivedKey(t *testing.T) {
+	t.Parallel()
+
+	type user struct {
+		ID   int
+		Name string
+	}
+
+	lazy := collection.NewLazySlice(slices.Values([]user{{ID: 1, Name: "alice"}, {ID: 2, Name: "bob"}}))
+
+	result := lazy.KeyBy(func(v user) int { return v.ID })
+
+	require.Equal(t, map[int]user{
+		1: {ID: 1, Name: "alice"},
+		2: {ID: 2, Name: "bob"},
+	}, result.Items())
+}
+
+// TestLazySliceCountByCountsItemsPerDerivedKey verifies that CountBy groups counts by key.
+func TestLazySliceCountByCountsItemsPerDerivedKey(t *testing.T) {
+	t.Parallel()
+
+	lazy := collection.NewLazySlice(slices.Values([]string{"ant", "ape", "bat", "bee"}))
+
+	result := lazy.CountBy(func(v string) byte { return v[0] })
+
+	require.Equal(t, map[byte]int{'a': 2, 'b': 2}, result.Items())
+}
+
+// TestLazySliceTakeUntilStopsBeforeMatchingItem verifies that TakeUntil excludes the matching item.
+func TestLazySliceTakeUntilStopsBeforeMatchingItem(t *testing.T) {
+	t.Parallel()
+
+	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5}))
+
+	got := lazy.TakeUntil(func(v int) bool { return v >= 4 }).Items()
+
+	require.Equal(t, []int{1, 2, 3}, got)
+}
+
+// TestLazySliceSkipUntilStartsAtFirstMatchingItem verifies that SkipUntil yields from the first match onward.
+func TestLazySliceSkipUntilStartsAtFirstMatchingItem(t *testing.T) {
+	t.Parallel()
+
+	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5}))
+
+	got := lazy.SkipUntil(func(v int) bool { return v >= 4 }).Items()
+
+	require.Equal(t, []int{4, 5}, got)
+}
+
 // TestLazySliceMapReturnsEmptyOnEmptyInput verifies that Map on an empty source
 // yields an empty lazy.
 func TestLazySliceMapReturnsEmptyOnEmptyInput(t *testing.T) {

@@ -65,6 +65,22 @@ func TestMapGetReturnsZeroAndFalseWhenNotFound(t *testing.T) {
 	require.Zero(t, v)
 }
 
+func TestMapHasAnyTrueWhenAnyKeyExists(t *testing.T) {
+	t.Parallel()
+
+	m := collection.NewMap(map[string]int{"a": 1, "b": 2})
+
+	require.True(t, m.HasAny("x", "b"))
+}
+
+func TestMapHasAnyFalseWhenNoKeysExist(t *testing.T) {
+	t.Parallel()
+
+	m := collection.NewMap(map[string]int{"a": 1, "b": 2})
+
+	require.False(t, m.HasAny("x", "y"))
+}
+
 func TestMapLenReturnsCorrectCount(t *testing.T) {
 	t.Parallel()
 
@@ -203,6 +219,26 @@ func TestMapRejectReturnsNonMatchingEntries(t *testing.T) {
 	require.Equal(t, map[string]int{"a": 1, "c": 3}, rejected.Items())
 }
 
+func TestMapOnlyKeepsRequestedKeys(t *testing.T) {
+	t.Parallel()
+
+	m := collection.NewMap(map[string]int{"a": 1, "b": 2, "c": 3})
+
+	result := m.Only("b", "missing")
+
+	require.Equal(t, map[string]int{"b": 2}, result.Items())
+}
+
+func TestMapExceptRemovesRequestedKeys(t *testing.T) {
+	t.Parallel()
+
+	m := collection.NewMap(map[string]int{"a": 1, "b": 2, "c": 3})
+
+	result := m.Except("b", "missing")
+
+	require.Equal(t, map[string]int{"a": 1, "c": 3}, result.Items())
+}
+
 func TestMapValuesTransformsValuesPreservesKeys(t *testing.T) {
 	t.Parallel()
 
@@ -283,12 +319,12 @@ func TestMapMergeAddsEntriesUniqueToOther(t *testing.T) {
 	require.Equal(t, 3, merged.Items()["z"])
 }
 
-func TestLazyOfYieldsAllEntries(t *testing.T) {
+func TestMapLazyYieldsAllEntries(t *testing.T) {
 	t.Parallel()
 
 	input := map[string]int{"a": 1, "b": 2, "c": 3}
 	m := collection.NewMap(input)
-	lazy := collection.LazyOf(m)
+	lazy := m.Lazy()
 
 	require.Equal(t, input, lazy.Items())
 }

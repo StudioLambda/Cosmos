@@ -25,13 +25,11 @@ func (lazyMapping LazyMap[K, V]) Eager() Map[K, V] {
 
 // Items materializes all entries from the iterator into a Go map.
 func (lazyMapping LazyMap[K, V]) Items() map[K]V {
-	result := make(map[K]V)
+	return maps.Collect(lazyMapping.Iter())
+}
 
-	for k, v := range lazyMapping {
-		result[k] = v
-	}
-
-	return result
+func (lazyMapping LazyMap[K, V]) Iter() iter.Seq2[K, V] {
+	return iter.Seq2[K, V](lazyMapping)
 }
 
 // IsEmpty reports whether the iterator yields no entries.
@@ -104,6 +102,27 @@ func (lazyMapping LazyMap[K, V]) Contains(f func(K, V) bool) bool {
 	return false
 }
 
+// HasAny reports whether any of the given keys exists in the lazy map.
+func (lazyMapping LazyMap[K, V]) HasAny(keys ...K) bool {
+	if len(keys) == 0 {
+		return false
+	}
+
+	wanted := make(map[K]struct{}, len(keys))
+
+	for _, key := range keys {
+		wanted[key] = struct{}{}
+	}
+
+	for key, _ := range lazyMapping {
+		if _, ok := wanted[key]; ok {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Filter returns a [LazyMap] containing only entries for which f returns true.
 func (lazyMapping LazyMap[K, V]) Filter(f func(K, V) bool) LazyMap[K, V] {
 	return NewLazyMap(func(yield func(K, V) bool) {
@@ -120,6 +139,36 @@ func (lazyMapping LazyMap[K, V]) Filter(f func(K, V) bool) LazyMap[K, V] {
 // Reject returns a [LazyMap] containing only entries for which f returns false.
 func (lazyMapping LazyMap[K, V]) Reject(f func(K, V) bool) LazyMap[K, V] {
 	return lazyMapping.Filter(func(k K, v V) bool { return !f(k, v) })
+}
+
+// Only returns a [LazyMap] containing only the entries whose keys were given.
+func (lazyMapping LazyMap[K, V]) Only(keys ...K) LazyMap[K, V] {
+	wanted := make(map[K]struct{}, len(keys))
+
+	for _, key := range keys {
+		wanted[key] = struct{}{}
+	}
+
+	return lazyMapping.Filter(func(k K, v V) bool {
+		_, ok := wanted[k]
+
+		return ok
+	})
+}
+
+// Except returns a [LazyMap] containing all entries except those whose keys were given.
+func (lazyMapping LazyMap[K, V]) Except(keys ...K) LazyMap[K, V] {
+	blocked := make(map[K]struct{}, len(keys))
+
+	for _, key := range keys {
+		blocked[key] = struct{}{}
+	}
+
+	return lazyMapping.Filter(func(k K, v V) bool {
+		_, ok := blocked[k]
+
+		return !ok
+	})
 }
 
 // LazyMapValues transforms values using f and returns a new [LazyMap] with the same keys.

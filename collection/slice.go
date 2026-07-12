@@ -22,12 +22,12 @@ func NewSlice[T any](items []T) Slice[T] {
 //
 //	for v := range slice.Iter() { ... }
 func (slice Slice[T]) Iter() iter.Seq[T] {
-	return slices.Values(slice.items)
+	return slices.Values(slice.Items())
 }
 
 // Lazy returns a [LazySlice] backed by the items in the slice.
 func (slice Slice[T]) Lazy() LazySlice[T] {
-	return NewLazySlice(slices.Values(slice.items))
+	return NewLazySlice(slice.Iter())
 }
 
 // Items returns the underlying slice of items.
@@ -79,7 +79,7 @@ func (slice Slice[T]) TapEach(f func(T)) Slice[T] {
 
 // Filter returns a new slice containing only items for which f returns true.
 func (slice Slice[T]) Filter(f func(T) bool) Slice[T] {
-	var filtered []T
+	filtered := make([]T, 0, len(slice.items))
 
 	for _, v := range slice.items {
 		if f(v) {
@@ -104,6 +104,41 @@ func (slice Slice[T]) Map[K any](f func(T) K) Slice[K] {
 	}
 
 	return NewSlice(mapped)
+}
+
+// FlatMap transforms each item into zero or more items and flattens the
+// results into a single slice of type K.
+func (slice Slice[T]) FlatMap[K any](f func(T) []K) Slice[K] {
+	flattened := make([]K, 0, len(slice.items))
+
+	for _, v := range slice.items {
+		flattened = append(flattened, f(v)...)
+	}
+
+	return NewSlice(flattened)
+}
+
+// KeyBy indexes items by the key returned from f. When multiple items map to
+// the same key, the last item wins.
+func (slice Slice[T]) KeyBy[K comparable](f func(T) K) Map[K, T] {
+	indexed := make(map[K]T, len(slice.items))
+
+	for _, v := range slice.items {
+		indexed[f(v)] = v
+	}
+
+	return NewMap(indexed)
+}
+
+// CountBy counts items by the key returned from f.
+func (slice Slice[T]) CountBy[K comparable](f func(T) K) Map[K, int] {
+	counts := make(map[K]int, len(slice.items))
+
+	for _, v := range slice.items {
+		counts[f(v)]++
+	}
+
+	return NewMap(counts)
 }
 
 // FirstWhere returns the first item for which f returns true, along with a boolean
@@ -162,7 +197,7 @@ func (slice Slice[T]) Skip(n int) Slice[T] {
 // TakeWhile returns a new slice with items from the start until f first
 // returns false.
 func (slice Slice[T]) TakeWhile(f func(T) bool) Slice[T] {
-	var taken []T
+	taken := make([]T, 0, len(slice.items))
 
 	for _, v := range slice.items {
 		if !f(v) {
@@ -185,6 +220,18 @@ func (slice Slice[T]) SkipWhile(f func(T) bool) Slice[T] {
 	}
 
 	return NewSlice(slice.items[i:])
+}
+
+// TakeUntil returns a new slice with items from the start until f first
+// returns true.
+func (slice Slice[T]) TakeUntil(f func(T) bool) Slice[T] {
+	return slice.TakeWhile(func(v T) bool { return !f(v) })
+}
+
+// SkipUntil returns a new slice with leading items removed until f first
+// returns true.
+func (slice Slice[T]) SkipUntil(f func(T) bool) Slice[T] {
+	return slice.SkipWhile(func(v T) bool { return !f(v) })
 }
 
 // Chunk splits the slice into consecutive sub-slices of the given size.
@@ -261,8 +308,8 @@ func (slice Slice[T]) Sort(cmp func(T, T) int) Slice[T] {
 // Unique returns a new slice containing only the first occurrence of each
 // item, as determined by the key function.
 func (slice Slice[T]) Unique[K comparable](key func(T) K) Slice[T] {
-	seen := make(map[K]struct{})
-	var unique []T
+	seen := make(map[K]struct{}, len(slice.items))
+	unique := make([]T, 0, len(slice.items))
 
 	for _, v := range slice.items {
 		k := key(v)
@@ -279,7 +326,8 @@ func (slice Slice[T]) Unique[K comparable](key func(T) K) Slice[T] {
 // Partition splits the slice into two: the first contains items for which
 // f returns true, the second contains the rest.
 func (slice Slice[T]) Partition(f func(T) bool) (Slice[T], Slice[T]) {
-	var matching, rest []T
+	matching := make([]T, 0, len(slice.items))
+	rest := make([]T, 0, len(slice.items))
 
 	for _, v := range slice.items {
 		if f(v) {
@@ -300,7 +348,7 @@ func (slice Slice[T]) Concat(other Slice[T]) Slice[T] {
 // GroupBy groups items by the key returned by the key function, returning a
 // [Map] of sub-slices.
 func (slice Slice[T]) GroupBy[K comparable](key func(T) K) Map[K, Slice[T]] {
-	grouped := make(map[K][]T)
+	grouped := make(map[K][]T, len(slice.items))
 
 	for _, v := range slice.items {
 		k := key(v)
