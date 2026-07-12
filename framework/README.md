@@ -24,6 +24,7 @@ go get github.com/studiolambda/cosmos/framework
 ```
 
 This will also install the required dependencies:
+
 - `github.com/studiolambda/cosmos/router`
 - `github.com/studiolambda/cosmos/problem`
 - `github.com/studiolambda/cosmos/contract`
@@ -102,11 +103,11 @@ func MyMiddleware() framework.Middleware {
     return func(next framework.Handler) framework.Handler {
         return func(w http.ResponseWriter, r *http.Request) error {
             // Before handler execution
-            
+
             err := next(w, r) // Call next handler
-            
+
             // After handler execution
-            
+
             return err // Propagate error
         }
     }
@@ -210,18 +211,18 @@ app.Use(session.Middleware(driver, "session_id"))
 // Use in handlers
 func handler(w http.ResponseWriter, r *http.Request) error {
     sess := request.Session(r)
-    
+
     // Store data
     sess.Put("user_id", 123)
-    
+
     // Retrieve data
     if val, ok := sess.Get("user_id"); ok {
         userID := val.(int)
     }
-    
+
     // Regenerate after authentication
     sess.Regenerate()
-    
+
     return response.JSON(w, http.StatusOK, data)
 }
 ```
@@ -298,14 +299,19 @@ type UserCreated struct {
     Email string `json:"email"`
 }
 
-unsubscribe, err := broker.Subscribe(ctx, "user.created", func(payload contract.EventPayload) {
-    var event UserCreated
-    if err := payload(&event); err != nil {
-        log.Printf("Failed to unmarshal: %v", err)
+events := contract.NewEvents(broker)
+
+unsubscribe, err := events.Subscribe[UserCreated](ctx, "user.created", func(decode contract.EventDecoder[UserCreated]) {
+    event, err := decode()
+    if err != nil {
+        log.Printf("Failed to decode: %v", err)
         return
     }
     log.Printf("User created: %d - %s", event.ID, event.Email)
 })
+if err != nil {
+    log.Fatal(err)
+}
 defer unsubscribe()
 
 // Subscribe with wildcards
@@ -314,6 +320,7 @@ broker.Subscribe(ctx, "logs.#", handler)       // Matches: logs, logs.error, log
 ```
 
 **Features**:
+
 - Zero dependencies (stdlib only)
 - Zero configuration required
 - Thread-safe concurrent access
@@ -355,14 +362,19 @@ type UserCreated struct {
     Email string `json:"email"`
 }
 
-unsubscribe := broker.Subscribe(ctx, "user.created", func(payload contract.EventPayload) {
-    var event UserCreated
-    if err := payload(&event); err != nil {
-        log.Printf("Failed to unmarshal event: %v", err)
+events := contract.NewEvents(broker)
+
+unsubscribe, err := events.Subscribe[UserCreated](ctx, "user.created", func(decode contract.EventDecoder[UserCreated]) {
+    event, err := decode()
+    if err != nil {
+        log.Printf("Failed to decode event: %v", err)
         return
     }
     log.Printf("User created: %d - %s", event.ID, event.Email)
 })
+if err != nil {
+    log.Fatal(err)
+}
 
 // Unsubscribe when done
 defer unsubscribe()
@@ -400,14 +412,19 @@ type OrderPlaced struct {
     Amount  float64 `json:"amount"`
 }
 
-unsubscribe := broker.Subscribe(ctx, "order.placed", func(payload contract.EventPayload) {
-    var event OrderPlaced
-    if err := payload(&event); err != nil {
-        log.Printf("Failed to unmarshal event: %v", err)
+events := contract.NewEvents(broker)
+
+unsubscribe, err := events.Subscribe[OrderPlaced](ctx, "order.placed", func(decode contract.EventDecoder[OrderPlaced]) {
+    event, err := decode()
+    if err != nil {
+        log.Printf("Failed to decode event: %v", err)
         return
     }
     log.Printf("Order placed: %s - $%.2f", event.OrderID, event.Amount)
 })
+if err != nil {
+    log.Fatal(err)
+}
 
 defer unsubscribe()
 ```
@@ -449,14 +466,19 @@ type TempReading struct {
     Value    float64 `json:"value"`
 }
 
-unsubscribe, err := broker.Subscribe(ctx, "sensor.temperature", func(payload contract.EventPayload) {
-    var reading TempReading
-    if err := payload(&reading); err != nil {
+events := contract.NewEvents(broker)
+
+unsubscribe, err := events.Subscribe[TempReading](ctx, "sensor.temperature", func(decode contract.EventDecoder[TempReading]) {
+    reading, err := decode()
+    if err != nil {
         log.Printf("Error: %v", err)
         return
     }
     log.Printf("Temperature: %.1f", reading.Value)
 })
+if err != nil {
+    log.Fatal(err)
+}
 defer unsubscribe()
 
 // Subscribe with wildcards (auto-converted: * → +)
@@ -465,11 +487,13 @@ broker.Subscribe(ctx, "device.#", handler)        // Becomes: device/#
 ```
 
 **Topic Conversion**: Event names are automatically converted to MQTT format:
+
 - `.` (dot) → `/` (MQTT topic separator)
 - `*` (asterisk) → `+` (MQTT single-level wildcard)
 - `#` (hash) → `#` (MQTT multi-level wildcard, unchanged)
 
 Examples:
+
 - `user.created` → `user/created`
 - `user.*.events` → `user/+/events`
 - `logs.#` → `logs/#`
@@ -517,14 +541,19 @@ type OrderPlaced struct {
     Total   float64 `json:"total"`
 }
 
-unsubscribe, err := broker.Subscribe(ctx, "order.placed", func(payload contract.EventPayload) {
-    var order OrderPlaced
-    if err := payload(&order); err != nil {
+events := contract.NewEvents(broker)
+
+unsubscribe, err := events.Subscribe[OrderPlaced](ctx, "order.placed", func(decode contract.EventDecoder[OrderPlaced]) {
+    order, err := decode()
+    if err != nil {
         log.Printf("Error: %v", err)
         return
     }
     log.Printf("Order %s placed: $%.2f", order.OrderID, order.Total)
 })
+if err != nil {
+    log.Fatal(err)
+}
 defer unsubscribe()
 
 // Subscribe with wildcards (auto-converted: # → >)
@@ -533,16 +562,19 @@ broker.Subscribe(ctx, "logs.#", handler)       // Matches: logs.error, logs.info
 ```
 
 **Subject Conversion**: Event patterns are automatically converted to NATS format:
+
 - `.` (dot) - NATS subject separator (no conversion needed)
 - `*` (asterisk) - Matches single token (no conversion needed)
 - `#` (hash) → `>` (NATS multi-level wildcard)
 
 Examples:
+
 - `user.created` → `user.created`
 - `user.*.events` → `user.*.events`
 - `logs.#` → `logs.>`
 
 **Authentication Options**:
+
 - Username/password
 - Token-based authentication
 - NKey cryptographic authentication
@@ -550,6 +582,7 @@ Examples:
 - TLS with client certificates
 
 **Features**:
+
 - Automatic reconnection with configurable backoff
 - Cluster support with automatic failover
 - Native fan-out (all subscribers receive messages)
@@ -562,10 +595,14 @@ Examples:
 
 ```go
 // Start multiple workers processing the same events
+events := contract.NewEvents(broker)
+
 for i := 0; i < 3; i++ {
-    broker.Subscribe(ctx, "task.created", func(payload contract.EventPayload) {
-        var task Task
-        payload(&task)
+    _, _ = events.Subscribe[Task](ctx, "task.created", func(decode contract.EventDecoder[Task]) {
+        task, err := decode()
+        if err != nil {
+            return
+        }
         processTask(task)
     })
 }

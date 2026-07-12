@@ -70,7 +70,9 @@ func TestMiddlewareLoadsExistingSession(t *testing.T) {
 			found = ok
 
 			if ok {
-				userID, _ = sess.Get("user_id")
+				value, err := sess.Get[int]("user_id")
+				require.NoError(t, err)
+				userID = value
 			}
 
 			return nil
@@ -450,15 +452,15 @@ func TestMiddlewareCreatesNewSessionWhenExpired(t *testing.T) {
 		"Save", tmock.Anything, tmock.Anything, tmock.Anything,
 	).Return(nil).Once()
 
-	var staleValue any
-	var staleFound bool
+	var staleValue bool
+	var staleErr error
 
 	handler := framework.Handler(
 		func(w http.ResponseWriter, r *http.Request) error {
 			sess, ok := request.Session(r)
 			require.True(t, ok)
 
-			staleValue, staleFound = sess.Get("stale")
+			staleValue, staleErr = sess.Get[bool]("stale")
 
 			return nil
 		},
@@ -475,8 +477,8 @@ func TestMiddlewareCreatesNewSessionWhenExpired(t *testing.T) {
 	res := handlerWithSessions.Record(req)
 	cookies := res.Cookies()
 
-	require.False(t, staleFound, "handler must not see expired session data")
-	require.Nil(t, staleValue)
+	require.ErrorIs(t, staleErr, contract.ErrSessionKeyNotFound, "handler must not see expired session data")
+	require.False(t, staleValue)
 	require.Len(t, cookies, 1)
 	require.NotEqual(t, sessionID, cookies[0].Value)
 }

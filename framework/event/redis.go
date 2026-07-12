@@ -87,6 +87,11 @@ func (broker *RedisBroker) Subscribe(
 	}, nil
 }
 
+// Ping verifies that the Redis connection is still alive.
+func (broker *RedisBroker) Ping(ctx context.Context) error {
+	return broker.client.Ping(ctx).Err()
+}
+
 // Close shuts down the underlying Redis client connection and
 // waits for all active subscription goroutines to finish.
 func (broker *RedisBroker) Close() error {

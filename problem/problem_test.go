@@ -1,7 +1,7 @@
 package problem_test
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"net/http"
@@ -700,7 +700,7 @@ func TestServeHTTPProblemJSON(t *testing.T) {
 
 	var decoded map[string]any
 
-	err := json.NewDecoder(rec.Body).Decode(&decoded)
+	err := json.UnmarshalRead(rec.Body, &decoded)
 
 	if err != nil {
 		t.Fatalf("failed to decode response: %s", err)
@@ -739,7 +739,7 @@ func TestServeHTTPJSON(t *testing.T) {
 
 	var decoded map[string]any
 
-	err := json.NewDecoder(rec.Body).Decode(&decoded)
+	err := json.UnmarshalRead(rec.Body, &decoded)
 
 	if err != nil {
 		t.Fatalf("failed to decode response: %s", err)
@@ -853,7 +853,7 @@ func TestServeHTTPDev(t *testing.T) {
 
 	var decoded map[string]any
 
-	err2 := json.NewDecoder(rec.Body).Decode(&decoded)
+	err2 := json.UnmarshalRead(rec.Body, &decoded)
 
 	if err2 != nil {
 		t.Fatalf("failed to decode response: %s", err2)
@@ -924,7 +924,7 @@ func TestServeHTTPDefaultsApplied(t *testing.T) {
 
 	var decoded map[string]any
 
-	err := json.NewDecoder(rec.Body).Decode(&decoded)
+	err := json.UnmarshalRead(rec.Body, &decoded)
 
 	if err != nil {
 		t.Fatalf("failed to decode response: %s", err)
@@ -1262,7 +1262,7 @@ func TestServeHTTPWithAcceptWildcardReturnsJSON(t *testing.T) {
 
 	var decoded map[string]any
 
-	err := json.NewDecoder(rec.Body).Decode(&decoded)
+	err := json.UnmarshalRead(rec.Body, &decoded)
 
 	if err != nil {
 		t.Fatalf("failed to decode response: %s", err)

@@ -2,7 +2,7 @@ package session
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"time"
 
@@ -19,7 +19,7 @@ import (
 // values before calling Put or use a backend with transport/at-rest
 // encryption.
 type CacheDriver struct {
-	cache   contract.CacheDriver
+	cache   contract.Cache
 	options CacheDriverOptions
 }
 
@@ -39,7 +39,7 @@ type sessionData struct {
 
 // NewCacheDriver creates a CacheDriver with the default key prefix
 // "cosmos.sessions".
-func NewCacheDriver(cache contract.CacheDriver) *CacheDriver {
+func NewCacheDriver(cache contract.Cache) *CacheDriver {
 	return NewCacheDriverWith(cache, CacheDriverOptions{
 		Prefix: "cosmos.sessions",
 	})
@@ -47,7 +47,7 @@ func NewCacheDriver(cache contract.CacheDriver) *CacheDriver {
 
 // NewCacheDriverWith creates a CacheDriver with the given cache
 // backend and options.
-func NewCacheDriverWith(cache contract.CacheDriver, options CacheDriverOptions) *CacheDriver {
+func NewCacheDriverWith(cache contract.Cache, options CacheDriverOptions) *CacheDriver {
 	return &CacheDriver{
 		cache:   cache,
 		options: options,
@@ -62,15 +62,9 @@ func (driver *CacheDriver) key(id string) string {
 
 // Get retrieves a session from the cache by its ID.
 func (driver *CacheDriver) Get(ctx context.Context, id string) (*contract.Session, error) {
-	raw, err := driver.cache.Get(ctx, driver.key(id))
+	data, err := driver.cache.Get[sessionData](ctx, driver.key(id))
 
 	if err != nil {
-		return nil, err
-	}
-
-	var data sessionData
-
-	if err := json.Unmarshal(raw, &data); err != nil {
 		return nil, err
 	}
 

@@ -3,6 +3,7 @@ package crypto_test
 import (
 	"testing"
 
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework/crypto"
 
 	"github.com/stretchr/testify/require"
@@ -204,7 +205,7 @@ func TestChaCha20EncryptAfterCloseReturnsError(t *testing.T) {
 
 	_, err = encrypter.Encrypt([]byte("Hello, World!"))
 
-	require.ErrorIs(t, err, crypto.ErrEncrypterClosed)
+	require.ErrorIs(t, err, contract.ErrEncrypterClosed)
 }
 
 func TestChaCha20DecryptAfterCloseReturnsError(t *testing.T) {
@@ -219,5 +220,5 @@ func TestChaCha20DecryptAfterCloseReturnsError(t *testing.T) {
 
 	_, err = encrypter.Decrypt([]byte("some ciphertext that is long enough"))
 
-	require.ErrorIs(t, err, crypto.ErrEncrypterClosed)
+	require.ErrorIs(t, err, contract.ErrEncrypterClosed)
 }

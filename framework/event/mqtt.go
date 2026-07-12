@@ -480,6 +480,15 @@ func (broker *MQTTBroker) unsubscribeFunc(
 	}
 }
 
+// Ping verifies that the MQTT connection is currently available.
+func (broker *MQTTBroker) Ping(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	return broker.client.AwaitConnection(ctx)
+}
+
 // Close gracefully disconnects from the MQTT broker and releases
 // all resources. It waits for all in-flight handler deliveries to
 // complete before disconnecting. This will terminate all active

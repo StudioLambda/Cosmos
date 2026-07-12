@@ -62,7 +62,7 @@ type CacheDriverMock_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key string
-func (_e *CacheDriverMock_Expecter) Delete(ctx interface{}, key interface{}) *CacheDriverMock_Delete_Call {
+func (_e *CacheDriverMock_Expecter) Delete(ctx any, key any) *CacheDriverMock_Delete_Call {
 	return &CacheDriverMock_Delete_Call{Call: _e.mock.On("Delete", ctx, key)}
 }
 
@@ -130,7 +130,7 @@ type CacheDriverMock_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key string
-func (_e *CacheDriverMock_Expecter) Get(ctx interface{}, key interface{}) *CacheDriverMock_Get_Call {
+func (_e *CacheDriverMock_Expecter) Get(ctx any, key any) *CacheDriverMock_Get_Call {
 	return &CacheDriverMock_Get_Call{Call: _e.mock.On("Get", ctx, key)}
 }
 
@@ -196,7 +196,7 @@ type CacheDriverMock_Has_Call struct {
 // Has is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key string
-func (_e *CacheDriverMock_Expecter) Has(ctx interface{}, key interface{}) *CacheDriverMock_Has_Call {
+func (_e *CacheDriverMock_Expecter) Has(ctx any, key any) *CacheDriverMock_Has_Call {
 	return &CacheDriverMock_Has_Call{Call: _e.mock.On("Has", ctx, key)}
 }
 
@@ -228,6 +228,57 @@ func (_c *CacheDriverMock_Has_Call) RunAndReturn(run func(ctx context.Context, k
 	return _c
 }
 
+// Ping provides a mock function for the type CacheDriverMock
+func (_mock *CacheDriverMock) Ping(ctx context.Context) error {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Ping")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// CacheDriverMock_Ping_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Ping'
+type CacheDriverMock_Ping_Call struct {
+	*mock.Call
+}
+
+// Ping is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *CacheDriverMock_Expecter) Ping(ctx any) *CacheDriverMock_Ping_Call {
+	return &CacheDriverMock_Ping_Call{Call: _e.mock.On("Ping", ctx)}
+}
+
+func (_c *CacheDriverMock_Ping_Call) Run(run func(ctx context.Context)) *CacheDriverMock_Ping_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *CacheDriverMock_Ping_Call) Return(err error) *CacheDriverMock_Ping_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *CacheDriverMock_Ping_Call) RunAndReturn(run func(ctx context.Context) error) *CacheDriverMock_Ping_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Put provides a mock function for the type CacheDriverMock
 func (_mock *CacheDriverMock) Put(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	ret := _mock.Called(ctx, key, value, ttl)
@@ -255,7 +306,7 @@ type CacheDriverMock_Put_Call struct {
 //   - key string
 //   - value []byte
 //   - ttl time.Duration
-func (_e *CacheDriverMock_Expecter) Put(ctx interface{}, key interface{}, value interface{}, ttl interface{}) *CacheDriverMock_Put_Call {
+func (_e *CacheDriverMock_Expecter) Put(ctx any, key any, value any, ttl any) *CacheDriverMock_Put_Call {
 	return &CacheDriverMock_Put_Call{Call: _e.mock.On("Put", ctx, key, value, ttl)}
 }
 
@@ -359,7 +410,7 @@ type CacheCounterMock_Decrement_Call struct {
 //   - ctx context.Context
 //   - key string
 //   - delta int64
-func (_e *CacheCounterMock_Expecter) Decrement(ctx interface{}, key interface{}, delta interface{}) *CacheCounterMock_Decrement_Call {
+func (_e *CacheCounterMock_Expecter) Decrement(ctx any, key any, delta any) *CacheCounterMock_Decrement_Call {
 	return &CacheCounterMock_Decrement_Call{Call: _e.mock.On("Decrement", ctx, key, delta)}
 }
 
@@ -431,7 +482,7 @@ type CacheCounterMock_Increment_Call struct {
 //   - ctx context.Context
 //   - key string
 //   - delta int64
-func (_e *CacheCounterMock_Expecter) Increment(ctx interface{}, key interface{}, delta interface{}) *CacheCounterMock_Increment_Call {
+func (_e *CacheCounterMock_Expecter) Increment(ctx any, key any, delta any) *CacheCounterMock_Increment_Call {
 	return &CacheCounterMock_Increment_Call{Call: _e.mock.On("Increment", ctx, key, delta)}
 }
 

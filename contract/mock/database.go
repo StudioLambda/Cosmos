@@ -122,9 +122,9 @@ type DatabaseDriverMock_Exec_Call struct {
 //   - ctx context.Context
 //   - query string
 //   - args ...any
-func (_e *DatabaseDriverMock_Expecter) Exec(ctx interface{}, query interface{}, args ...interface{}) *DatabaseDriverMock_Exec_Call {
+func (_e *DatabaseDriverMock_Expecter) Exec(ctx any, query any, args ...any) *DatabaseDriverMock_Exec_Call {
 	return &DatabaseDriverMock_Exec_Call{Call: _e.mock.On("Exec",
-		append([]interface{}{ctx, query}, args...)...)}
+		append([]any{ctx, query}, args...)...)}
 }
 
 func (_c *DatabaseDriverMock_Exec_Call) Run(run func(ctx context.Context, query string, args ...any)) *DatabaseDriverMock_Exec_Call {
@@ -197,7 +197,7 @@ type DatabaseDriverMock_ExecNamed_Call struct {
 //   - ctx context.Context
 //   - query string
 //   - arg any
-func (_e *DatabaseDriverMock_Expecter) ExecNamed(ctx interface{}, query interface{}, arg interface{}) *DatabaseDriverMock_ExecNamed_Call {
+func (_e *DatabaseDriverMock_Expecter) ExecNamed(ctx any, query any, arg any) *DatabaseDriverMock_ExecNamed_Call {
 	return &DatabaseDriverMock_ExecNamed_Call{Call: _e.mock.On("ExecNamed", ctx, query, arg)}
 }
 
@@ -267,9 +267,9 @@ type DatabaseDriverMock_Find_Call struct {
 //   - query string
 //   - dest any
 //   - args ...any
-func (_e *DatabaseDriverMock_Expecter) Find(ctx interface{}, query interface{}, dest interface{}, args ...interface{}) *DatabaseDriverMock_Find_Call {
+func (_e *DatabaseDriverMock_Expecter) Find(ctx any, query any, dest any, args ...any) *DatabaseDriverMock_Find_Call {
 	return &DatabaseDriverMock_Find_Call{Call: _e.mock.On("Find",
-		append([]interface{}{ctx, query, dest}, args...)...)}
+		append([]any{ctx, query, dest}, args...)...)}
 }
 
 func (_c *DatabaseDriverMock_Find_Call) Run(run func(ctx context.Context, query string, dest any, args ...any)) *DatabaseDriverMock_Find_Call {
@@ -339,7 +339,7 @@ type DatabaseDriverMock_FindNamed_Call struct {
 //   - query string
 //   - dest any
 //   - arg any
-func (_e *DatabaseDriverMock_Expecter) FindNamed(ctx interface{}, query interface{}, dest interface{}, arg interface{}) *DatabaseDriverMock_FindNamed_Call {
+func (_e *DatabaseDriverMock_Expecter) FindNamed(ctx any, query any, dest any, arg any) *DatabaseDriverMock_FindNamed_Call {
 	return &DatabaseDriverMock_FindNamed_Call{Call: _e.mock.On("FindNamed", ctx, query, dest, arg)}
 }
 
@@ -405,7 +405,7 @@ type DatabaseDriverMock_Ping_Call struct {
 
 // Ping is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *DatabaseDriverMock_Expecter) Ping(ctx interface{}) *DatabaseDriverMock_Ping_Call {
+func (_e *DatabaseDriverMock_Expecter) Ping(ctx any) *DatabaseDriverMock_Ping_Call {
 	return &DatabaseDriverMock_Ping_Call{Call: _e.mock.On("Ping", ctx)}
 }
 
@@ -465,9 +465,9 @@ type DatabaseDriverMock_Select_Call struct {
 //   - query string
 //   - dest any
 //   - args ...any
-func (_e *DatabaseDriverMock_Expecter) Select(ctx interface{}, query interface{}, dest interface{}, args ...interface{}) *DatabaseDriverMock_Select_Call {
+func (_e *DatabaseDriverMock_Expecter) Select(ctx any, query any, dest any, args ...any) *DatabaseDriverMock_Select_Call {
 	return &DatabaseDriverMock_Select_Call{Call: _e.mock.On("Select",
-		append([]interface{}{ctx, query, dest}, args...)...)}
+		append([]any{ctx, query, dest}, args...)...)}
 }
 
 func (_c *DatabaseDriverMock_Select_Call) Run(run func(ctx context.Context, query string, dest any, args ...any)) *DatabaseDriverMock_Select_Call {
@@ -537,7 +537,7 @@ type DatabaseDriverMock_SelectNamed_Call struct {
 //   - query string
 //   - dest any
 //   - arg any
-func (_e *DatabaseDriverMock_Expecter) SelectNamed(ctx interface{}, query interface{}, dest interface{}, arg interface{}) *DatabaseDriverMock_SelectNamed_Call {
+func (_e *DatabaseDriverMock_Expecter) SelectNamed(ctx any, query any, dest any, arg any) *DatabaseDriverMock_SelectNamed_Call {
 	return &DatabaseDriverMock_SelectNamed_Call{Call: _e.mock.On("SelectNamed", ctx, query, dest, arg)}
 }
 
@@ -604,7 +604,7 @@ type DatabaseDriverMock_WithTransaction_Call struct {
 // WithTransaction is a helper method to define mock.On call
 //   - ctx context.Context
 //   - fn func(tx contract.DatabaseDriver) error
-func (_e *DatabaseDriverMock_Expecter) WithTransaction(ctx interface{}, fn interface{}) *DatabaseDriverMock_WithTransaction_Call {
+func (_e *DatabaseDriverMock_Expecter) WithTransaction(ctx any, fn any) *DatabaseDriverMock_WithTransaction_Call {
 	return &DatabaseDriverMock_WithTransaction_Call{Call: _e.mock.On("WithTransaction", ctx, fn)}
 }
 

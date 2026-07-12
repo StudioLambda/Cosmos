@@ -2,7 +2,7 @@ package response
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -29,6 +29,12 @@ var ErrUnsafeRedirect = errors.New("unsafe redirect URL")
 //   - w: The HTTP response writer
 //   - status: The HTTP status code to set
 //   - data: The raw byte data to write to the response
+//
+// Example:
+//
+//	if err := response.Raw(w, http.StatusOK, []byte("ok")); err != nil {
+//		return err
+//	}
 func Raw(w http.ResponseWriter, status int, data []byte) error {
 	if w.Header().Get("Content-Type") == "" {
 		w.Header().Set("Content-Type", "application/octet-stream")
@@ -49,6 +55,12 @@ func Raw(w http.ResponseWriter, status int, data []byte) error {
 // Parameters:
 //   - w: The HTTP response writer
 //   - status: The HTTP status code to set
+//
+// Example:
+//
+//	if err := response.Status(w, http.StatusNoContent); err != nil {
+//		return err
+//	}
 func Status(w http.ResponseWriter, status int) error {
 	w.WriteHeader(status)
 
@@ -64,6 +76,12 @@ func Status(w http.ResponseWriter, status int) error {
 //   - w: The HTTP response writer
 //   - status: The HTTP status code to set
 //   - data: The binary data to write to the response
+//
+// Example:
+//
+//	if err := response.Bytes(w, http.StatusOK, fileData); err != nil {
+//		return err
+//	}
 func Bytes(w http.ResponseWriter, status int, data []byte) error {
 	w.Header().Set("Content-Type", "application/octet-stream")
 
@@ -78,6 +96,12 @@ func Bytes(w http.ResponseWriter, status int, data []byte) error {
 //   - w: The HTTP response writer
 //   - status: The HTTP status code to set
 //   - data: The string data to write to the response
+//
+// Example:
+//
+//	if err := response.String(w, http.StatusOK, "healthy"); err != nil {
+//		return err
+//	}
 func String(w http.ResponseWriter, status int, data string) error {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
@@ -94,6 +118,13 @@ func String(w http.ResponseWriter, status int, data string) error {
 //   - status: The HTTP status code to set (note: this is set after template execution)
 //   - tmpl: The text template to execute
 //   - data: The data to pass to the template for execution
+//
+// Example:
+//
+//	tmpl := template.Must(template.New("greet").Parse("hello {{.Name}}"))
+//	if err := response.StringTemplate(w, http.StatusOK, *tmpl, map[string]string{"Name": "Alice"}); err != nil {
+//		return err
+//	}
 func StringTemplate(w http.ResponseWriter, status int, tmpl template.Template, data any) error {
 	var buf bytes.Buffer
 
@@ -119,6 +150,12 @@ func StringTemplate(w http.ResponseWriter, status int, tmpl template.Template, d
 //   - w: The HTTP response writer
 //   - status: The HTTP status code to set
 //   - data: The HTML string to write to the response
+//
+// Example:
+//
+//	if err := response.HTML(w, http.StatusOK, "<h1>Hello</h1>"); err != nil {
+//		return err
+//	}
 func HTML(w http.ResponseWriter, status int, data string) error {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
@@ -136,6 +173,13 @@ func HTML(w http.ResponseWriter, status int, data string) error {
 //   - status: The HTTP status code to set (note: this is set after template execution)
 //   - tmpl: The HTML template to execute (must be html/template for XSS safety)
 //   - data: The data to pass to the template for execution
+//
+// Example:
+//
+//	tmpl := htmltemplate.Must(htmltemplate.New("page").Parse("<h1>{{.Title}}</h1>"))
+//	if err := response.HTMLTemplate(w, http.StatusOK, *tmpl, map[string]string{"Title": "Dashboard"}); err != nil {
+//		return err
+//	}
 func HTMLTemplate(w http.ResponseWriter, status int, tmpl htmltemplate.Template, data any) error {
 	var buf bytes.Buffer
 
@@ -163,11 +207,25 @@ func HTMLTemplate(w http.ResponseWriter, status int, tmpl htmltemplate.Template,
 //   - w: The HTTP response writer
 //   - status: The HTTP status code to set
 //   - data: The data to serialize as JSON (must be JSON-serializable)
+//
+// Example:
+//
+//	if err := response.JSON(w, http.StatusOK, map[string]any{"ok": true}); err != nil {
+//		return err
+//	}
 func JSON[T any](w http.ResponseWriter, status int, data T) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 
-	return json.NewEncoder(w).Encode(data)
+	encoded, err := json.Marshal(data)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(append(encoded, '\n'))
+
+	return err
 }
 
 // XML serializes the given data to XML format and writes it to the
@@ -182,6 +240,12 @@ func JSON[T any](w http.ResponseWriter, status int, data T) error {
 //   - w: The HTTP response writer
 //   - status: The HTTP status code to set
 //   - data: The data to serialize as XML (must be XML-serializable)
+//
+// Example:
+//
+//	if err := response.XML(w, http.StatusOK, Feed{Title: "News"}); err != nil {
+//		return err
+//	}
 func XML(w http.ResponseWriter, status int, data any) error {
 	w.Header().Set("Content-Type", "application/xml")
 	w.WriteHeader(status)
@@ -207,6 +271,12 @@ func XML(w http.ResponseWriter, status int, data any) error {
 //   - w: The HTTP response writer
 //   - status: The HTTP redirect status code to set
 //   - url: The URL to redirect the user to
+//
+// Example:
+//
+//	if err := response.Redirect(w, http.StatusFound, "/dashboard"); err != nil {
+//		return err
+//	}
 func Redirect(w http.ResponseWriter, status int, url string) error {
 	w.Header().Set("Location", url)
 
@@ -225,6 +295,13 @@ func Redirect(w http.ResponseWriter, status int, url string) error {
 //   - w: The HTTP response writer
 //   - status: The HTTP redirect status code to set
 //   - rawURL: The URL to redirect the user to (must be a relative path)
+//
+// Example:
+//
+//	next := request.QueryOr(r, "next", "/")
+//	if err := response.SafeRedirect(w, http.StatusFound, next); err != nil {
+//		return err
+//	}
 func SafeRedirect(w http.ResponseWriter, status int, rawURL string) error {
 	if !isRelativePath(rawURL) {
 		return fmt.Errorf("%w: `%s` must be a relative path", ErrUnsafeRedirect, rawURL)

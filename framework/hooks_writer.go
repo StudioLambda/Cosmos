@@ -61,6 +61,12 @@ func NewResponseWriter(writer http.ResponseWriter, hooks *contract.Hooks) Wrappe
 // WriteHeaderCalled reports whether WriteHeader has already
 // been invoked on this writer. Useful for middleware that
 // needs to conditionally set a default status code.
+//
+// Example:
+//
+//	if !wrapped.WriteHeaderCalled() {
+//		wrapped.WriteHeader(http.StatusNoContent)
+//	}
 func (writer *ResponseWriter) WriteHeaderCalled() bool {
 	return writer.writeHeaderCalled.Load()
 }

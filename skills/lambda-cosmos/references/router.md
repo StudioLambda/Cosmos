@@ -1,196 +1,133 @@
 # Router
 
-A generic HTTP router built on `http.ServeMux` with zero external
-dependencies. The type parameter makes it usable with any handler type
-that satisfies `http.Handler`.
+`router` is a generic HTTP router built on `http.ServeMux`.
 
-```
+```bash
 go get github.com/studiolambda/cosmos/router
 ```
 
-## Quick Start
+## Constructor
 
 ```go
-// With standard http.HandlerFunc
-r := router.New[http.HandlerFunc]()
-
-r.Get("/hello", func(w http.ResponseWriter, r *http.Request) {
-    w.Write([]byte("hello"))
-})
-
-http.ListenAndServe(":8080", r)
+r := router.New[http.Handler]()
 ```
+
+Type parameter is required (`H` must satisfy `http.Handler`).
+
+---
+
+## Registering routes
 
 ```go
-// With the Cosmos framework's error-returning Handler
-r := router.New[framework.Handler]()
+r.Get("/users/{id}", getUser)
+r.Post("/users", createUser)
+r.Put("/users/{id}", updateUser)
+r.Delete("/users/{id}", deleteUser)
 
-r.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) error {
-    id := request.Param(r, "id")
-    return response.JSON(w, http.StatusOK, user)
-})
+r.Method(http.MethodPatch, "/users/{id}", patchUser)
+r.Methods([]string{http.MethodGet, http.MethodHead}, "/assets/{path...}", assets)
+
+r.Any("/health", health)
 ```
 
-## API
+`Any` registers: GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS.
+It intentionally excludes TRACE and CONNECT.
 
-### Constructor
+Patterns follow `http.ServeMux` syntax: `{id}`, `{path...}`.
 
-```go
-func New[H http.Handler]() *Router[H]
-```
+Trailing slash handling is auto-registered for route pairs.
 
-Always specify the type parameter. The router implements `http.Handler`
-and can be used directly with `http.ListenAndServe`.
+---
 
-### Route Registration
-
-```go
-r.Get(pattern, handler)
-r.Post(pattern, handler)
-r.Put(pattern, handler)
-r.Patch(pattern, handler)
-r.Delete(pattern, handler)
-r.Head(pattern, handler)
-r.Options(pattern, handler)
-r.Connect(pattern, handler)
-r.Trace(pattern, handler)
-r.Any(pattern, handler)              // all 9 methods
-r.Method(method, pattern, handler)   // explicit method string
-r.Methods(methods, pattern, handler) // multiple methods
-```
-
-Patterns follow `http.ServeMux` syntax: `"/users/{id}"`, `"/files/{path...}"`.
-
-Every route automatically registers both with and without trailing slash.
-`/users` also matches `/users/`. The root path `/` only registers exact
-match.
-
-### Middleware
+## Middleware
 
 ```go
 type Middleware[H http.Handler] = func(H) H
 ```
 
-The type alias preserves direct assignability — no type conversion needed
-when passing function literals.
+### `Use` mutates current router
 
 ```go
-// Mutates the router (appends middleware in-place)
-r.Use(loggingMiddleware, recoveryMiddleware)
-
-// Returns a NEW sub-router with additional middleware (immutable)
-authed := r.With(authMiddleware)
-authed.Get("/profile", profileHandler)
+r.Use(logging, recover)
 ```
 
-**Execution order:** First registered = outermost layer.
-`A -> B -> C -> handler -> C -> B -> A` (onion model).
-
-**Critical distinction:** `Use()` mutates, `With()` creates new.
-
-### Grouping
+### `With` returns a new sub-router
 
 ```go
-// Prefix group via callback
-r.Group("/api/v1", func(api *Router[H]) {
-    api.Get("/users", listUsers)    // matches /api/v1/users
-    api.Post("/users", createUser)  // matches /api/v1/users
+authed := r.With(auth)
+authed.Get("/me", me)
+```
+
+---
+
+## Grouping
+
+```go
+r.Group("/api/v1", func(api *router.Router[http.Handler]) {
+	api.Get("/users", listUsers)
+	api.Get("/users/{id}", getUser)
 })
 
-// Same-prefix group (middleware scoping without path change)
-r.Grouped(func(sub *Router[H]) {
-    sub.Use(adminOnly)
-    sub.Delete("/users/{id}", deleteUser)
+r.Grouped(func(group *router.Router[http.Handler]) {
+	group.Use(adminOnly)
+	group.Delete("/users/{id}", deleteUser)
 })
-
-// Manual clone
-sub := r.Clone()
 ```
 
-Sub-routers inherit middleware (via `slices.Clone`) and share the same
-underlying `http.ServeMux`. Mutations to sub-router middleware don't
-affect the parent.
+`Group` prefixes paths. `Grouped` scopes middleware without changing path prefix.
 
-### Route Inspection
+`Clone()` returns a sub-router sharing the same underlying mux with independent middleware slice.
+
+---
+
+## Inspection helpers
 
 ```go
-r.Has("GET", "/users/{id}")  // bool — does this route exist?
-r.Matches(req)               // bool — does any route match this request?
-r.Handler("GET", "/users")   // (H, bool) — get the handler
-r.HandlerMatch(req)          // (H, bool) — get handler for request
+exists := r.Has(http.MethodGet, "/users/{id}")
+match := r.Matches(req)
+
+h, ok := r.Handler(http.MethodGet, "/users/1")
+h2, ok2 := r.HandlerMatch(req)
+
+_ = exists
+_ = match
+_ = h
+_ = ok
+_ = h2
+_ = ok2
 ```
 
-### Testing
+---
+
+## Testing with `Record`
 
 ```go
-req := httptest.NewRequest(http.MethodGet, "/users/42", nil)
-res := r.Record(req) // *http.Response
-
-require.Equal(t, http.StatusOK, res.StatusCode)
+res := r.Record(httptest.NewRequest(http.MethodGet, "/health", nil))
+defer res.Body.Close()
 ```
 
-`Record` executes the request through the full router pipeline
-(middleware + handler) and returns the response. Uses `httptest`
-internally.
+`Record` runs full router pipeline (middleware + handler) and returns `*http.Response`.
 
-## Patterns & Conventions
+---
 
-### Path Parameters
-
-Use `http.ServeMux` syntax. Extract with `request.Param` from the
-contract module:
+## Framework integration
 
 ```go
+r := router.New[framework.Handler]()
 r.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) error {
-    id := request.Param(r, "id")
-    // ...
+	id, err := request.ParamInt(r, "id")
+	if err != nil {
+		return err
+	}
+	return response.JSON(w, http.StatusOK, map[string]int{"id": id})
 })
-
-// Wildcard (catch-all)
-r.Get("/files/{path...}", serveFile)
 ```
 
-### Middleware Composition
-
-```go
-func AuthMiddleware(db Database) router.Middleware[framework.Handler] {
-    return func(next framework.Handler) framework.Handler {
-        return func(w http.ResponseWriter, r *http.Request) error {
-            token := request.Header(r, "Authorization")
-            if token == "" {
-                return response.Status(w, http.StatusUnauthorized)
-            }
-
-            return next(w, r)
-        }
-    }
-}
-
-r.Use(AuthMiddleware(db))
-```
-
-### Adapting stdlib Middleware
-
-When using the framework, use `middleware.HTTP` to adapt standard
-`func(http.Handler) http.Handler` middleware:
-
-```go
-r.Use(middleware.HTTP(corsMiddleware))
-```
+---
 
 ## Gotchas
 
-- **Always specify the type parameter:** `router.New[http.Handler]()`
-  — the compiler cannot infer it.
-- **`Use()` mutates, `With()` creates new:** Calling `Use()` on a
-  sub-router from `Group()` is safe (scoped), but calling it on the
-  root router after routes are registered adds middleware to all
-  subsequently registered routes only.
-- **Trailing slashes are automatic:** Don't register both `/users` and
-  `/users/` — the router handles this.
-- **`path.Join` normalizes patterns:** Double slashes and dots are
-  cleaned. This is usually desired but affects exact pattern matching.
-- **Sub-routers share one `http.ServeMux`:** All routes across the
-  entire tree register on the root's mux.
-- **Catch-all wildcards:** Routes ending in `{path...}` also register
-  the prefix without the wildcard segment.
+- `router.New[...]` type parameter cannot be inferred; provide it explicitly.
+- `Use()` mutates current router; `With()` creates a new one.
+- `path.Join` normalization applies to grouped/joined patterns; `..` segments are rejected/purged.
+- Catch-all routes (`{path...}`) also register base path without wildcard segment.

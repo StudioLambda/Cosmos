@@ -81,3 +81,8 @@ func (client *RedisClient) Increment(ctx context.Context, key string, delta int6
 func (client *RedisClient) Decrement(ctx context.Context, key string, delta int64) (int64, error) {
 	return (*redis.Client)(client).DecrBy(ctx, key, delta).Result()
 }
+
+// Ping verifies that the connection is still alive.
+func (client *RedisClient) Ping(ctx context.Context) error {
+	return (*redis.Client)(client).Ping(ctx).Err()
+}

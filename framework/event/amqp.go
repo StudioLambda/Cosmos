@@ -199,8 +199,8 @@ func (broker *AMQPBroker) Publish(
 // The handler receives messages in a separate goroutine and will
 // continue processing until the context is cancelled or the
 // returned unsubscribe function is called. The handler receives
-// an EventPayload function that can unmarshal the JSON message
-// into the desired type.
+// raw payload bytes, which callers can decode with json.Unmarshal
+// (or via [contract.NewEvents] for typed decoding).
 //
 // If subscription setup fails, the returned unsubscribe function
 // will return the setup error when called.
@@ -279,7 +279,7 @@ func (broker *AMQPBroker) Subscribe(
 					}
 				}()
 
-			handler(delivery.Body)
+				handler(delivery.Body)
 			}()
 		}
 	})
@@ -289,6 +289,20 @@ func (broker *AMQPBroker) Subscribe(
 
 		return ch.Close()
 	}, nil
+}
+
+// Ping verifies that the AMQP connection is still alive.
+func (broker *AMQPBroker) Ping(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	ch, err := broker.conn.Channel()
+	if err != nil {
+		return err
+	}
+
+	return ch.Close()
 }
 
 // Close closes the broker's publish channel and the underlying
