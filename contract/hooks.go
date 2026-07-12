@@ -1,6 +1,10 @@
 package contract
 
-import "net/http"
+import (
+	"net/http"
+	"slices"
+	"sync"
+)
 
 // hooksKey is the unexported type used as the context key
 // for storing and retrieving [Hooks] from a request context.
@@ -26,28 +30,91 @@ type BeforeWriteHeaderHook = func(w http.ResponseWriter, status int)
 // slice that is about to be sent.
 type BeforeWriteHook = func(w http.ResponseWriter, content []byte)
 
-// Hooks defines the contract for registering and retrieving
-// lifecycle callbacks during HTTP request processing. Middleware
-// and handlers use these hooks to observe response events.
-type Hooks interface {
-	// AfterResponse registers one or more callbacks to be invoked
-	// after the HTTP response has been fully written.
-	AfterResponse(callbacks ...AfterResponseHook)
+// Hooks provides lifecycle hook registration for the HTTP
+// request/response cycle. Middleware and handlers can attach
+// callbacks that fire before headers are written, before the
+// body is written, and after the response completes.
+//
+// All methods are safe for concurrent use.
+type Hooks struct {
+	mutex                  sync.Mutex
+	afterResponseHooks     []AfterResponseHook
+	beforeWriteHeaderHooks []BeforeWriteHeaderHook
+	beforeWriteHooks       []BeforeWriteHook
+}
 
-	// AfterResponseFuncs returns all registered after-response callbacks.
-	AfterResponseFuncs() []AfterResponseHook
+// NewHooks creates a [Hooks] instance with empty callback slices
+// ready to accept registrations via the Before* and After* methods.
+func NewHooks() *Hooks {
+	return &Hooks{
+		beforeWriteHeaderHooks: []BeforeWriteHeaderHook{},
+		beforeWriteHooks:       []BeforeWriteHook{},
+		afterResponseHooks:     []AfterResponseHook{},
+	}
+}
 
-	// BeforeWrite registers one or more callbacks to be invoked
-	// just before response body bytes are written.
-	BeforeWrite(callbacks ...BeforeWriteHook)
+// AfterResponse registers one or more callbacks to be invoked
+// after the HTTP response has been fully written.
+func (hooks *Hooks) AfterResponse(callbacks ...AfterResponseHook) {
+	hooks.mutex.Lock()
+	defer hooks.mutex.Unlock()
 
-	// BeforeWriteFuncs returns all registered before-write callbacks.
-	BeforeWriteFuncs() []BeforeWriteHook
+	hooks.afterResponseHooks = append(hooks.afterResponseHooks, callbacks...)
+}
 
-	// BeforeWriteHeader registers one or more callbacks to be invoked
-	// just before the response status code is written.
-	BeforeWriteHeader(callbacks ...BeforeWriteHeaderHook)
+// AfterResponseFuncs returns a reversed clone of the registered
+// AfterResponse callbacks. The reversal ensures that the most
+// recently registered callback executes first (LIFO order).
+func (hooks *Hooks) AfterResponseFuncs() []AfterResponseHook {
+	hooks.mutex.Lock()
+	defer hooks.mutex.Unlock()
 
-	// BeforeWriteHeaderFuncs returns all registered before-write-header callbacks.
-	BeforeWriteHeaderFuncs() []BeforeWriteHeaderHook
+	clone := slices.Clone(hooks.afterResponseHooks)
+	slices.Reverse(clone)
+
+	return clone
+}
+
+// BeforeWrite registers one or more callbacks to be invoked
+// just before response body bytes are written.
+func (hooks *Hooks) BeforeWrite(callbacks ...BeforeWriteHook) {
+	hooks.mutex.Lock()
+	defer hooks.mutex.Unlock()
+
+	hooks.beforeWriteHooks = append(hooks.beforeWriteHooks, callbacks...)
+}
+
+// BeforeWriteFuncs returns a reversed clone of the registered
+// BeforeWrite callbacks. The reversal ensures that the most
+// recently registered callback executes first (LIFO order).
+func (hooks *Hooks) BeforeWriteFuncs() []BeforeWriteHook {
+	hooks.mutex.Lock()
+	defer hooks.mutex.Unlock()
+
+	clone := slices.Clone(hooks.beforeWriteHooks)
+	slices.Reverse(clone)
+
+	return clone
+}
+
+// BeforeWriteHeader registers one or more callbacks to be invoked
+// just before the response status code is written.
+func (hooks *Hooks) BeforeWriteHeader(callbacks ...BeforeWriteHeaderHook) {
+	hooks.mutex.Lock()
+	defer hooks.mutex.Unlock()
+
+	hooks.beforeWriteHeaderHooks = append(hooks.beforeWriteHeaderHooks, callbacks...)
+}
+
+// BeforeWriteHeaderFuncs returns a reversed clone of the registered
+// BeforeWriteHeader callbacks. The reversal ensures that the most
+// recently registered callback executes first (LIFO order).
+func (hooks *Hooks) BeforeWriteHeaderFuncs() []BeforeWriteHeaderHook {
+	hooks.mutex.Lock()
+	defer hooks.mutex.Unlock()
+
+	clone := slices.Clone(hooks.beforeWriteHeaderHooks)
+	slices.Reverse(clone)
+
+	return clone
 }

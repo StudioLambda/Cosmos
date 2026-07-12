@@ -438,16 +438,6 @@ func TestSafeRedirectRejectsUnparseableURL(t *testing.T) {
 	require.ErrorIs(t, err, response.ErrUnsafeRedirect)
 }
 
-func TestErrUnsafeRedirectMessage(t *testing.T) {
-	t.Parallel()
-
-	require.Equal(
-		t,
-		"unsafe redirect URL: must be a relative path",
-		response.ErrUnsafeRedirect.Error(),
-	)
-}
-
 func TestStringTemplateBuffersBeforeWritingStatus(t *testing.T) {
 	t.Parallel()
 

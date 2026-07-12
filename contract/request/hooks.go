@@ -22,8 +22,8 @@ var ErrNoHooksMiddleware = problem.Problem{
 // WARNING: This function panics when hooks are missing. Use
 // [TryHooks] for a non-panicking alternative, or ensure the
 // [framework.Recover] middleware is in place.
-func Hooks(r *http.Request) contract.Hooks {
-	if hooks, ok := r.Context().Value(contract.HooksKey).(contract.Hooks); ok {
+func Hooks(r *http.Request) *contract.Hooks {
+	if hooks, ok := r.Context().Value(contract.HooksKey).(*contract.Hooks); ok {
 		return hooks
 	}
 
@@ -34,8 +34,8 @@ func Hooks(r *http.Request) contract.Hooks {
 // context without panicking. The boolean return value indicates
 // whether hooks were found. This is the safe alternative to
 // [Hooks] for use outside the framework handler chain.
-func TryHooks(r *http.Request) (contract.Hooks, bool) {
-	hooks, ok := r.Context().Value(contract.HooksKey).(contract.Hooks)
+func TryHooks(r *http.Request) (*contract.Hooks, bool) {
+	hooks, ok := r.Context().Value(contract.HooksKey).(*contract.Hooks)
 
 	return hooks, ok
 }
