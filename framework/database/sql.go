@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"reflect"
 
 	"github.com/studiolambda/cosmos/contract"
 
@@ -24,6 +25,17 @@ type SQL struct {
 // from within a transaction.
 type sqlTx struct {
 	SQL
+}
+
+// sqlRows wraps [sqlx.Rows] to satisfy [contract.DatabaseRows].
+type sqlRows struct {
+	*sqlx.Rows
+}
+
+// queryxContext is implemented by sqlx types that can execute queries and
+// return [sqlx.Rows] with context support.
+type queryxContext interface {
+	QueryxContext(ctx context.Context, query string, args ...any) (*sqlx.Rows, error)
 }
 
 // Close is a no-op on transaction wrappers. Transactions are managed
@@ -112,6 +124,31 @@ func (database *SQL) SelectNamed(ctx context.Context, query string, dest any, ar
 	return sqlx.StructScan(rows, dest)
 }
 
+// Query executes a query and returns a cursor over the result rows.
+func (database *SQL) Query(ctx context.Context, query string, args ...any) (contract.DatabaseRows, error) {
+	queryer, ok := database.db.(queryxContext)
+	if !ok {
+		return nil, errors.New("database driver does not support cursor queries")
+	}
+
+	rows, err := queryer.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return sqlRows{Rows: rows}, nil
+}
+
+// QueryNamed executes a named query and returns a cursor over the result rows.
+func (database *SQL) QueryNamed(ctx context.Context, query string, arg any) (contract.DatabaseRows, error) {
+	rows, err := sqlx.NamedQueryContext(ctx, database.db, query, arg)
+	if err != nil {
+		return nil, err
+	}
+
+	return sqlRows{Rows: rows}, nil
+}
+
 // Find executes a query expected to return a single row, scanning
 // the result into dest. If no row is found, the returned error wraps
 // both sql.ErrNoRows and [contract.ErrDatabaseNoRows].
@@ -151,6 +188,25 @@ func (database *SQL) FindNamed(ctx context.Context, query string, dest any, arg 
 	}
 
 	return rows.Err()
+}
+
+// Scan scans the current row into dest.
+func (rows sqlRows) Scan(dest any) error {
+	if dest == nil {
+		return errors.New("scan destination cannot be nil")
+	}
+
+	v := reflect.ValueOf(dest)
+	if v.Kind() != reflect.Ptr || v.IsNil() {
+		return errors.New("scan destination must be a non-nil pointer")
+	}
+
+	elem := v.Elem()
+	if elem.Kind() == reflect.Struct {
+		return rows.StructScan(dest)
+	}
+
+	return rows.Rows.Scan(dest)
 }
 
 // WithTransaction executes fn inside a database transaction. If fn

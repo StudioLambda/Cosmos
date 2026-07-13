@@ -3,6 +3,8 @@ package contract
 import (
 	"context"
 	"errors"
+
+	"github.com/studiolambda/cosmos/collection"
 )
 
 var (
@@ -14,6 +16,22 @@ var (
 	// when attempting to create a nested transaction, which is not supported.
 	ErrDatabaseNestedTransaction = errors.New("nested transactions are not supported")
 )
+
+// DatabaseRows represents an open database cursor for streaming query results.
+type DatabaseRows interface {
+	// Next advances the cursor to the next row. It returns false when there are
+	// no more rows or when iteration can no longer continue.
+	Next() bool
+
+	// Scan scans the current row into dest.
+	Scan(dest any) error
+
+	// Err returns any error encountered while iterating the cursor.
+	Err() error
+
+	// Close closes the cursor and releases associated resources.
+	Close() error
+}
 
 // DatabaseDriver defines the interface for interacting with a SQL-based
 // datastore. Implementations handle query execution, scanning, and
@@ -42,6 +60,13 @@ type DatabaseDriver interface {
 	// SelectNamed executes a query using named parameters and scans results into dest.
 	// Dest should be a pointer to a slice of structs.
 	SelectNamed(ctx context.Context, query string, dest any, arg any) error
+
+	// Query executes a query and returns a cursor over the result rows.
+	Query(ctx context.Context, query string, args ...any) (DatabaseRows, error)
+
+	// QueryNamed executes a query using named parameters and returns a cursor
+	// over the result rows.
+	QueryNamed(ctx context.Context, query string, arg any) (DatabaseRows, error)
 
 	// Find executes a query expected to return a single row and scans
 	// the result into dest. Dest should be a pointer to a struct.
@@ -134,39 +159,138 @@ func (database *Database) ExecNamed(ctx context.Context, query string, arg any) 
 	return database.driver.ExecNamed(ctx, query, arg)
 }
 
-// Select executes a query and scans the results into dest.
-// Dest should be a pointer to a slice of structs.
+// Select executes a query and scans the results into a [collection.Slice].
 //
 // Example:
 //
-//	users, err := db.Select[[]User](ctx, "SELECT id, name FROM users WHERE active = ?", true)
+//	users, err := db.Select[User](ctx, "SELECT id, name FROM users WHERE active = ?", true)
 //	if err != nil {
 //		return err
 //	}
-//	_ = users
-func (database *Database) Select[S ~[]T, T any](ctx context.Context, query string, args ...any) (res S, err error) {
-	if err := database.driver.Select(ctx, query, res, args...); err != nil {
+//	_ = users.Items()
+func (database *Database) Select[T any](ctx context.Context, query string, args ...any) (res collection.Slice[T], err error) {
+	items := make([]T, 0)
+
+	if err := database.driver.Select(ctx, query, &items, args...); err != nil {
 		return res, err
 	}
 
-	return res, nil
+	return collection.NewSlice(items), nil
 }
 
-// SelectNamed executes a query using named parameters and scans results into dest.
+// SelectNamed executes a named query and scans the results into a [collection.Slice].
 //
 // Example:
 //
-//	users, err := db.SelectNamed[[]User](ctx, "SELECT id, name FROM users WHERE account_id=:account_id", map[string]any{"account_id": 42})
+//	users, err := db.SelectNamed[User](ctx, "SELECT id, name FROM users WHERE account_id=:account_id", map[string]any{"account_id": 42})
 //	if err != nil {
 //		return err
 //	}
-//	_ = users
-func (database *Database) SelectNamed[S ~[]T, T any](ctx context.Context, query string, arg any) (res S, err error) {
-	if err := database.driver.SelectNamed(ctx, query, res, arg); err != nil {
+//	_ = users.Items()
+func (database *Database) SelectNamed[T any](ctx context.Context, query string, arg any) (res collection.Slice[T], err error) {
+	items := make([]T, 0)
+
+	if err := database.driver.SelectNamed(ctx, query, &items, arg); err != nil {
 		return res, err
 	}
 
-	return res, nil
+	return collection.NewSlice(items), nil
+}
+
+// Cursor executes a query and returns a lazy cursor over its results.
+//
+// Example:
+//
+//	users := db.Cursor[User](ctx, "SELECT id, name FROM users WHERE active = ?", true)
+//	err := users.Each(func(user User) error {
+//		return nil
+//	})
+//	if err != nil {
+//		return err
+//	}
+func (database *Database) Cursor[T any](ctx context.Context, query string, args ...any) collection.TryLazySlice[T] {
+	return collection.NewTryLazySlice(func(yield func(T, error) bool) {
+		rows, err := database.driver.Query(ctx, query, args...)
+		if err != nil {
+			var zero T
+
+			yield(zero, err)
+
+			return
+		}
+
+		defer rows.Close()
+
+		for rows.Next() {
+			var item T
+
+			if err := rows.Scan(&item); err != nil {
+				if !yield(item, err) {
+					return
+				}
+
+				return
+			}
+
+			if !yield(item, nil) {
+				return
+			}
+		}
+
+		if err := rows.Err(); err != nil {
+			var zero T
+
+			yield(zero, err)
+		}
+	})
+}
+
+// CursorNamed executes a named query and returns a lazy cursor over its results.
+//
+// Example:
+//
+//	users := db.CursorNamed[User](ctx, "SELECT id, name FROM users WHERE account_id=:account_id", map[string]any{"account_id": 42})
+//	err := users.Each(func(user User) error {
+//		return nil
+//	})
+//	if err != nil {
+//		return err
+//	}
+func (database *Database) CursorNamed[T any](ctx context.Context, query string, arg any) collection.TryLazySlice[T] {
+	return collection.NewTryLazySlice(func(yield func(T, error) bool) {
+		rows, err := database.driver.QueryNamed(ctx, query, arg)
+		if err != nil {
+			var zero T
+
+			yield(zero, err)
+
+			return
+		}
+
+		defer rows.Close()
+
+		for rows.Next() {
+			var item T
+
+			if err := rows.Scan(&item); err != nil {
+				if !yield(item, err) {
+					return
+				}
+
+				return
+			}
+
+			if !yield(item, nil) {
+				return
+			}
+		}
+
+		if err := rows.Err(); err != nil {
+			var zero T
+
+			yield(zero, err)
+		}
+	})
 }
 
 // Find executes a query expected to return a single row and scans the result into dest.

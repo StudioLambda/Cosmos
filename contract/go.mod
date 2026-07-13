@@ -2,8 +2,11 @@ module github.com/studiolambda/cosmos/contract
 
 go 1.27
 
+replace github.com/studiolambda/cosmos/collection => ../collection
+
 require (
 	github.com/stretchr/testify v1.11.1
+	github.com/studiolambda/cosmos/collection v0.0.0
 	github.com/studiolambda/cosmos/problem v0.4.0
 )
 

@@ -81,6 +81,163 @@ func (_c *DatabaseDriverMock_Close_Call) RunAndReturn(run func() error) *Databas
 	return _c
 }
 
+// Query provides a mock function for the type DatabaseDriverMock
+func (_mock *DatabaseDriverMock) Query(ctx context.Context, query string, args ...any) (contract.DatabaseRows, error) {
+	var tmpRet mock.Arguments
+	if len(args) > 0 {
+		tmpRet = _mock.Called(ctx, query, args)
+	} else {
+		tmpRet = _mock.Called(ctx, query)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for Query")
+	}
+
+	var r0 contract.DatabaseRows
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...any) (contract.DatabaseRows, error)); ok {
+		return returnFunc(ctx, query, args...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...any) contract.DatabaseRows); ok {
+		r0 = returnFunc(ctx, query, args...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(contract.DatabaseRows)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...any) error); ok {
+		r1 = returnFunc(ctx, query, args...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// DatabaseDriverMock_Query_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Query'
+type DatabaseDriverMock_Query_Call struct {
+	*mock.Call
+}
+
+// Query is a helper method to define mock.On call
+//   - ctx context.Context
+//   - query string
+//   - args ...any
+func (_e *DatabaseDriverMock_Expecter) Query(ctx any, query any, args ...any) *DatabaseDriverMock_Query_Call {
+	return &DatabaseDriverMock_Query_Call{Call: _e.mock.On("Query",
+		append([]any{ctx, query}, args...)...)}
+}
+
+func (_c *DatabaseDriverMock_Query_Call) Run(run func(ctx context.Context, query string, args ...any)) *DatabaseDriverMock_Query_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []any
+		var variadicArgs []any
+		if len(args) > 2 {
+			variadicArgs = args[2].([]any)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *DatabaseDriverMock_Query_Call) Return(rows contract.DatabaseRows, err error) *DatabaseDriverMock_Query_Call {
+	_c.Call.Return(rows, err)
+	return _c
+}
+
+func (_c *DatabaseDriverMock_Query_Call) RunAndReturn(run func(ctx context.Context, query string, args ...any) (contract.DatabaseRows, error)) *DatabaseDriverMock_Query_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// QueryNamed provides a mock function for the type DatabaseDriverMock
+func (_mock *DatabaseDriverMock) QueryNamed(ctx context.Context, query string, arg any) (contract.DatabaseRows, error) {
+	ret := _mock.Called(ctx, query, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for QueryNamed")
+	}
+
+	var r0 contract.DatabaseRows
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, any) (contract.DatabaseRows, error)); ok {
+		return returnFunc(ctx, query, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, any) contract.DatabaseRows); ok {
+		r0 = returnFunc(ctx, query, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(contract.DatabaseRows)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, any) error); ok {
+		r1 = returnFunc(ctx, query, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// DatabaseDriverMock_QueryNamed_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'QueryNamed'
+type DatabaseDriverMock_QueryNamed_Call struct {
+	*mock.Call
+}
+
+// QueryNamed is a helper method to define mock.On call
+//   - ctx context.Context
+//   - query string
+//   - arg any
+func (_e *DatabaseDriverMock_Expecter) QueryNamed(ctx any, query any, arg any) *DatabaseDriverMock_QueryNamed_Call {
+	return &DatabaseDriverMock_QueryNamed_Call{Call: _e.mock.On("QueryNamed", ctx, query, arg)}
+}
+
+func (_c *DatabaseDriverMock_QueryNamed_Call) Run(run func(ctx context.Context, query string, arg any)) *DatabaseDriverMock_QueryNamed_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 any
+		if args[2] != nil {
+			arg2 = args[2].(any)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *DatabaseDriverMock_QueryNamed_Call) Return(rows contract.DatabaseRows, err error) *DatabaseDriverMock_QueryNamed_Call {
+	_c.Call.Return(rows, err)
+	return _c
+}
+
+func (_c *DatabaseDriverMock_QueryNamed_Call) RunAndReturn(run func(ctx context.Context, query string, arg any) (contract.DatabaseRows, error)) *DatabaseDriverMock_QueryNamed_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Exec provides a mock function for the type DatabaseDriverMock
 func (_mock *DatabaseDriverMock) Exec(ctx context.Context, query string, args ...any) (int64, error) {
 	var tmpRet mock.Arguments
