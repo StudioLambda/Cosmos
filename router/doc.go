@@ -6,8 +6,9 @@
 //
 // # Routing model
 //
-// Use [New] to create a root router and register handlers with Get, Post, Put,
-// Patch, Delete, and related helpers. Groups inherit middleware and prefixes.
+// Use [New] to create a root router and register handlers with Get, Query,
+// Post, Put, Patch, Delete, and related helpers. Groups inherit middleware and
+// prefixes.
 //
 // # Thread safety
 //

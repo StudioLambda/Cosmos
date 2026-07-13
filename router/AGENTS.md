@@ -58,6 +58,7 @@ Multiple methods:
 ```go
 r.Methods([]string{"GET", "POST"}, "/path", handler)
 r.Any("/webhook", handler)
+r.Query("/search", handler)
 ```
 
 Testing:

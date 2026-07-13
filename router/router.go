@@ -54,6 +54,7 @@ var allMethods = []string{
 	http.MethodPatch,
 	http.MethodDelete,
 	http.MethodOptions,
+	"QUERY",
 }
 
 // New creates a new [Router] with an empty [http.ServeMux].
@@ -337,7 +338,7 @@ func (router *Router[H]) Methods(methods []string, pattern string, handler H) {
 }
 
 // Any registers a handler for all standard HTTP methods (GET, HEAD, POST, PUT,
-// PATCH, DELETE, OPTIONS) using [Router.Methods]. TRACE and CONNECT are
+// PATCH, DELETE, OPTIONS, QUERY) using [Router.Methods]. TRACE and CONNECT are
 // intentionally excluded for security reasons.
 //
 // Example:
@@ -345,6 +346,15 @@ func (router *Router[H]) Methods(methods []string, pattern string, handler H) {
 //	r.Any("/health", healthHandler)
 func (router *Router[H]) Any(pattern string, handler H) {
 	router.Methods(allMethods, pattern, handler)
+}
+
+// Query registers a handler for QUERY using [Router.Method].
+//
+// Example:
+//
+//	r.Query("/users/{id}", getUserHandler)
+func (router *Router[H]) Query(pattern string, handler H) {
+	router.Method("QUERY", pattern, handler)
 }
 
 // Get registers a handler for [http.MethodGet] using [Router.Method].
