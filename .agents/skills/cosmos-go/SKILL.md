@@ -11,14 +11,15 @@ description: >
 # Cosmos Go
 
 Go conventions and patterns for the Cosmos HTTP framework monorepo.
-Go 1.25+ workspace with four modules: contract, router, problem, framework.
+Go 1.25+ workspace with five modules: collection, contract, router, problem, framework.
 
 ## Project Structure
 
 ```
 cosmos/
 ├── go.work              # Workspace: use + replace directives
-├── contract/            # Interfaces (zero deps) - the foundation
+├── collection/          # Generic slice/map collection helpers
+├── contract/            # Interfaces and typed wrappers
 ├── router/              # Generic HTTP router (zero deps)
 ├── problem/             # RFC 9457 problem details (zero deps)
 │   └── internal/        # Accept header parsing (not exported)
@@ -32,7 +33,7 @@ cosmos/
     └── session/         # Session management
 ```
 
-**Dependency direction:** contract (zero deps) -> router, problem (standalone) -> framework (uses all).
+**Dependency direction:** collection, router, problem are foundational. contract depends on collection and problem. framework depends on contract, router, and problem.
 
 Always run tests from workspace root: `go test ./...`
 Test a single module: `go test ./router/...`
@@ -91,6 +92,7 @@ eliminate that class of confusion entirely.
 - Constructor: `New` for single-type packages, `NewTypeName` when multiple types exist.
 - Symmetric method pairs: `With`/`Without`, `WithError`/`WithoutError`.
 - Past participle for methods returning a modified copy: `Defaulted`, `Grouped`.
+- For paired generic APIs, prefer the pattern `PlainName[T]` for the common plain-container form and `PlainNameAs[S ~[]T]` / `PlainNameAs[M ~map[K]V]` for the preserved output-shape form. Examples: `NewSlice` + `NewSliceAs`, `NewMap` + `NewMapAs`, `Select` + `SelectAs`.
 
 ## Functions
 
