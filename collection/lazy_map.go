@@ -28,8 +28,24 @@ func (lazyMapping LazyMap[K, V]) Items() map[K]V {
 	return maps.Collect(lazyMapping.Iter())
 }
 
+// ItemsAs materializes all entries from the iterator into the given map type.
+func (mapping LazyMap[K, V]) ItemsAs[M ~map[K]V]() M {
+	return mapping.Items()
+}
+
 func (lazyMapping LazyMap[K, V]) Iter() iter.Seq2[K, V] {
 	return iter.Seq2[K, V](lazyMapping)
+}
+
+// Try returns a [TryLazyMap] backed by the entries in the lazy map.
+func (lazyMapping LazyMap[K, V]) Try() TryLazyMap[K, V] {
+	return NewTryLazyMap(func(yield func(MapEntry[K, V], error) bool) {
+		for k, v := range lazyMapping {
+			if !yield(NewMapEntry(k, v), nil) {
+				return
+			}
+		}
+	})
 }
 
 // IsEmpty reports whether the iterator yields no entries.
@@ -172,10 +188,10 @@ func (lazyMapping LazyMap[K, V]) Except(keys ...K) LazyMap[K, V] {
 }
 
 // LazyMapValues transforms values using f and returns a new [LazyMap] with the same keys.
-func LazyMapValues[K comparable, V, W any](lazyMapping LazyMap[K, V], f func(V) W) LazyMap[K, W] {
+func LazyMapValues[K comparable, V, W any](lazyMapping LazyMap[K, V], f func(K, V) W) LazyMap[K, W] {
 	return NewLazyMap(func(yield func(K, W) bool) {
 		for k, v := range lazyMapping {
-			if !yield(k, f(v)) {
+			if !yield(k, f(k, v)) {
 				return
 			}
 		}
@@ -184,10 +200,10 @@ func LazyMapValues[K comparable, V, W any](lazyMapping LazyMap[K, V], f func(V) 
 
 // LazyMapKeys transforms keys using f and returns a new [LazyMap] with the same values.
 // When multiple keys map to the same new key, the last one encountered wins upon materialisation.
-func LazyMapKeys[K comparable, J comparable, V any](lazyMapping LazyMap[K, V], f func(K) J) LazyMap[J, V] {
+func LazyMapKeys[K comparable, J comparable, V any](lazyMapping LazyMap[K, V], f func(K, V) J) LazyMap[J, V] {
 	return NewLazyMap(func(yield func(J, V) bool) {
 		for k, v := range lazyMapping {
-			if !yield(f(k), v) {
+			if !yield(f(k, v), v) {
 				return
 			}
 		}
@@ -196,22 +212,26 @@ func LazyMapKeys[K comparable, J comparable, V any](lazyMapping LazyMap[K, V], f
 
 // LazyKeys returns a [LazySlice] yielding all keys from the given [LazyMap].
 func LazyKeys[K comparable, V any](lazyMapping LazyMap[K, V]) LazySlice[K] {
-	return NewLazySlice(func(yield func(K) bool) {
+	return NewLazySlice(func(yield func(int, K) bool) {
+		index := 0
 		for k, _ := range lazyMapping {
-			if !yield(k) {
+			if !yield(index, k) {
 				return
 			}
+			index++
 		}
 	})
 }
 
 // LazyValues returns a [LazySlice] yielding all values from the given [LazyMap].
 func LazyValues[K comparable, V any](lazyMapping LazyMap[K, V]) LazySlice[V] {
-	return NewLazySlice(func(yield func(V) bool) {
+	return NewLazySlice(func(yield func(int, V) bool) {
+		index := 0
 		for _, v := range lazyMapping {
-			if !yield(v) {
+			if !yield(index, v) {
 				return
 			}
+			index++
 		}
 	})
 }

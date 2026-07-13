@@ -10,11 +10,11 @@ import (
 // LazySlice is a lazily-evaluated collection backed by an [iter.Seq].
 // Being a function type, it can be used directly in a for-range loop:
 //
-//	for v := range lazySlice { ... }
-type LazySlice[T any] func(yield func(T) bool)
+//	for i, v := range lazySlice { ... }
+type LazySlice[T any] func(yield func(int, T) bool)
 
 // NewLazySlice creates a new [LazySlice] from the given iterator function.
-func NewLazySlice[T any](f func(yield func(T) bool)) LazySlice[T] {
+func NewLazySlice[T any](f func(yield func(int, T) bool)) LazySlice[T] {
 	return LazySlice[T](f)
 }
 
@@ -25,11 +25,26 @@ func (lazySlice LazySlice[T]) Eager() Slice[T] {
 
 // Items materializes all items from the iterator into a Go slice.
 func (lazySlice LazySlice[T]) Items() []T {
-	return slices.Collect(lazySlice.Iter())
+	var items []T
+	for _, v := range lazySlice {
+		items = append(items, v)
+	}
+	return items
 }
 
-func (lazySlice LazySlice[T]) Iter() iter.Seq[T] {
-	return iter.Seq[T](lazySlice)
+func (lazySlice LazySlice[T]) Iter() iter.Seq2[int, T] {
+	return iter.Seq2[int, T](lazySlice)
+}
+
+// Try returns a [TryLazySlice] backed by the items in the lazy slice.
+func (lazySlice LazySlice[T]) Try() TryLazySlice[T] {
+	return NewTryLazySlice(func(yield func(T, error) bool) {
+		for _, v := range lazySlice {
+			if !yield(v, nil) {
+				return
+			}
+		}
+	})
 }
 
 // IsEmpty reports whether the iterator yields no items.
@@ -59,9 +74,9 @@ func (lazySlice LazySlice[T]) Len() int {
 }
 
 // Every reports whether f returns true for every item yielded by the iterator.
-func (lazySlice LazySlice[T]) Every(f func(T) bool) bool {
-	for v := range lazySlice {
-		if !f(v) {
+func (lazySlice LazySlice[T]) Every(f func(int, T) bool) bool {
+	for i, v := range lazySlice {
+		if !f(i, v) {
 			return false
 		}
 	}
@@ -70,86 +85,102 @@ func (lazySlice LazySlice[T]) Every(f func(T) bool) bool {
 }
 
 // Each calls f for every item yielded by the iterator.
-func (lazySlice LazySlice[T]) Each(f func(T)) {
-	for v := range lazySlice {
-		f(v)
+func (lazySlice LazySlice[T]) Each(f func(int, T)) {
+	for i, v := range lazySlice {
+		f(i, v)
 	}
 }
 
 // TapEach returns a lazy slice that calls f on each item as it is consumed.
-func (lazySlice LazySlice[T]) TapEach(f func(T)) LazySlice[T] {
-	return NewLazySlice(func(yield func(T) bool) {
-		for v := range lazySlice {
-			f(v)
+func (lazySlice LazySlice[T]) TapEach(f func(int, T)) LazySlice[T] {
+	return NewLazySlice(func(yield func(int, T) bool) {
+		index := 0
 
-			if !yield(v) {
+		for i, v := range lazySlice {
+			f(i, v)
+
+			if !yield(index, v) {
 				return
 			}
+
+			index++
 		}
 	})
 }
 
 // Filter returns a lazy slice containing only items for which f returns true.
-func (lazySlice LazySlice[T]) Filter(f func(T) bool) LazySlice[T] {
-	return NewLazySlice(func(yield func(T) bool) {
-		for v := range lazySlice {
-			if f(v) {
-				if !yield(v) {
+func (lazySlice LazySlice[T]) Filter(f func(int, T) bool) LazySlice[T] {
+	return NewLazySlice(func(yield func(int, T) bool) {
+		index := 0
+
+		for i, v := range lazySlice {
+			if f(i, v) {
+				if !yield(index, v) {
 					return
 				}
 			}
+
+			index++
 		}
 	})
 }
 
 // Reject returns a lazy slice containing only items for which f returns false.
-func (lazySlice LazySlice[T]) Reject(f func(T) bool) LazySlice[T] {
-	return lazySlice.Filter(func(v T) bool { return !f(v) })
+func (lazySlice LazySlice[T]) Reject(f func(int, T) bool) LazySlice[T] {
+	return lazySlice.Filter(func(i int, v T) bool { return !f(i, v) })
 }
 
 // Map transforms each item using f and returns a new lazy slice of type K.
-func (lazySlice LazySlice[T]) Map[K any](f func(T) K) LazySlice[K] {
-	return NewLazySlice(func(yield func(K) bool) {
-		for v := range lazySlice {
-			if !yield(f(v)) {
+func (lazySlice LazySlice[T]) Map[K any](f func(int, T) K) LazySlice[K] {
+	return NewLazySlice(func(yield func(int, K) bool) {
+		index := 0
+
+		for i, v := range lazySlice {
+			if !yield(index, f(i, v)) {
 				return
 			}
+
+			index++
 		}
 	})
 }
 
 // FlatMap transforms each item into zero or more items and yields the flattened
 // results lazily.
-func (lazySlice LazySlice[T]) FlatMap[K any](f func(T) []K) LazySlice[K] {
-	return NewLazySlice(func(yield func(K) bool) {
-		for v := range lazySlice {
-			for _, mapped := range f(v) {
-				if !yield(mapped) {
+func (lazySlice LazySlice[T]) FlatMap[K any](f func(int, T) []K) LazySlice[K] {
+	return NewLazySlice(func(yield func(int, K) bool) {
+		index := 0
+
+		for i, v := range lazySlice {
+			for _, mapped := range f(i, v) {
+				if !yield(index, mapped) {
 					return
 				}
 			}
+
+			index++
 		}
 	})
 }
 
 // KeyBy indexes yielded items by the key returned from f. When multiple items
 // map to the same key, the last item wins.
-func (lazySlice LazySlice[T]) KeyBy[K comparable](f func(T) K) Map[K, T] {
+func (lazySlice LazySlice[T]) KeyBy[K comparable](f func(int, T) K) Map[K, T] {
 	indexed := make(map[K]T)
 
-	for v := range lazySlice {
-		indexed[f(v)] = v
+	for i, v := range lazySlice {
+		indexed[f(i, v)] = v
 	}
 
 	return NewMap(indexed)
 }
 
 // CountBy counts yielded items by the key returned from f.
-func (lazySlice LazySlice[T]) CountBy[K comparable](f func(T) K) Map[K, int] {
+func (lazySlice LazySlice[T]) CountBy[K comparable](f func(int, T) K) Map[K, int] {
 	counts := make(map[K]int)
 
-	for v := range lazySlice {
-		counts[f(v)]++
+	for i, v := range lazySlice {
+		counts[f(i, v)]++
 	}
 
 	return NewMap(counts)
@@ -157,9 +188,9 @@ func (lazySlice LazySlice[T]) CountBy[K comparable](f func(T) K) Map[K, int] {
 
 // FirstWhere returns the first item for which f returns true, along with a boolean
 // indicating whether such an item was found.
-func (lazySlice LazySlice[T]) FirstWhere(f func(T) bool) (result T, ok bool) {
-	for v := range lazySlice {
-		if f(v) {
+func (lazySlice LazySlice[T]) FirstWhere(f func(int, T) bool) (result T, ok bool) {
+	for i, v := range lazySlice {
+		if f(i, v) {
 			return v, true
 		}
 	}
@@ -170,7 +201,7 @@ func (lazySlice LazySlice[T]) FirstWhere(f func(T) bool) (result T, ok bool) {
 // First returns the first item yielded by the iterator, along with a boolean
 // indicating whether the iterator was non-empty.
 func (lazySlice LazySlice[T]) First() (result T, ok bool) {
-	for v := range lazySlice {
+	for _, v := range lazySlice {
 		return v, true
 	}
 
@@ -181,7 +212,7 @@ func (lazySlice LazySlice[T]) First() (result T, ok bool) {
 // indicating whether the iterator was non-empty.
 // It fully consumes the sequence.
 func (lazySlice LazySlice[T]) Last() (result T, ok bool) {
-	for v := range lazySlice {
+	for _, v := range lazySlice {
 		result = v
 		ok = true
 	}
@@ -190,7 +221,7 @@ func (lazySlice LazySlice[T]) Last() (result T, ok bool) {
 }
 
 // Contains reports whether any item yielded by the iterator satisfies f.
-func (lazySlice LazySlice[T]) Contains(f func(T) bool) bool {
+func (lazySlice LazySlice[T]) Contains(f func(int, T) bool) bool {
 	_, found := lazySlice.FirstWhere(f)
 
 	return found
@@ -198,15 +229,17 @@ func (lazySlice LazySlice[T]) Contains(f func(T) bool) bool {
 
 // Take returns a lazy slice that yields at most limit items.
 func (lazySlice LazySlice[T]) Take(limit int) LazySlice[T] {
-	return NewLazySlice(func(yield func(T) bool) {
+	return NewLazySlice(func(yield func(int, T) bool) {
 		if limit <= 0 {
 			return
 		}
 
 		count := 0
 
-		for v := range lazySlice {
-			if !yield(v) {
+		index := 0
+
+		for _, v := range lazySlice {
+			if !yield(index, v) {
 				return
 			}
 
@@ -215,90 +248,106 @@ func (lazySlice LazySlice[T]) Take(limit int) LazySlice[T] {
 			if count >= limit {
 				return
 			}
+
+			index++
 		}
 	})
 }
 
 // Skip returns a lazy slice that skips the first n items.
 func (lazySlice LazySlice[T]) Skip(n int) LazySlice[T] {
-	return NewLazySlice(func(yield func(T) bool) {
+	return NewLazySlice(func(yield func(int, T) bool) {
 		skipped := 0
 
-		for v := range lazySlice {
+		index := 0
+
+		for _, v := range lazySlice {
 			if skipped < n {
 				skipped++
 
 				continue
 			}
 
-			if !yield(v) {
+			if !yield(index, v) {
 				return
 			}
+
+			index++
 		}
 	})
 }
 
 // TakeWhile returns a lazy slice that yields items until f first returns false.
-func (lazySlice LazySlice[T]) TakeWhile(f func(T) bool) LazySlice[T] {
-	return NewLazySlice(func(yield func(T) bool) {
-		for v := range lazySlice {
-			if !f(v) {
+func (lazySlice LazySlice[T]) TakeWhile(f func(int, T) bool) LazySlice[T] {
+	return NewLazySlice(func(yield func(int, T) bool) {
+		index := 0
+
+		for i, v := range lazySlice {
+			if !f(i, v) {
 				return
 			}
 
-			if !yield(v) {
+			if !yield(index, v) {
 				return
 			}
+
+			index++
 		}
 	})
 }
 
 // SkipWhile returns a lazy slice that skips items until f first returns false,
 // then yields all remaining items.
-func (lazySlice LazySlice[T]) SkipWhile(f func(T) bool) LazySlice[T] {
-	return NewLazySlice(func(yield func(T) bool) {
+func (lazySlice LazySlice[T]) SkipWhile(f func(int, T) bool) LazySlice[T] {
+	return NewLazySlice(func(yield func(int, T) bool) {
 		skipping := true
 
-		for v := range lazySlice {
-			if skipping && f(v) {
+		index := 0
+
+		for i, v := range lazySlice {
+			if skipping && f(i, v) {
 				continue
 			}
 
 			skipping = false
 
-			if !yield(v) {
+			if !yield(index, v) {
 				return
 			}
+
+			index++
 		}
 	})
 }
 
 // TakeUntil returns a lazy slice that yields items until f first returns true.
-func (lazySlice LazySlice[T]) TakeUntil(f func(T) bool) LazySlice[T] {
-	return lazySlice.TakeWhile(func(v T) bool { return !f(v) })
+func (lazySlice LazySlice[T]) TakeUntil(f func(int, T) bool) LazySlice[T] {
+	return lazySlice.TakeWhile(func(i int, v T) bool { return !f(i, v) })
 }
 
 // SkipUntil returns a lazy slice that skips items until f first returns true,
 // then yields all remaining items.
-func (lazySlice LazySlice[T]) SkipUntil(f func(T) bool) LazySlice[T] {
-	return lazySlice.SkipWhile(func(v T) bool { return !f(v) })
+func (lazySlice LazySlice[T]) SkipUntil(f func(int, T) bool) LazySlice[T] {
+	return lazySlice.SkipWhile(func(i int, v T) bool { return !f(i, v) })
 }
 
 // Chunk returns an iterator over consecutive slices of the given size.
 // It panics if size is less than or equal to zero.
-func (lazySlice LazySlice[T]) Chunk(size int) iter.Seq[[]T] {
+func (lazySlice LazySlice[T]) Chunk(size int) iter.Seq2[int, []T] {
 	if size <= 0 {
 		panic("chunk size must be greater than zero")
 	}
 
-	return func(yield func([]T) bool) {
+	return func(yield func(int, []T) bool) {
 		var chunk []T
 
-		for v := range lazySlice {
+		index := 0
+
+		for _, v := range lazySlice {
 			chunk = append(chunk, v)
 
 			if len(chunk) == size {
-				if !yield(chunk) {
+				if !yield(index, chunk) {
 					return
 				}
 
@@ -307,7 +356,7 @@ func (lazySlice LazySlice[T]) Chunk(size int) iter.Seq[[]T] {
 		}
 
 		if len(chunk) > 0 {
-			yield(chunk)
+			yield(index, chunk)
 		}
 	}
 }
@@ -316,7 +365,7 @@ func (lazySlice LazySlice[T]) Chunk(size int) iter.Seq[[]T] {
 // advancing by step items between each window. The step defaults to one if
 // not provided. Each yielded slice is a fresh copy.
 // It panics if size or step is less than or equal to zero.
-func (lazySlice LazySlice[T]) Sliding(size int, step ...int) iter.Seq[[]T] {
+func (lazySlice LazySlice[T]) Sliding(size int, step ...int) iter.Seq2[int, []T] {
 	if size <= 0 {
 		panic("sliding window size must be greater than zero")
 	}
@@ -330,14 +379,16 @@ func (lazySlice LazySlice[T]) Sliding(size int, step ...int) iter.Seq[[]T] {
 		panic("sliding window step must be greater than zero")
 	}
 
-	return func(yield func([]T) bool) {
+	return func(yield func(int, []T) bool) {
 		window := make([]T, 0, size)
 
-		for v := range lazySlice {
+		index := 0
+
+		for _, v := range lazySlice {
 			window = append(window, v)
 
 			if len(window) == size {
-				if !yield(slices.Clone(window)) {
+				if !yield(index, slices.Clone(window)) {
 					return
 				}
 
@@ -349,11 +400,11 @@ func (lazySlice LazySlice[T]) Sliding(size int, step ...int) iter.Seq[[]T] {
 
 // Reduce reduces the lazy slice to a single value of type K by applying f
 // to each item starting from initial.
-func (lazySlice LazySlice[T]) Reduce[K any](f func(K, T) K, initial K) K {
+func (lazySlice LazySlice[T]) Reduce[K any](f func(K, int, T) K, initial K) K {
 	acc := initial
 
-	for v := range lazySlice {
-		acc = f(acc, v)
+	for i, v := range lazySlice {
+		acc = f(acc, i, v)
 	}
 
 	return acc
@@ -362,14 +413,17 @@ func (lazySlice LazySlice[T]) Reduce[K any](f func(K, T) K, initial K) K {
 // Reverse materializes the iterator and returns a new lazy slice with
 // items in reversed order.
 func (lazySlice LazySlice[T]) Reverse() LazySlice[T] {
-	return NewLazySlice(func(yield func(T) bool) {
-		items := slices.Collect(lazySlice.Iter())
+	return NewLazySlice(func(yield func(int, T) bool) {
+		index := 0
+		items := lazySlice.Items()
 		slices.Reverse(items)
 
 		for _, v := range items {
-			if !yield(v) {
+			if !yield(index, v) {
 				return
 			}
+
+			index++
 		}
 	})
 }
@@ -377,34 +431,41 @@ func (lazySlice LazySlice[T]) Reverse() LazySlice[T] {
 // Sort materializes the iterator, sorts items using the given comparison function,
 // and returns a new lazy slice over the sorted items.
 func (lazySlice LazySlice[T]) Sort(cmp func(T, T) int) LazySlice[T] {
-	return NewLazySlice(func(yield func(T) bool) {
-		items := slices.Collect(lazySlice.Iter())
+	return NewLazySlice(func(yield func(int, T) bool) {
+		index := 0
+		items := lazySlice.Items()
 		slices.SortFunc(items, cmp)
 
 		for _, v := range items {
-			if !yield(v) {
+			if !yield(index, v) {
 				return
 			}
+
+			index++
 		}
 	})
 }
 
 // Unique returns a lazy slice containing only the first occurrence of each
 // item, as determined by the key function.
-func (lazySlice LazySlice[T]) Unique[K comparable](key func(T) K) LazySlice[T] {
-	return NewLazySlice(func(yield func(T) bool) {
+func (lazySlice LazySlice[T]) Unique[K comparable](key func(int, T) K) LazySlice[T] {
+	return NewLazySlice(func(yield func(int, T) bool) {
 		seen := make(map[K]struct{})
 
-		for v := range lazySlice {
-			k := key(v)
+		index := 0
+
+		for i, v := range lazySlice {
+			k := key(i, v)
 
 			if _, exists := seen[k]; !exists {
 				seen[k] = struct{}{}
 
-				if !yield(v) {
+				if !yield(index, v) {
 					return
 				}
 			}
+
+			index++
 		}
 	})
 }
@@ -412,45 +473,49 @@ func (lazySlice LazySlice[T]) Unique[K comparable](key func(T) K) LazySlice[T] {
 // Partition splits the iterator into two lazy slices: the first contains
 // items for which f returns true, the second contains the rest.
 // It fully consumes the sequence to allow both results to be independently iterated.
-func (lazySlice LazySlice[T]) Partition(f func(T) bool) (LazySlice[T], LazySlice[T]) {
+func (lazySlice LazySlice[T]) Partition(f func(int, T) bool) (LazySlice[T], LazySlice[T]) {
 	var matching, rest []T
 
-	for v := range lazySlice {
-		if f(v) {
+	for i, v := range lazySlice {
+		if f(i, v) {
 			matching = append(matching, v)
 		} else {
 			rest = append(rest, v)
 		}
 	}
 
-	return NewLazySlice(slices.Values(matching)), NewLazySlice(slices.Values(rest))
+	return NewLazySlice(slices.All(matching)), NewLazySlice(slices.All(rest))
 }
 
 // Concat returns a lazy slice that yields all items from this slice
 // followed by all items from other.
 func (lazySlice LazySlice[T]) Concat(other LazySlice[T]) LazySlice[T] {
-	return NewLazySlice(func(yield func(T) bool) {
-		for v := range lazySlice {
-			if !yield(v) {
+	return NewLazySlice(func(yield func(int, T) bool) {
+		index := 0
+
+		for _, v := range lazySlice {
+			if !yield(index, v) {
 				return
 			}
 		}
 
-		for v := range other {
-			if !yield(v) {
+		for _, v := range other {
+			if !yield(index, v) {
 				return
 			}
+
+			index++
 		}
 	})
 }
 
 // GroupBy groups all items by the key returned by the key function, returning a
 // [Map] of sub-slices. It fully consumes the sequence.
-func (lazySlice LazySlice[T]) GroupBy[K comparable](key func(T) K) Map[K, Slice[T]] {
+func (lazySlice LazySlice[T]) GroupBy[K comparable](key func(int, T) K) Map[K, Slice[T]] {
 	grouped := make(map[K][]T)
 
-	for v := range lazySlice {
-		k := key(v)
+	for i, v := range lazySlice {
+		k := key(i, v)
 		grouped[k] = append(grouped[k], v)
 	}
 
@@ -476,17 +541,19 @@ func (lazySlice LazySlice[T]) Nth(n int, offset ...int) LazySlice[T] {
 		start = offset[0]
 	}
 
-	return NewLazySlice(func(yield func(T) bool) {
-		i := 0
+	return NewLazySlice(func(yield func(int, T) bool) {
+		stepIdx := 0
 
-		for v := range lazySlice {
-			if i >= start && (i-start)%n == 0 {
-				if !yield(v) {
+		index := 0
+
+		for _, v := range lazySlice {
+			if stepIdx >= start && (stepIdx-start)%n == 0 {
+				if !yield(index, v) {
 					return
 				}
 			}
 
-			i++
+			stepIdx++
 		}
 	})
 }
@@ -511,7 +578,7 @@ func (lazySlice *LazySlice[T]) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 		return err
 	}
 
-	*lazySlice = NewLazySlice(slices.Values(items))
+	*lazySlice = NewLazySlice(slices.All(items))
 
 	return nil
 }
@@ -531,7 +598,7 @@ func (lazySlice *LazySlice[T]) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*lazySlice = NewLazySlice(slices.Values(items))
+	*lazySlice = NewLazySlice(slices.All(items))
 
 	return nil
 }

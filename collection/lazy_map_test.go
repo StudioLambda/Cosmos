@@ -267,7 +267,7 @@ func TestLazyMapValuesTransformsValuesLazily(t *testing.T) {
 	t.Parallel()
 
 	lm := collection.NewLazyMap(maps.All(map[string]int{"a": 1, "b": 2}))
-	result := collection.LazyMapValues(lm, func(v int) string {
+	result := collection.LazyMapValues(lm, func(k string, v int) string {
 		return strings.Repeat("*", v)
 	}).Items()
 
@@ -278,7 +278,7 @@ func TestLazyMapKeysTransformsKeysLazily(t *testing.T) {
 	t.Parallel()
 
 	lm := collection.NewLazyMap(maps.All(map[string]int{"a": 1, "b": 2}))
-	result := collection.LazyMapKeys(lm, func(k string) string {
+	result := collection.LazyMapKeys(lm, func(k string, v int) string {
 		return strings.ToUpper(k)
 	}).Items()
 

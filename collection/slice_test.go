@@ -22,6 +22,28 @@ func TestNewSliceCreatesSliceFromSlice(t *testing.T) {
 	require.Equal(t, []int{1, 2, 3}, c.Items())
 }
 
+// TestNewSliceAsAcceptsNamedSliceType verifies that NewSliceAs accepts named
+// slice types whose underlying type is []T.
+func TestNewSliceAsAcceptsNamedSliceType(t *testing.T) {
+	t.Parallel()
+
+	type numbers []int
+
+	c := collection.NewSliceAs(numbers{1, 2, 3})
+
+	require.Equal(t, []int{1, 2, 3}, c.Items())
+}
+
+// TestNewSliceCreatesSliceFromPlainSlice verifies that NewSlice stores the
+// given plain slice.
+func TestNewSliceCreatesSliceFromPlainSlice(t *testing.T) {
+	t.Parallel()
+
+	c := collection.NewSlice([]int{1, 2, 3})
+
+	require.Equal(t, []int{1, 2, 3}, c.Items())
+}
+
 // TestNewSliceCreatesEmptySliceFromEmptySlice verifies that NewSlice with an empty
 // (non-nil) slice produces an empty collection.
 func TestNewSliceCreatesEmptySliceFromEmptySlice(t *testing.T) {
@@ -50,7 +72,7 @@ func TestIterYieldsAllItemsInOrder(t *testing.T) {
 	c := collection.NewSlice([]int{10, 20, 30})
 
 	var got []int
-	for v := range c.Iter() {
+	for _, v := range c.Iter() {
 		got = append(got, v)
 	}
 
@@ -65,7 +87,7 @@ func TestIterYieldsNothingOnEmptyCollection(t *testing.T) {
 	c := collection.NewSlice[int](nil)
 
 	var got []int
-	for v := range c.Iter() {
+	for _, v := range c.Iter() {
 		got = append(got, v)
 	}
 
@@ -159,7 +181,7 @@ func TestEveryTrueWhenAllItemsMatch(t *testing.T) {
 
 	c := collection.NewSlice([]int{2, 4, 6})
 
-	require.True(t, c.Every(func(v int) bool { return v%2 == 0 }))
+	require.True(t, c.Every(func(i int, v int) bool { return v%2 == 0 }))
 }
 
 // TestEveryFalseWhenOneItemFails verifies that Every returns false when at
@@ -169,7 +191,7 @@ func TestEveryFalseWhenOneItemFails(t *testing.T) {
 
 	c := collection.NewSlice([]int{2, 3, 6})
 
-	require.False(t, c.Every(func(v int) bool { return v%2 == 0 }))
+	require.False(t, c.Every(func(i int, v int) bool { return v%2 == 0 }))
 }
 
 // TestEveryTrueOnEmptyCollection verifies the vacuous truth: Every returns true
@@ -179,7 +201,7 @@ func TestEveryTrueOnEmptyCollection(t *testing.T) {
 
 	c := collection.NewSlice[int](nil)
 
-	require.True(t, c.Every(func(v int) bool { return false }))
+	require.True(t, c.Every(func(i int, v int) bool { return false }))
 }
 
 // TestEachCallsFForEveryItem verifies that Each visits every item in order.
@@ -189,7 +211,7 @@ func TestEachCallsFForEveryItem(t *testing.T) {
 	c := collection.NewSlice([]int{1, 2, 3})
 
 	var got []int
-	c.Each(func(v int) { got = append(got, v) })
+	c.Each(func(i int, v int) { got = append(got, v) })
 
 	require.Equal(t, []int{1, 2, 3}, got)
 }
@@ -202,7 +224,7 @@ func TestEachDoesNotCallFOnEmpty(t *testing.T) {
 	c := collection.NewSlice[int](nil)
 
 	called := false
-	c.Each(func(int) { called = true })
+	c.Each(func(int, int) { called = true })
 
 	require.False(t, called)
 }
@@ -214,7 +236,7 @@ func TestTapEachCallsFForEveryItem(t *testing.T) {
 	c := collection.NewSlice([]int{4, 5, 6})
 
 	var got []int
-	c.TapEach(func(v int) { got = append(got, v) })
+	c.TapEach(func(i int, v int) { got = append(got, v) })
 
 	require.Equal(t, []int{4, 5, 6}, got)
 }
@@ -226,7 +248,7 @@ func TestTapEachReturnsOriginalCollectionUnchanged(t *testing.T) {
 
 	c := collection.NewSlice([]int{4, 5, 6})
 
-	result := c.TapEach(func(int) {})
+	result := c.TapEach(func(int, int) {})
 
 	require.Equal(t, c.Items(), result.Items())
 }
@@ -238,7 +260,7 @@ func TestFilterReturnsMatchingItems(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3, 4, 5})
 
-	result := c.Filter(func(v int) bool { return v%2 == 0 })
+	result := c.Filter(func(i int, v int) bool { return v%2 == 0 })
 
 	require.Equal(t, []int{2, 4}, result.Items())
 }
@@ -250,7 +272,7 @@ func TestFilterReturnsEmptyWhenNoneMatch(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 3, 5})
 
-	result := c.Filter(func(v int) bool { return v%2 == 0 })
+	result := c.Filter(func(i int, v int) bool { return v%2 == 0 })
 
 	require.True(t, result.IsEmpty())
 }
@@ -262,7 +284,7 @@ func TestFilterReturnsEmptyOnEmptyInput(t *testing.T) {
 
 	c := collection.NewSlice[int](nil)
 
-	result := c.Filter(func(v int) bool { return true })
+	result := c.Filter(func(i int, v int) bool { return true })
 
 	require.True(t, result.IsEmpty())
 }
@@ -274,7 +296,7 @@ func TestFlatMapFlattensMappedResults(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3})
 
-	result := c.FlatMap(func(v int) []int {
+	result := c.FlatMap(func(i int, v int) []int {
 		return []int{v, v * 10}
 	})
 
@@ -287,7 +309,7 @@ func TestFlatMapCanDropItems(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3, 4})
 
-	result := c.FlatMap(func(v int) []int {
+	result := c.FlatMap(func(i int, v int) []int {
 		if v%2 == 0 {
 			return nil
 		}
@@ -309,7 +331,7 @@ func TestKeyByIndexesItemsByDerivedKey(t *testing.T) {
 
 	c := collection.NewSlice([]user{{ID: 1, Name: "alice"}, {ID: 2, Name: "bob"}})
 
-	result := c.KeyBy(func(v user) int { return v.ID })
+	result := c.KeyBy(func(i int, v user) int { return v.ID })
 
 	require.Equal(t, map[int]user{
 		1: {ID: 1, Name: "alice"},
@@ -323,7 +345,7 @@ func TestKeyByLastItemWinsOnCollision(t *testing.T) {
 
 	c := collection.NewSlice([]string{"ant", "ape", "bat"})
 
-	result := c.KeyBy(func(v string) byte { return v[0] })
+	result := c.KeyBy(func(i int, v string) byte { return v[0] })
 
 	require.Equal(t, map[byte]string{'a': "ape", 'b': "bat"}, result.Items())
 }
@@ -334,7 +356,7 @@ func TestCountByCountsItemsPerDerivedKey(t *testing.T) {
 
 	c := collection.NewSlice([]string{"ant", "ape", "bat", "bee"})
 
-	result := c.CountBy(func(v string) byte { return v[0] })
+	result := c.CountBy(func(i int, v string) byte { return v[0] })
 
 	require.Equal(t, map[byte]int{'a': 2, 'b': 2}, result.Items())
 }
@@ -345,7 +367,7 @@ func TestTakeUntilStopsBeforeMatchingItem(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3, 4, 5})
 
-	result := c.TakeUntil(func(v int) bool { return v >= 4 })
+	result := c.TakeUntil(func(i int, v int) bool { return v >= 4 })
 
 	require.Equal(t, []int{1, 2, 3}, result.Items())
 }
@@ -356,7 +378,7 @@ func TestTakeUntilReturnsAllWhenNeverMatched(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3})
 
-	result := c.TakeUntil(func(v int) bool { return v > 10 })
+	result := c.TakeUntil(func(i int, v int) bool { return v > 10 })
 
 	require.Equal(t, []int{1, 2, 3}, result.Items())
 }
@@ -367,7 +389,7 @@ func TestSkipUntilStartsAtFirstMatchingItem(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3, 4, 5})
 
-	result := c.SkipUntil(func(v int) bool { return v >= 4 })
+	result := c.SkipUntil(func(i int, v int) bool { return v >= 4 })
 
 	require.Equal(t, []int{4, 5}, result.Items())
 }
@@ -378,7 +400,7 @@ func TestSkipUntilReturnsEmptyWhenNeverMatched(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3})
 
-	result := c.SkipUntil(func(v int) bool { return v > 10 })
+	result := c.SkipUntil(func(i int, v int) bool { return v > 10 })
 
 	require.True(t, result.IsEmpty())
 }
@@ -390,7 +412,7 @@ func TestRejectReturnsOnlyNonMatchingItems(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3, 4, 5})
 
-	result := c.Reject(func(v int) bool { return v%2 == 0 })
+	result := c.Reject(func(i int, v int) bool { return v%2 == 0 })
 
 	require.Equal(t, []int{1, 3, 5}, result.Items())
 }
@@ -402,7 +424,7 @@ func TestMapTransformsItemsToSameType(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3})
 
-	result := collection.Slice[int].Map(c, func(v int) int { return v * 2 })
+	result := collection.Slice[int].Map(c, func(i int, v int) int { return v * 2 })
 
 	require.Equal(t, []int{2, 4, 6}, result.Items())
 }
@@ -414,7 +436,7 @@ func TestMapTransformsItemsToDifferentType(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3, 4})
 
-	result := collection.Slice[int].Map(c, func(v int) bool { return v%2 != 0 })
+	result := collection.Slice[int].Map(c, func(i int, v int) bool { return v%2 != 0 })
 
 	require.Equal(t, []bool{true, false, true, false}, result.Items())
 }
@@ -426,7 +448,7 @@ func TestMapReturnsEmptyCollectionOnEmptyInput(t *testing.T) {
 
 	c := collection.NewSlice[int](nil)
 
-	result := collection.Slice[int].Map(c, func(v int) int { return v })
+	result := collection.Slice[int].Map(c, func(i int, v int) int { return v })
 
 	require.True(t, result.IsEmpty())
 }
@@ -438,7 +460,7 @@ func TestFirstWhereReturnsFirstMatchingItem(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3, 4})
 
-	result, ok := c.FirstWhere(func(v int) bool { return v > 2 })
+	result, ok := c.FirstWhere(func(i int, v int) bool { return v > 2 })
 
 	require.True(t, ok)
 	require.Equal(t, 3, result)
@@ -451,7 +473,7 @@ func TestFirstWhereReturnsOkFalseWhenNoMatch(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3})
 
-	_, ok := c.FirstWhere(func(v int) bool { return v > 100 })
+	_, ok := c.FirstWhere(func(i int, v int) bool { return v > 100 })
 
 	require.False(t, ok)
 }
@@ -463,7 +485,7 @@ func TestFirstWhereReturnsOkFalseOnEmpty(t *testing.T) {
 
 	c := collection.NewSlice[int](nil)
 
-	_, ok := c.FirstWhere(func(v int) bool { return true })
+	_, ok := c.FirstWhere(func(i int, v int) bool { return true })
 
 	require.False(t, ok)
 }
@@ -525,7 +547,7 @@ func TestContainsTrueWhenFound(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3})
 
-	require.True(t, c.Contains(func(v int) bool { return v == 2 }))
+	require.True(t, c.Contains(func(i int, v int) bool { return v == 2 }))
 }
 
 // TestContainsFalseWhenNotFound verifies that Contains returns false when no
@@ -535,7 +557,7 @@ func TestContainsFalseWhenNotFound(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3})
 
-	require.False(t, c.Contains(func(v int) bool { return v == 99 }))
+	require.False(t, c.Contains(func(i int, v int) bool { return v == 99 }))
 }
 
 // TestTakeReturnsFirstNItems verifies that Take returns exactly the first n
@@ -624,7 +646,7 @@ func TestTakeWhileReturnsItemsUntilFirstFalse(t *testing.T) {
 
 	c := collection.NewSlice([]int{2, 4, 5, 6})
 
-	require.Equal(t, []int{2, 4}, c.TakeWhile(func(v int) bool { return v%2 == 0 }).Items())
+	require.Equal(t, []int{2, 4}, c.TakeWhile(func(i int, v int) bool { return v%2 == 0 }).Items())
 }
 
 // TestTakeWhileReturnsEmptyWhenFirstItemFails verifies that TakeWhile produces
@@ -634,7 +656,7 @@ func TestTakeWhileReturnsEmptyWhenFirstItemFails(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3})
 
-	require.True(t, c.TakeWhile(func(v int) bool { return v%2 == 0 }).IsEmpty())
+	require.True(t, c.TakeWhile(func(i int, v int) bool { return v%2 == 0 }).IsEmpty())
 }
 
 // TestTakeWhileReturnsAllWhenPredicateAlwaysTrue verifies that TakeWhile
@@ -644,7 +666,7 @@ func TestTakeWhileReturnsAllWhenPredicateAlwaysTrue(t *testing.T) {
 
 	c := collection.NewSlice([]int{2, 4, 6})
 
-	require.Equal(t, []int{2, 4, 6}, c.TakeWhile(func(v int) bool { return v%2 == 0 }).Items())
+	require.Equal(t, []int{2, 4, 6}, c.TakeWhile(func(i int, v int) bool { return v%2 == 0 }).Items())
 }
 
 // TestSkipWhileSkipsLeadingMatchingItems verifies that SkipWhile drops items
@@ -654,7 +676,7 @@ func TestSkipWhileSkipsLeadingMatchingItems(t *testing.T) {
 
 	c := collection.NewSlice([]int{2, 4, 5, 6})
 
-	require.Equal(t, []int{5, 6}, c.SkipWhile(func(v int) bool { return v%2 == 0 }).Items())
+	require.Equal(t, []int{5, 6}, c.SkipWhile(func(i int, v int) bool { return v%2 == 0 }).Items())
 }
 
 // TestSkipWhileReturnsAllWhenFirstItemFailsPredicate verifies that SkipWhile
@@ -664,7 +686,7 @@ func TestSkipWhileReturnsAllWhenFirstItemFailsPredicate(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3})
 
-	require.Equal(t, []int{1, 2, 3}, c.SkipWhile(func(v int) bool { return v%2 == 0 }).Items())
+	require.Equal(t, []int{1, 2, 3}, c.SkipWhile(func(i int, v int) bool { return v%2 == 0 }).Items())
 }
 
 // TestSkipWhileReturnsEmptyWhenPredicateAlwaysTrue verifies that SkipWhile
@@ -674,7 +696,7 @@ func TestSkipWhileReturnsEmptyWhenPredicateAlwaysTrue(t *testing.T) {
 
 	c := collection.NewSlice([]int{2, 4, 6})
 
-	require.True(t, c.SkipWhile(func(v int) bool { return v%2 == 0 }).IsEmpty())
+	require.True(t, c.SkipWhile(func(i int, v int) bool { return v%2 == 0 }).IsEmpty())
 }
 
 // TestChunkSplitsEvenlyIntoSubCollections verifies that Chunk produces
@@ -826,7 +848,7 @@ func TestReduceAccumulatesValuesWithSameType(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3, 4, 5})
 
-	sum := collection.Slice[int].Reduce(c, func(acc, v int) int { return acc + v }, 0)
+	sum := collection.Slice[int].Reduce(c, func(acc int, i int, v int) int { return acc + v }, 0)
 
 	require.Equal(t, 15, sum)
 }
@@ -838,7 +860,7 @@ func TestReduceAccumulatesWithDifferentKType(t *testing.T) {
 
 	c := collection.NewSlice([]int32{1, 2, 3, 4, 5})
 
-	sum := collection.Slice[int32].Reduce(c, func(acc int64, v int32) int64 { return acc + int64(v) }, 0)
+	sum := collection.Slice[int32].Reduce(c, func(acc int64, i int, v int32) int64 { return acc + int64(v) }, 0)
 
 	require.Equal(t, int64(15), sum)
 }
@@ -850,7 +872,7 @@ func TestReduceReturnsInitialValueOnEmptyCollection(t *testing.T) {
 
 	c := collection.NewSlice[int](nil)
 
-	result := collection.Slice[int].Reduce(c, func(acc, v int) int { return acc + v }, 42)
+	result := collection.Slice[int].Reduce(c, func(acc int, i int, v int) int { return acc + v }, 42)
 
 	require.Equal(t, 42, result)
 }
@@ -914,7 +936,7 @@ func TestUniqueRemovesDuplicatesPreservingFirstOccurrence(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 1, 3, 2})
 
-	result := collection.Slice[int].Unique(c, func(v int) int { return v })
+	result := collection.Slice[int].Unique(c, func(i int, v int) int { return v })
 
 	require.Equal(t, []int{1, 2, 3}, result.Items())
 }
@@ -926,7 +948,7 @@ func TestUniqueWithCustomKeyFunction(t *testing.T) {
 
 	c := collection.NewSlice([]string{"apple", "avocado", "banana", "blueberry", "cherry"})
 
-	result := collection.Slice[string].Unique(c, func(v string) byte { return v[0] })
+	result := collection.Slice[string].Unique(c, func(i int, v string) byte { return v[0] })
 
 	require.Equal(t, []string{"apple", "banana", "cherry"}, result.Items())
 }
@@ -938,7 +960,7 @@ func TestPartitionSplitsIntoMatchingAndNonMatching(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3, 4, 5})
 
-	evens, odds := c.Partition(func(v int) bool { return v%2 == 0 })
+	evens, odds := c.Partition(func(i int, v int) bool { return v%2 == 0 })
 
 	require.Equal(t, []int{2, 4}, evens.Items())
 	require.Equal(t, []int{1, 3, 5}, odds.Items())
@@ -951,7 +973,7 @@ func TestPartitionAllMatchSecondResultIsEmpty(t *testing.T) {
 
 	c := collection.NewSlice([]int{2, 4, 6})
 
-	_, rest := c.Partition(func(v int) bool { return v%2 == 0 })
+	_, rest := c.Partition(func(i int, v int) bool { return v%2 == 0 })
 
 	require.True(t, rest.IsEmpty())
 }
@@ -963,7 +985,7 @@ func TestPartitionNoneMatchFirstResultIsEmpty(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 3, 5})
 
-	matching, _ := c.Partition(func(v int) bool { return v%2 == 0 })
+	matching, _ := c.Partition(func(i int, v int) bool { return v%2 == 0 })
 
 	require.True(t, matching.IsEmpty())
 }
@@ -998,7 +1020,7 @@ func TestGroupByGroupsItemsByKeyFunction(t *testing.T) {
 
 	c := collection.NewSlice([]int{1, 2, 3, 4, 5, 6})
 
-	grouped := collection.Slice[int].GroupBy(c, func(v int) string {
+	grouped := collection.Slice[int].GroupBy(c, func(i int, v int) string {
 		if v%2 == 0 {
 			return "even"
 		}

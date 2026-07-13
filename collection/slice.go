@@ -8,21 +8,25 @@ import (
 )
 
 // Slice is an eager, in-memory collection of items of type T.
-type Slice[T any] struct {
-	items []T
-}
+type Slice[T any] []T
 
-// NewSlice creates a new [Slice] from the given slice.
+// NewSlice creates a new [Slice] from a plain Go slice of items of type T.
 func NewSlice[T any](items []T) Slice[T] {
-	return Slice[T]{items: items}
+	return Slice[T](items)
 }
 
-// Iter returns an [iter.Seq] over the items in the slice, suitable for
+// NewSliceAs creates a new [Slice] from the given slice type, preserving
+// compatibility with named slice types whose underlying type is []T.
+func NewSliceAs[S ~[]T, T any](items S) Slice[T] {
+	return NewSlice([]T(items))
+}
+
+// Iter returns an [iter.Seq2] over the items in the slice, suitable for
 // use in a for-range loop.
 //
-//	for v := range slice.Iter() { ... }
-func (slice Slice[T]) Iter() iter.Seq[T] {
-	return slices.Values(slice.Items())
+//	for i, v := range slice.Iter() { ... }
+func (slice Slice[T]) Iter() iter.Seq2[int, T] {
+	return slices.All([]T(slice))
 }
 
 // Lazy returns a [LazySlice] backed by the items in the slice.
@@ -30,30 +34,46 @@ func (slice Slice[T]) Lazy() LazySlice[T] {
 	return NewLazySlice(slice.Iter())
 }
 
+// Try returns a [TryLazySlice] backed by the items in the slice.
+func (slice Slice[T]) Try() TryLazySlice[T] {
+	return NewTryLazySlice(func(yield func(T, error) bool) {
+		for _, v := range slice {
+			if !yield(v, nil) {
+				return
+			}
+		}
+	})
+}
+
 // Items returns the underlying slice of items.
 func (slice Slice[T]) Items() []T {
-	return slice.items
+	return []T(slice)
+}
+
+// ItemsAs returns the underlying items as the given slice type.
+func (slice Slice[T]) ItemsAs[S ~[]T]() S {
+	return S(slice)
 }
 
 // IsEmpty reports whether the slice contains no items.
 func (slice Slice[T]) IsEmpty() bool {
-	return len(slice.items) == 0
+	return len(slice) == 0
 }
 
 // IsNotEmpty reports whether the slice contains at least one item.
 func (slice Slice[T]) IsNotEmpty() bool {
-	return len(slice.items) > 0
+	return len(slice) > 0
 }
 
 // Len returns the number of items in the slice.
 func (slice Slice[T]) Len() int {
-	return len(slice.items)
+	return len(slice)
 }
 
 // Every reports whether f returns true for every item in the slice.
-func (slice Slice[T]) Every(f func(T) bool) bool {
-	for _, v := range slice.items {
-		if !f(v) {
+func (slice Slice[T]) Every(f func(int, T) bool) bool {
+	for i, v := range slice {
+		if !f(i, v) {
 			return false
 		}
 	}
@@ -62,27 +82,27 @@ func (slice Slice[T]) Every(f func(T) bool) bool {
 }
 
 // Each calls f for every item in the slice.
-func (slice Slice[T]) Each(f func(T)) {
-	for _, v := range slice.items {
-		f(v)
+func (slice Slice[T]) Each(f func(int, T)) {
+	for i, v := range slice {
+		f(i, v)
 	}
 }
 
 // TapEach calls f for every item and returns the slice unchanged.
-func (slice Slice[T]) TapEach(f func(T)) Slice[T] {
-	for _, v := range slice.items {
-		f(v)
+func (slice Slice[T]) TapEach(f func(int, T)) Slice[T] {
+	for i, v := range slice {
+		f(i, v)
 	}
 
 	return slice
 }
 
 // Filter returns a new slice containing only items for which f returns true.
-func (slice Slice[T]) Filter(f func(T) bool) Slice[T] {
-	filtered := make([]T, 0, len(slice.items))
+func (slice Slice[T]) Filter(f func(int, T) bool) Slice[T] {
+	filtered := make([]T, 0, len(slice))
 
-	for _, v := range slice.items {
-		if f(v) {
+	for i, v := range slice {
+		if f(i, v) {
 			filtered = append(filtered, v)
 		}
 	}
@@ -91,16 +111,16 @@ func (slice Slice[T]) Filter(f func(T) bool) Slice[T] {
 }
 
 // Reject returns a new slice containing only items for which f returns false.
-func (slice Slice[T]) Reject(f func(T) bool) Slice[T] {
-	return slice.Filter(func(v T) bool { return !f(v) })
+func (slice Slice[T]) Reject(f func(int, T) bool) Slice[T] {
+	return slice.Filter(func(i int, v T) bool { return !f(i, v) })
 }
 
 // Map transforms each item using f and returns a new slice of type K.
-func (slice Slice[T]) Map[K any](f func(T) K) Slice[K] {
-	mapped := make([]K, len(slice.items))
+func (slice Slice[T]) Map[K any](f func(int, T) K) Slice[K] {
+	mapped := make([]K, len(slice))
 
-	for i, v := range slice.items {
-		mapped[i] = f(v)
+	for i, v := range slice {
+		mapped[i] = f(i, v)
 	}
 
 	return NewSlice(mapped)
@@ -108,11 +128,11 @@ func (slice Slice[T]) Map[K any](f func(T) K) Slice[K] {
 
 // FlatMap transforms each item into zero or more items and flattens the
 // results into a single slice of type K.
-func (slice Slice[T]) FlatMap[K any](f func(T) []K) Slice[K] {
-	flattened := make([]K, 0, len(slice.items))
+func (slice Slice[T]) FlatMap[K any](f func(int, T) []K) Slice[K] {
+	flattened := make([]K, 0, len(slice))
 
-	for _, v := range slice.items {
-		flattened = append(flattened, f(v)...)
+	for i, v := range slice {
+		flattened = append(flattened, f(i, v)...)
 	}
 
 	return NewSlice(flattened)
@@ -120,22 +140,22 @@ func (slice Slice[T]) FlatMap[K any](f func(T) []K) Slice[K] {
 
 // KeyBy indexes items by the key returned from f. When multiple items map to
 // the same key, the last item wins.
-func (slice Slice[T]) KeyBy[K comparable](f func(T) K) Map[K, T] {
-	indexed := make(map[K]T, len(slice.items))
+func (slice Slice[T]) KeyBy[K comparable](f func(int, T) K) Map[K, T] {
+	indexed := make(map[K]T, len(slice))
 
-	for _, v := range slice.items {
-		indexed[f(v)] = v
+	for i, v := range slice {
+		indexed[f(i, v)] = v
 	}
 
 	return NewMap(indexed)
 }
 
 // CountBy counts items by the key returned from f.
-func (slice Slice[T]) CountBy[K comparable](f func(T) K) Map[K, int] {
-	counts := make(map[K]int, len(slice.items))
+func (slice Slice[T]) CountBy[K comparable](f func(int, T) K) Map[K, int] {
+	counts := make(map[K]int, len(slice))
 
-	for _, v := range slice.items {
-		counts[f(v)]++
+	for i, v := range slice {
+		counts[f(i, v)]++
 	}
 
 	return NewMap(counts)
@@ -143,9 +163,9 @@ func (slice Slice[T]) CountBy[K comparable](f func(T) K) Map[K, int] {
 
 // FirstWhere returns the first item for which f returns true, along with a boolean
 // indicating whether such an item was found.
-func (slice Slice[T]) FirstWhere(f func(T) bool) (result T, ok bool) {
-	for _, v := range slice.items {
-		if f(v) {
+func (slice Slice[T]) FirstWhere(f func(int, T) bool) (result T, ok bool) {
+	for i, v := range slice {
+		if f(i, v) {
 			return v, true
 		}
 	}
@@ -156,25 +176,25 @@ func (slice Slice[T]) FirstWhere(f func(T) bool) (result T, ok bool) {
 // First returns the first item in the slice, along with a boolean
 // indicating whether the slice is non-empty.
 func (slice Slice[T]) First() (result T, ok bool) {
-	if len(slice.items) == 0 {
+	if len(slice) == 0 {
 		return result, false
 	}
 
-	return slice.items[0], true
+	return slice[0], true
 }
 
 // Last returns the last item in the slice, along with a boolean
 // indicating whether the slice is non-empty.
 func (slice Slice[T]) Last() (result T, ok bool) {
-	if len(slice.items) == 0 {
+	if len(slice) == 0 {
 		return result, false
 	}
 
-	return slice.items[len(slice.items)-1], true
+	return slice[len(slice)-1], true
 }
 
 // Contains reports whether any item in the slice satisfies f.
-func (slice Slice[T]) Contains(f func(T) bool) bool {
+func (slice Slice[T]) Contains(f func(int, T) bool) bool {
 	_, found := slice.FirstWhere(f)
 
 	return found
@@ -182,25 +202,25 @@ func (slice Slice[T]) Contains(f func(T) bool) bool {
 
 // Take returns a new slice with at most limit items from the start.
 func (slice Slice[T]) Take(limit int) Slice[T] {
-	limit = max(0, min(limit, len(slice.items)))
+	limit = max(0, min(limit, len(slice)))
 
-	return NewSlice(slice.items[:limit])
+	return NewSlice(slice[:limit])
 }
 
 // Skip returns a new slice with the first n items removed.
 func (slice Slice[T]) Skip(n int) Slice[T] {
-	n = max(0, min(n, len(slice.items)))
+	n = max(0, min(n, len(slice)))
 
-	return NewSlice(slice.items[n:])
+	return NewSlice(slice[n:])
 }
 
 // TakeWhile returns a new slice with items from the start until f first
 // returns false.
-func (slice Slice[T]) TakeWhile(f func(T) bool) Slice[T] {
-	taken := make([]T, 0, len(slice.items))
+func (slice Slice[T]) TakeWhile(f func(int, T) bool) Slice[T] {
+	taken := make([]T, 0, len(slice))
 
-	for _, v := range slice.items {
-		if !f(v) {
+	for i, v := range slice {
+		if !f(i, v) {
 			break
 		}
 
@@ -212,26 +232,26 @@ func (slice Slice[T]) TakeWhile(f func(T) bool) Slice[T] {
 
 // SkipWhile returns a new slice with leading items removed until f first
 // returns false.
-func (slice Slice[T]) SkipWhile(f func(T) bool) Slice[T] {
+func (slice Slice[T]) SkipWhile(f func(int, T) bool) Slice[T] {
 	i := 0
 
-	for i < len(slice.items) && f(slice.items[i]) {
+	for i < len(slice) && f(i, slice[i]) {
 		i++
 	}
 
-	return NewSlice(slice.items[i:])
+	return NewSlice(slice[i:])
 }
 
 // TakeUntil returns a new slice with items from the start until f first
 // returns true.
-func (slice Slice[T]) TakeUntil(f func(T) bool) Slice[T] {
-	return slice.TakeWhile(func(v T) bool { return !f(v) })
+func (slice Slice[T]) TakeUntil(f func(int, T) bool) Slice[T] {
+	return slice.TakeWhile(func(i int, v T) bool { return !f(i, v) })
 }
 
 // SkipUntil returns a new slice with leading items removed until f first
 // returns true.
-func (slice Slice[T]) SkipUntil(f func(T) bool) Slice[T] {
-	return slice.SkipWhile(func(v T) bool { return !f(v) })
+func (slice Slice[T]) SkipUntil(f func(int, T) bool) Slice[T] {
+	return slice.SkipWhile(func(i int, v T) bool { return !f(i, v) })
 }
 
 // Chunk splits the slice into consecutive sub-slices of the given size.
@@ -243,9 +263,9 @@ func (slice Slice[T]) Chunk(size int) []Slice[T] {
 
 	var chunks []Slice[T]
 
-	for i := 0; i < len(slice.items); i += size {
-		end := min(i+size, len(slice.items))
-		chunks = append(chunks, NewSlice(slice.items[i:end]))
+	for i := 0; i < len(slice); i += size {
+		end := min(i+size, len(slice))
+		chunks = append(chunks, NewSlice(slice[i:end]))
 	}
 
 	return chunks
@@ -270,8 +290,8 @@ func (slice Slice[T]) Sliding(size int, step ...int) []Slice[T] {
 
 	var windows []Slice[T]
 
-	for i := 0; i+size <= len(slice.items); i += s {
-		windows = append(windows, NewSlice(slice.items[i:i+size]))
+	for i := 0; i+size <= len(slice); i += s {
+		windows = append(windows, NewSlice(slice[i:i+size]))
 	}
 
 	return windows
@@ -279,11 +299,11 @@ func (slice Slice[T]) Sliding(size int, step ...int) []Slice[T] {
 
 // Reduce reduces the slice to a single value of type K by applying f
 // to each item starting from initial.
-func (slice Slice[T]) Reduce[K any](f func(K, T) K, initial K) K {
+func (slice Slice[T]) Reduce[K any](f func(K, int, T) K, initial K) K {
 	acc := initial
 
-	for _, v := range slice.items {
-		acc = f(acc, v)
+	for i, v := range slice {
+		acc = f(acc, i, v)
 	}
 
 	return acc
@@ -291,7 +311,7 @@ func (slice Slice[T]) Reduce[K any](f func(K, T) K, initial K) K {
 
 // Reverse returns a new slice with items in reversed order.
 func (slice Slice[T]) Reverse() Slice[T] {
-	reversed := slices.Clone(slice.items)
+	reversed := slices.Clone([]T(slice))
 	slices.Reverse(reversed)
 
 	return NewSlice(reversed)
@@ -299,7 +319,7 @@ func (slice Slice[T]) Reverse() Slice[T] {
 
 // Sort returns a new slice with items sorted using the given comparison function.
 func (slice Slice[T]) Sort(cmp func(T, T) int) Slice[T] {
-	sorted := slices.Clone(slice.items)
+	sorted := slices.Clone([]T(slice))
 	slices.SortFunc(sorted, cmp)
 
 	return NewSlice(sorted)
@@ -307,12 +327,12 @@ func (slice Slice[T]) Sort(cmp func(T, T) int) Slice[T] {
 
 // Unique returns a new slice containing only the first occurrence of each
 // item, as determined by the key function.
-func (slice Slice[T]) Unique[K comparable](key func(T) K) Slice[T] {
-	seen := make(map[K]struct{}, len(slice.items))
-	unique := make([]T, 0, len(slice.items))
+func (slice Slice[T]) Unique[K comparable](key func(int, T) K) Slice[T] {
+	seen := make(map[K]struct{}, len(slice))
+	unique := make([]T, 0, len(slice))
 
-	for _, v := range slice.items {
-		k := key(v)
+	for i, v := range slice {
+		k := key(i, v)
 
 		if _, exists := seen[k]; !exists {
 			seen[k] = struct{}{}
@@ -325,12 +345,12 @@ func (slice Slice[T]) Unique[K comparable](key func(T) K) Slice[T] {
 
 // Partition splits the slice into two: the first contains items for which
 // f returns true, the second contains the rest.
-func (slice Slice[T]) Partition(f func(T) bool) (Slice[T], Slice[T]) {
-	matching := make([]T, 0, len(slice.items))
-	rest := make([]T, 0, len(slice.items))
+func (slice Slice[T]) Partition(f func(int, T) bool) (Slice[T], Slice[T]) {
+	matching := make([]T, 0, len(slice))
+	rest := make([]T, 0, len(slice))
 
-	for _, v := range slice.items {
-		if f(v) {
+	for i, v := range slice {
+		if f(i, v) {
 			matching = append(matching, v)
 		} else {
 			rest = append(rest, v)
@@ -342,16 +362,16 @@ func (slice Slice[T]) Partition(f func(T) bool) (Slice[T], Slice[T]) {
 
 // Concat returns a new slice with the items of other appended.
 func (slice Slice[T]) Concat(other Slice[T]) Slice[T] {
-	return NewSlice(append(slices.Clone(slice.items), other.items...))
+	return NewSlice(append(slices.Clone([]T(slice)), other...))
 }
 
 // GroupBy groups items by the key returned by the key function, returning a
 // [Map] of sub-slices.
-func (slice Slice[T]) GroupBy[K comparable](key func(T) K) Map[K, Slice[T]] {
-	grouped := make(map[K][]T, len(slice.items))
+func (slice Slice[T]) GroupBy[K comparable](key func(int, T) K) Map[K, Slice[T]] {
+	grouped := make(map[K][]T, len(slice))
 
-	for _, v := range slice.items {
-		k := key(v)
+	for i, v := range slice {
+		k := key(i, v)
 		grouped[k] = append(grouped[k], v)
 	}
 
@@ -379,8 +399,8 @@ func (slice Slice[T]) Nth(n int, offset ...int) Slice[T] {
 
 	var result []T
 
-	for i := start; i < len(slice.items); i += n {
-		result = append(result, slice.items[i])
+	for i := start; i < len(slice); i += n {
+		result = append(result, slice[i])
 	}
 
 	return NewSlice(result)
@@ -395,22 +415,22 @@ func (slice Slice[T]) ForPage(page, perPage int) Slice[T] {
 // MarshalJSONTo encodes the slice as a JSON array into enc, identical to
 // marshaling the underlying slice directly.
 func (slice Slice[T]) MarshalJSONTo(enc *jsontext.Encoder) error {
-	return json.MarshalEncode(enc, slice.items)
+	return json.MarshalEncode(enc, []T(slice))
 }
 
 // UnmarshalJSONFrom decodes a JSON array from dec into the slice.
 func (slice *Slice[T]) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
-	return json.UnmarshalDecode(dec, &slice.items)
+	return json.UnmarshalDecode(dec, (*[]T)(slice))
 }
 
 // MarshalJSON implements [encoding/json.Marshaler] for v1 compatibility.
 // When used with [encoding/json/v2], [Slice.MarshalJSONTo] takes precedence.
 func (slice Slice[T]) MarshalJSON() ([]byte, error) {
-	return json.Marshal(slice.items)
+	return json.Marshal([]T(slice))
 }
 
 // UnmarshalJSON implements [encoding/json.Unmarshaler] for v1 compatibility.
 // When used with [encoding/json/v2], [Slice.UnmarshalJSONFrom] takes precedence.
 func (slice *Slice[T]) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &slice.items)
+	return json.Unmarshal(data, (*[]T)(slice))
 }

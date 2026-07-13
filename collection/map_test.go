@@ -21,6 +21,33 @@ func TestNewMapItemsReturnsUnderlyingMap(t *testing.T) {
 	require.Equal(t, input, m.Items())
 }
 
+func TestNewMapAsAcceptsNamedMapType(t *testing.T) {
+	t.Parallel()
+
+	type counts map[string]int
+
+	m := collection.NewMapAs(counts{"a": 1, "b": 2})
+
+	require.Equal(t, map[string]int{"a": 1, "b": 2}, m.Items())
+}
+
+func TestNewMapCreatesMapFromPlainMap(t *testing.T) {
+	t.Parallel()
+
+	input := map[string]int{"a": 1, "b": 2}
+	m := collection.NewMap(input)
+
+	require.Equal(t, input, m.Items())
+}
+
+func TestNewMapNilItemsReturnsNilMap(t *testing.T) {
+	t.Parallel()
+
+	m := collection.NewMap[string, int](nil)
+
+	require.Nil(t, m.Items())
+}
+
 func TestNewMapEmptyItems(t *testing.T) {
 	t.Parallel()
 
@@ -243,7 +270,7 @@ func TestMapValuesTransformsValuesPreservesKeys(t *testing.T) {
 	t.Parallel()
 
 	m := collection.NewMap(map[string]int{"a": 1, "b": 2})
-	result := collection.MapValues(m, func(v int) string { return strings.Repeat("x", v) })
+	result := collection.MapValues(m, func(k string, v int) string { return strings.Repeat("x", v) })
 
 	require.Equal(t, map[string]string{"a": "x", "b": "xx"}, result.Items())
 }
@@ -252,7 +279,7 @@ func TestMapKeysTransformsKeysPreservesValues(t *testing.T) {
 	t.Parallel()
 
 	m := collection.NewMap(map[string]int{"a": 1, "b": 2})
-	result := collection.MapKeys(m, func(k string) string { return strings.ToUpper(k) })
+	result := collection.MapKeys(m, func(k string, v int) string { return strings.ToUpper(k) })
 
 	require.Equal(t, map[string]int{"A": 1, "B": 2}, result.Items())
 }
@@ -263,7 +290,7 @@ func TestMapKeysLastWriteWinsOnCollision(t *testing.T) {
 	// Both "a" and "A" map to "X" via ToUpper-then-force; use a fixed collision.
 	m := collection.NewMap(map[string]int{"hello": 1, "world": 2})
 	// Map all keys to the same key — last write wins.
-	result := collection.MapKeys(m, func(_ string) string { return "same" })
+	result := collection.MapKeys(m, func(_ string, _ int) string { return "same" })
 
 	require.Equal(t, 1, result.Len())
 }

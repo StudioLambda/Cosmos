@@ -19,7 +19,7 @@ import (
 func TestNewLazySliceCreatesLazySliceFromFunctionAndYieldsAllItems(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	require.Equal(t, []int{1, 2, 3}, lazy.Items())
 }
@@ -29,10 +29,10 @@ func TestNewLazySliceCreatesLazySliceFromFunctionAndYieldsAllItems(t *testing.T)
 func TestLazySliceCanBeUsedDirectlyInForRangeLoop(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{10, 20, 30}))
+	lazy := collection.NewLazySlice(slices.All([]int{10, 20, 30}))
 
 	var got []int
-	for v := range lazy {
+	for _, v := range lazy {
 		got = append(got, v)
 	}
 
@@ -44,7 +44,7 @@ func TestLazySliceCanBeUsedDirectlyInForRangeLoop(t *testing.T) {
 func TestLazySliceEagerMaterializesIntoEagerCollection(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{5, 6, 7}))
+	lazy := collection.NewLazySlice(slices.All([]int{5, 6, 7}))
 
 	c := lazy.Eager()
 
@@ -56,7 +56,7 @@ func TestLazySliceEagerMaterializesIntoEagerCollection(t *testing.T) {
 func TestLazySliceItemsMaterializesAllItems(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]string{"a", "b", "c"}))
+	lazy := collection.NewLazySlice(slices.All([]string{"a", "b", "c"}))
 
 	require.Equal(t, []string{"a", "b", "c"}, lazy.Items())
 }
@@ -66,7 +66,7 @@ func TestLazySliceItemsMaterializesAllItems(t *testing.T) {
 func TestLazySliceIsEmptyReturnsTrueForEmptyLazy(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{}))
+	lazy := collection.NewLazySlice(slices.All([]int{}))
 
 	require.True(t, lazy.IsEmpty())
 }
@@ -76,7 +76,7 @@ func TestLazySliceIsEmptyReturnsTrueForEmptyLazy(t *testing.T) {
 func TestLazySliceIsEmptyReturnsFalseForNonEmptyLazy(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1}))
+	lazy := collection.NewLazySlice(slices.All([]int{1}))
 
 	require.False(t, lazy.IsEmpty())
 }
@@ -86,7 +86,7 @@ func TestLazySliceIsEmptyReturnsFalseForNonEmptyLazy(t *testing.T) {
 func TestLazySliceIsNotEmptyReturnsTrueForNonEmptyLazy(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{42}))
+	lazy := collection.NewLazySlice(slices.All([]int{42}))
 
 	require.True(t, lazy.IsNotEmpty())
 }
@@ -96,7 +96,7 @@ func TestLazySliceIsNotEmptyReturnsTrueForNonEmptyLazy(t *testing.T) {
 func TestLazySliceIsNotEmptyReturnsFalseForEmptyLazy(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{}))
+	lazy := collection.NewLazySlice(slices.All([]int{}))
 
 	require.False(t, lazy.IsNotEmpty())
 }
@@ -106,7 +106,7 @@ func TestLazySliceIsNotEmptyReturnsFalseForEmptyLazy(t *testing.T) {
 func TestLazySliceLenReturnsTotalCount(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5}))
 
 	require.Equal(t, 5, lazy.Len())
 }
@@ -115,7 +115,7 @@ func TestLazySliceLenReturnsTotalCount(t *testing.T) {
 func TestLazySliceLenReturnsZeroForEmpty(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{}))
+	lazy := collection.NewLazySlice(slices.All([]int{}))
 
 	require.Equal(t, 0, lazy.Len())
 }
@@ -125,9 +125,9 @@ func TestLazySliceLenReturnsZeroForEmpty(t *testing.T) {
 func TestLazySliceEveryReturnsTrueWhenAllItemsMatch(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{2, 4, 6}))
+	lazy := collection.NewLazySlice(slices.All([]int{2, 4, 6}))
 
-	require.True(t, lazy.Every(func(v int) bool { return v%2 == 0 }))
+	require.True(t, lazy.Every(func(i int, v int) bool { return v%2 == 0 }))
 }
 
 // TestLazySliceEveryReturnsFalseWhenOneItemFails verifies that Every returns false
@@ -135,9 +135,9 @@ func TestLazySliceEveryReturnsTrueWhenAllItemsMatch(t *testing.T) {
 func TestLazySliceEveryReturnsFalseWhenOneItemFails(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{2, 3, 6}))
+	lazy := collection.NewLazySlice(slices.All([]int{2, 3, 6}))
 
-	require.False(t, lazy.Every(func(v int) bool { return v%2 == 0 }))
+	require.False(t, lazy.Every(func(i int, v int) bool { return v%2 == 0 }))
 }
 
 // TestLazySliceEveryReturnsTrueOnEmpty verifies the vacuous truth: Every on an
@@ -145,19 +145,19 @@ func TestLazySliceEveryReturnsFalseWhenOneItemFails(t *testing.T) {
 func TestLazySliceEveryReturnsTrueOnEmpty(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{}))
+	lazy := collection.NewLazySlice(slices.All([]int{}))
 
-	require.True(t, lazy.Every(func(v int) bool { return false }))
+	require.True(t, lazy.Every(func(i int, v int) bool { return false }))
 }
 
 // TestLazySliceEachCallsFForEveryItem verifies that Each invokes f once per item.
 func TestLazySliceEachCallsFForEveryItem(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	var got []int
-	lazy.Each(func(v int) { got = append(got, v) })
+	lazy.Each(func(i int, v int) { got = append(got, v) })
 
 	require.Equal(t, []int{1, 2, 3}, got)
 }
@@ -167,10 +167,10 @@ func TestLazySliceEachCallsFForEveryItem(t *testing.T) {
 func TestLazySliceEachDoesNotCallFOnEmpty(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{}))
+	lazy := collection.NewLazySlice(slices.All([]int{}))
 
 	called := false
-	lazy.Each(func(v int) { called = true })
+	lazy.Each(func(i int, v int) { called = true })
 
 	require.False(t, called)
 }
@@ -180,10 +180,10 @@ func TestLazySliceEachDoesNotCallFOnEmpty(t *testing.T) {
 func TestLazySliceTapEachCallsFForEveryItemWhenConsumed(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{7, 8, 9}))
+	lazy := collection.NewLazySlice(slices.All([]int{7, 8, 9}))
 
 	var tapped []int
-	result := lazy.TapEach(func(v int) { tapped = append(tapped, v) })
+	result := lazy.TapEach(func(i int, v int) { tapped = append(tapped, v) })
 
 	require.Empty(t, tapped) // not yet consumed
 
@@ -198,10 +198,10 @@ func TestLazySliceTapEachCallsFForEveryItemWhenConsumed(t *testing.T) {
 func TestLazySliceTapEachIsLazyAndDoesNotCallFBeforeConsumption(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	callCount := 0
-	tapped := lazy.TapEach(func(v int) { callCount++ })
+	tapped := lazy.TapEach(func(i int, v int) { callCount++ })
 
 	require.Equal(t, 0, callCount) // not called yet
 
@@ -215,9 +215,9 @@ func TestLazySliceTapEachIsLazyAndDoesNotCallFBeforeConsumption(t *testing.T) {
 func TestLazySliceFilterReturnsMatchingItems(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5}))
 
-	got := lazy.Filter(func(v int) bool { return v%2 == 0 }).Items()
+	got := lazy.Filter(func(i int, v int) bool { return v%2 == 0 }).Items()
 
 	require.Equal(t, []int{2, 4}, got)
 }
@@ -227,9 +227,9 @@ func TestLazySliceFilterReturnsMatchingItems(t *testing.T) {
 func TestLazySliceFilterReturnsEmptyWhenNoneMatch(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 3, 5}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 3, 5}))
 
-	got := lazy.Filter(func(v int) bool { return v%2 == 0 }).Items()
+	got := lazy.Filter(func(i int, v int) bool { return v%2 == 0 }).Items()
 
 	require.Empty(t, got)
 }
@@ -239,9 +239,9 @@ func TestLazySliceFilterReturnsEmptyWhenNoneMatch(t *testing.T) {
 func TestLazySliceFilterReturnsEmptyOnEmptyInput(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{}))
+	lazy := collection.NewLazySlice(slices.All([]int{}))
 
-	got := lazy.Filter(func(v int) bool { return true }).Items()
+	got := lazy.Filter(func(i int, v int) bool { return true }).Items()
 
 	require.Empty(t, got)
 }
@@ -251,9 +251,9 @@ func TestLazySliceFilterReturnsEmptyOnEmptyInput(t *testing.T) {
 func TestLazySliceRejectReturnsItemsNotMatchingPredicate(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5}))
 
-	got := lazy.Reject(func(v int) bool { return v%2 == 0 }).Items()
+	got := lazy.Reject(func(i int, v int) bool { return v%2 == 0 }).Items()
 
 	require.Equal(t, []int{1, 3, 5}, got)
 }
@@ -263,9 +263,9 @@ func TestLazySliceRejectReturnsItemsNotMatchingPredicate(t *testing.T) {
 func TestLazySliceMapTransformsItemsToSameType(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
-	got := lazy.Map(func(v int) int { return v * 10 }).Items()
+	got := lazy.Map(func(i int, v int) int { return v * 10 }).Items()
 
 	require.Equal(t, []int{10, 20, 30}, got)
 }
@@ -275,9 +275,9 @@ func TestLazySliceMapTransformsItemsToSameType(t *testing.T) {
 func TestLazySliceMapTransformsItemsToDifferentType(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{2, 3, 4}))
+	lazy := collection.NewLazySlice(slices.All([]int{2, 3, 4}))
 
-	got := lazy.Map(func(v int) bool { return v%2 == 0 }).Items()
+	got := lazy.Map(func(i int, v int) bool { return v%2 == 0 }).Items()
 
 	require.Equal(t, []bool{true, false, true}, got)
 }
@@ -286,9 +286,9 @@ func TestLazySliceMapTransformsItemsToDifferentType(t *testing.T) {
 func TestLazySliceFlatMapFlattensMappedResults(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
-	got := lazy.FlatMap(func(v int) []int {
+	got := lazy.FlatMap(func(i int, v int) []int {
 		return []int{v, v * 10}
 	}).Items()
 
@@ -300,8 +300,8 @@ func TestLazySliceFlatMapIsLazy(t *testing.T) {
 	t.Parallel()
 
 	called := 0
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
-	flatMapped := lazy.FlatMap(func(v int) []int {
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
+	flatMapped := lazy.FlatMap(func(i int, v int) []int {
 		called++
 
 		return []int{v}
@@ -321,9 +321,9 @@ func TestLazySliceKeyByIndexesItemsByDerivedKey(t *testing.T) {
 		Name string
 	}
 
-	lazy := collection.NewLazySlice(slices.Values([]user{{ID: 1, Name: "alice"}, {ID: 2, Name: "bob"}}))
+	lazy := collection.NewLazySlice(slices.All([]user{{ID: 1, Name: "alice"}, {ID: 2, Name: "bob"}}))
 
-	result := lazy.KeyBy(func(v user) int { return v.ID })
+	result := lazy.KeyBy(func(i int, v user) int { return v.ID })
 
 	require.Equal(t, map[int]user{
 		1: {ID: 1, Name: "alice"},
@@ -335,9 +335,9 @@ func TestLazySliceKeyByIndexesItemsByDerivedKey(t *testing.T) {
 func TestLazySliceCountByCountsItemsPerDerivedKey(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]string{"ant", "ape", "bat", "bee"}))
+	lazy := collection.NewLazySlice(slices.All([]string{"ant", "ape", "bat", "bee"}))
 
-	result := lazy.CountBy(func(v string) byte { return v[0] })
+	result := lazy.CountBy(func(i int, v string) byte { return v[0] })
 
 	require.Equal(t, map[byte]int{'a': 2, 'b': 2}, result.Items())
 }
@@ -346,9 +346,9 @@ func TestLazySliceCountByCountsItemsPerDerivedKey(t *testing.T) {
 func TestLazySliceTakeUntilStopsBeforeMatchingItem(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5}))
 
-	got := lazy.TakeUntil(func(v int) bool { return v >= 4 }).Items()
+	got := lazy.TakeUntil(func(i int, v int) bool { return v >= 4 }).Items()
 
 	require.Equal(t, []int{1, 2, 3}, got)
 }
@@ -357,9 +357,9 @@ func TestLazySliceTakeUntilStopsBeforeMatchingItem(t *testing.T) {
 func TestLazySliceSkipUntilStartsAtFirstMatchingItem(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5}))
 
-	got := lazy.SkipUntil(func(v int) bool { return v >= 4 }).Items()
+	got := lazy.SkipUntil(func(i int, v int) bool { return v >= 4 }).Items()
 
 	require.Equal(t, []int{4, 5}, got)
 }
@@ -369,9 +369,9 @@ func TestLazySliceSkipUntilStartsAtFirstMatchingItem(t *testing.T) {
 func TestLazySliceMapReturnsEmptyOnEmptyInput(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{}))
+	lazy := collection.NewLazySlice(slices.All([]int{}))
 
-	got := lazy.Map(func(v int) int { return v }).Items()
+	got := lazy.Map(func(i int, v int) int { return v }).Items()
 
 	require.Empty(t, got)
 }
@@ -381,9 +381,9 @@ func TestLazySliceMapReturnsEmptyOnEmptyInput(t *testing.T) {
 func TestLazySliceFirstWhereReturnsFirstMatch(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4}))
 
-	result, ok := lazy.FirstWhere(func(v int) bool { return v > 2 })
+	result, ok := lazy.FirstWhere(func(i int, v int) bool { return v > 2 })
 
 	require.True(t, ok)
 	require.Equal(t, 3, result)
@@ -394,9 +394,9 @@ func TestLazySliceFirstWhereReturnsFirstMatch(t *testing.T) {
 func TestLazySliceFirstWhereReturnsNotFoundWhenNoMatch(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
-	_, ok := lazy.FirstWhere(func(v int) bool { return v > 10 })
+	_, ok := lazy.FirstWhere(func(i int, v int) bool { return v > 10 })
 
 	require.False(t, ok)
 }
@@ -406,9 +406,9 @@ func TestLazySliceFirstWhereReturnsNotFoundWhenNoMatch(t *testing.T) {
 func TestLazySliceFirstWhereReturnsNotFoundOnEmpty(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{}))
+	lazy := collection.NewLazySlice(slices.All([]int{}))
 
-	_, ok := lazy.FirstWhere(func(v int) bool { return true })
+	_, ok := lazy.FirstWhere(func(i int, v int) bool { return true })
 
 	require.False(t, ok)
 }
@@ -418,7 +418,7 @@ func TestLazySliceFirstWhereReturnsNotFoundOnEmpty(t *testing.T) {
 func TestLazySliceFirstReturnsFirstItemWithOkTrue(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{42, 99}))
+	lazy := collection.NewLazySlice(slices.All([]int{42, 99}))
 
 	result, ok := lazy.First()
 
@@ -431,7 +431,7 @@ func TestLazySliceFirstReturnsFirstItemWithOkTrue(t *testing.T) {
 func TestLazySliceFirstReturnsOkFalseOnEmpty(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{}))
+	lazy := collection.NewLazySlice(slices.All([]int{}))
 
 	_, ok := lazy.First()
 
@@ -443,7 +443,7 @@ func TestLazySliceFirstReturnsOkFalseOnEmpty(t *testing.T) {
 func TestLazySliceLastReturnsLastItemWithOkTrue(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 99}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 99}))
 
 	result, ok := lazy.Last()
 
@@ -456,7 +456,7 @@ func TestLazySliceLastReturnsLastItemWithOkTrue(t *testing.T) {
 func TestLazySliceLastReturnsOkFalseOnEmpty(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{}))
+	lazy := collection.NewLazySlice(slices.All([]int{}))
 
 	_, ok := lazy.Last()
 
@@ -468,9 +468,9 @@ func TestLazySliceLastReturnsOkFalseOnEmpty(t *testing.T) {
 func TestLazySliceContainsTrueWhenFound(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
-	require.True(t, lazy.Contains(func(v int) bool { return v == 2 }))
+	require.True(t, lazy.Contains(func(i int, v int) bool { return v == 2 }))
 }
 
 // TestLazySliceContainsFalseWhenNotFound verifies that Contains returns false when
@@ -478,16 +478,16 @@ func TestLazySliceContainsTrueWhenFound(t *testing.T) {
 func TestLazySliceContainsFalseWhenNotFound(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
-	require.False(t, lazy.Contains(func(v int) bool { return v == 99 }))
+	require.False(t, lazy.Contains(func(i int, v int) bool { return v == 99 }))
 }
 
 // TestLazySliceTakeYieldsAtMostNItems verifies that Take limits output to n items.
 func TestLazySliceTakeYieldsAtMostNItems(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5}))
 
 	require.Equal(t, []int{1, 2, 3}, lazy.Take(3).Items())
 }
@@ -497,7 +497,7 @@ func TestLazySliceTakeYieldsAtMostNItems(t *testing.T) {
 func TestLazySliceTakeZeroLimitYieldsNothing(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	require.Empty(t, lazy.Take(0).Items())
 }
@@ -507,7 +507,7 @@ func TestLazySliceTakeZeroLimitYieldsNothing(t *testing.T) {
 func TestLazySliceTakeNegativeLimitYieldsNothing(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	require.Empty(t, lazy.Take(-1).Items())
 }
@@ -517,7 +517,7 @@ func TestLazySliceTakeNegativeLimitYieldsNothing(t *testing.T) {
 func TestLazySliceTakeLimitExceedingLengthYieldsAll(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2}))
 
 	require.Equal(t, []int{1, 2}, lazy.Take(100).Items())
 }
@@ -528,10 +528,10 @@ func TestLazySliceTakeWithInfiniteSourceYieldsExactlyNItems(t *testing.T) {
 	t.Parallel()
 
 	generated := 0
-	infinite := collection.NewLazySlice(func(yield func(int) bool) {
+	infinite := collection.NewLazySlice(func(yield func(int, int) bool) {
 		for i := 0; ; i++ {
 			generated++
-			if !yield(i) {
+			if !yield(i, i) {
 				return
 			}
 		}
@@ -547,7 +547,7 @@ func TestLazySliceTakeWithInfiniteSourceYieldsExactlyNItems(t *testing.T) {
 func TestLazySliceSkipSkipsFirstNItems(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5}))
 
 	require.Equal(t, []int{4, 5}, lazy.Skip(3).Items())
 }
@@ -556,7 +556,7 @@ func TestLazySliceSkipSkipsFirstNItems(t *testing.T) {
 func TestLazySliceSkipZeroSkipsNothing(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	require.Equal(t, []int{1, 2, 3}, lazy.Skip(0).Items())
 }
@@ -566,7 +566,7 @@ func TestLazySliceSkipZeroSkipsNothing(t *testing.T) {
 func TestLazySliceSkipExceedingLengthYieldsEmpty(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2}))
 
 	require.Empty(t, lazy.Skip(10).Items())
 }
@@ -576,9 +576,9 @@ func TestLazySliceSkipExceedingLengthYieldsEmpty(t *testing.T) {
 func TestLazySliceTakeWhileYieldsItemsUntilPredicateReturnsFalse(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5}))
 
-	got := lazy.TakeWhile(func(v int) bool { return v < 4 }).Items()
+	got := lazy.TakeWhile(func(i int, v int) bool { return v < 4 }).Items()
 
 	require.Equal(t, []int{1, 2, 3}, got)
 }
@@ -588,9 +588,9 @@ func TestLazySliceTakeWhileYieldsItemsUntilPredicateReturnsFalse(t *testing.T) {
 func TestLazySliceTakeWhileYieldsNothingWhenFirstItemFailsPredicate(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{5, 1, 2}))
+	lazy := collection.NewLazySlice(slices.All([]int{5, 1, 2}))
 
-	got := lazy.TakeWhile(func(v int) bool { return v < 4 }).Items()
+	got := lazy.TakeWhile(func(i int, v int) bool { return v < 4 }).Items()
 
 	require.Empty(t, got)
 }
@@ -600,9 +600,9 @@ func TestLazySliceTakeWhileYieldsNothingWhenFirstItemFailsPredicate(t *testing.T
 func TestLazySliceTakeWhileYieldsAllWhenPredicateAlwaysTrue(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
-	got := lazy.TakeWhile(func(v int) bool { return true }).Items()
+	got := lazy.TakeWhile(func(i int, v int) bool { return true }).Items()
 
 	require.Equal(t, []int{1, 2, 3}, got)
 }
@@ -612,9 +612,9 @@ func TestLazySliceTakeWhileYieldsAllWhenPredicateAlwaysTrue(t *testing.T) {
 func TestLazySliceSkipWhileSkipsLeadingItemsMatchingPredicateThenYieldsRest(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5}))
 
-	got := lazy.SkipWhile(func(v int) bool { return v < 4 }).Items()
+	got := lazy.SkipWhile(func(i int, v int) bool { return v < 4 }).Items()
 
 	require.Equal(t, []int{4, 5}, got)
 }
@@ -624,9 +624,9 @@ func TestLazySliceSkipWhileSkipsLeadingItemsMatchingPredicateThenYieldsRest(t *t
 func TestLazySliceSkipWhileYieldsAllWhenFirstItemFailsPredicate(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{5, 1, 2}))
+	lazy := collection.NewLazySlice(slices.All([]int{5, 1, 2}))
 
-	got := lazy.SkipWhile(func(v int) bool { return v < 4 }).Items()
+	got := lazy.SkipWhile(func(i int, v int) bool { return v < 4 }).Items()
 
 	require.Equal(t, []int{5, 1, 2}, got)
 }
@@ -636,9 +636,9 @@ func TestLazySliceSkipWhileYieldsAllWhenFirstItemFailsPredicate(t *testing.T) {
 func TestLazySliceSkipWhileYieldsNothingWhenPredicateAlwaysTrue(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
-	got := lazy.SkipWhile(func(v int) bool { return true }).Items()
+	got := lazy.SkipWhile(func(i int, v int) bool { return true }).Items()
 
 	require.Empty(t, got)
 }
@@ -648,10 +648,10 @@ func TestLazySliceSkipWhileYieldsNothingWhenPredicateAlwaysTrue(t *testing.T) {
 func TestLazySliceChunkSplitsIntoChunksOfGivenSize(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5}))
 
 	var chunks [][]int
-	for chunk := range lazy.Chunk(2) {
+	for _, chunk := range lazy.Chunk(2) {
 		chunks = append(chunks, slices.Clone(chunk))
 	}
 
@@ -663,10 +663,10 @@ func TestLazySliceChunkSplitsIntoChunksOfGivenSize(t *testing.T) {
 func TestLazySliceChunkOnEmptyLazyYieldsNoChunks(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{}))
+	lazy := collection.NewLazySlice(slices.All([]int{}))
 
 	var chunks [][]int
-	for chunk := range lazy.Chunk(3) {
+	for _, chunk := range lazy.Chunk(3) {
 		chunks = append(chunks, slices.Clone(chunk))
 	}
 
@@ -677,7 +677,7 @@ func TestLazySliceChunkOnEmptyLazyYieldsNoChunks(t *testing.T) {
 func TestLazySliceChunkPanicsOnZeroSize(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	require.Panics(t, func() { lazy.Chunk(0) })
 }
@@ -687,7 +687,7 @@ func TestLazySliceChunkPanicsOnZeroSize(t *testing.T) {
 func TestLazySliceChunkPanicsOnNegativeSize(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	require.Panics(t, func() { lazy.Chunk(-1) })
 }
@@ -697,10 +697,10 @@ func TestLazySliceChunkPanicsOnNegativeSize(t *testing.T) {
 func TestLazySliceSlidingReturnsWindowsWithDefaultStepOfOne(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4}))
 
 	var windows [][]int
-	for w := range lazy.Sliding(2) {
+	for _, w := range lazy.Sliding(2) {
 		windows = append(windows, slices.Clone(w))
 	}
 
@@ -712,10 +712,10 @@ func TestLazySliceSlidingReturnsWindowsWithDefaultStepOfOne(t *testing.T) {
 func TestLazySliceSlidingReturnsWindowsWithExplicitStep(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5}))
 
 	var windows [][]int
-	for w := range lazy.Sliding(3, 2) {
+	for _, w := range lazy.Sliding(3, 2) {
 		windows = append(windows, slices.Clone(w))
 	}
 
@@ -727,10 +727,10 @@ func TestLazySliceSlidingReturnsWindowsWithExplicitStep(t *testing.T) {
 func TestLazySliceSlidingReturnsNothingWhenCollectionSmallerThanWindowSize(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2}))
 
 	var windows [][]int
-	for w := range lazy.Sliding(5) {
+	for _, w := range lazy.Sliding(5) {
 		windows = append(windows, slices.Clone(w))
 	}
 
@@ -742,7 +742,7 @@ func TestLazySliceSlidingReturnsNothingWhenCollectionSmallerThanWindowSize(t *te
 func TestLazySliceSlidingPanicsOnZeroSize(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	require.Panics(t, func() { lazy.Sliding(0) })
 }
@@ -752,7 +752,7 @@ func TestLazySliceSlidingPanicsOnZeroSize(t *testing.T) {
 func TestLazySliceSlidingPanicsOnNegativeSize(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	require.Panics(t, func() { lazy.Sliding(-1) })
 }
@@ -762,7 +762,7 @@ func TestLazySliceSlidingPanicsOnNegativeSize(t *testing.T) {
 func TestLazySliceSlidingPanicsOnZeroStep(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	require.Panics(t, func() { lazy.Sliding(2, 0) })
 }
@@ -772,7 +772,7 @@ func TestLazySliceSlidingPanicsOnZeroStep(t *testing.T) {
 func TestLazySliceSlidingPanicsOnNegativeStep(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	require.Panics(t, func() { lazy.Sliding(2, -1) })
 }
@@ -782,9 +782,9 @@ func TestLazySliceSlidingPanicsOnNegativeStep(t *testing.T) {
 func TestLazySliceReduceAccumulatesValuesWithSameType(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4}))
 
-	sum := lazy.Reduce(func(acc, v int) int { return acc + v }, 0)
+	sum := lazy.Reduce(func(acc int, i int, v int) int { return acc + v }, 0)
 
 	require.Equal(t, 10, sum)
 }
@@ -794,9 +794,9 @@ func TestLazySliceReduceAccumulatesValuesWithSameType(t *testing.T) {
 func TestLazySliceReduceAccumulatesWithDifferentKType(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int32{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int32{1, 2, 3}))
 
-	sum := lazy.Reduce(func(acc int64, v int32) int64 { return acc + int64(v) }, int64(0))
+	sum := lazy.Reduce(func(acc int64, i int, v int32) int64 { return acc + int64(v) }, int64(0))
 
 	require.Equal(t, int64(6), sum)
 }
@@ -806,9 +806,9 @@ func TestLazySliceReduceAccumulatesWithDifferentKType(t *testing.T) {
 func TestLazySliceReduceReturnsInitialOnEmpty(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{}))
+	lazy := collection.NewLazySlice(slices.All([]int{}))
 
-	result := lazy.Reduce(func(acc, v int) int { return acc + v }, 42)
+	result := lazy.Reduce(func(acc int, i int, v int) int { return acc + v }, 42)
 
 	require.Equal(t, 42, result)
 }
@@ -818,7 +818,7 @@ func TestLazySliceReduceReturnsInitialOnEmpty(t *testing.T) {
 func TestLazySliceReverseReturnsItemsInReversedOrder(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	require.Equal(t, []int{3, 2, 1}, lazy.Reverse().Items())
 }
@@ -828,7 +828,7 @@ func TestLazySliceReverseReturnsItemsInReversedOrder(t *testing.T) {
 func TestLazySliceReverseReturnsEmptyOnEmptyInput(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{}))
+	lazy := collection.NewLazySlice(slices.All([]int{}))
 
 	require.Empty(t, lazy.Reverse().Items())
 }
@@ -838,7 +838,7 @@ func TestLazySliceReverseReturnsEmptyOnEmptyInput(t *testing.T) {
 func TestLazySliceSortReturnsItemsInSortedOrder(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{3, 1, 4, 1, 5, 9}))
+	lazy := collection.NewLazySlice(slices.All([]int{3, 1, 4, 1, 5, 9}))
 
 	got := lazy.Sort(cmp.Compare[int]).Items()
 
@@ -850,9 +850,9 @@ func TestLazySliceSortReturnsItemsInSortedOrder(t *testing.T) {
 func TestLazySliceUniqueRemovesDuplicatesAndPreservesFirstOccurrence(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 2, 3, 1, 4}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 2, 3, 1, 4}))
 
-	got := lazy.Unique(func(v int) int { return v }).Items()
+	got := lazy.Unique(func(i int, v int) int { return v }).Items()
 
 	require.Equal(t, []int{1, 2, 3, 4}, got)
 }
@@ -862,9 +862,9 @@ func TestLazySliceUniqueRemovesDuplicatesAndPreservesFirstOccurrence(t *testing.
 func TestLazySlicePartitionSplitsIntoMatchingAndNonMatching(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5}))
 
-	even, odd := lazy.Partition(func(v int) bool { return v%2 == 0 })
+	even, odd := lazy.Partition(func(i int, v int) bool { return v%2 == 0 })
 
 	require.Equal(t, []int{2, 4}, even.Items())
 	require.Equal(t, []int{1, 3, 5}, odd.Items())
@@ -875,9 +875,9 @@ func TestLazySlicePartitionSplitsIntoMatchingAndNonMatching(t *testing.T) {
 func TestLazySlicePartitionAllMatchSecondResultYieldsNothing(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{2, 4, 6}))
+	lazy := collection.NewLazySlice(slices.All([]int{2, 4, 6}))
 
-	_, odd := lazy.Partition(func(v int) bool { return v%2 == 0 })
+	_, odd := lazy.Partition(func(i int, v int) bool { return v%2 == 0 })
 
 	require.Empty(t, odd.Items())
 }
@@ -887,9 +887,9 @@ func TestLazySlicePartitionAllMatchSecondResultYieldsNothing(t *testing.T) {
 func TestLazySlicePartitionNoneMatchFirstResultYieldsNothing(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 3, 5}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 3, 5}))
 
-	even, _ := lazy.Partition(func(v int) bool { return v%2 == 0 })
+	even, _ := lazy.Partition(func(i int, v int) bool { return v%2 == 0 })
 
 	require.Empty(t, even.Items())
 }
@@ -899,8 +899,8 @@ func TestLazySlicePartitionNoneMatchFirstResultYieldsNothing(t *testing.T) {
 func TestLazySliceConcatYieldsAllItemsFromBothSources(t *testing.T) {
 	t.Parallel()
 
-	first := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
-	second := collection.NewLazySlice(slices.Values([]int{4, 5, 6}))
+	first := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
+	second := collection.NewLazySlice(slices.All([]int{4, 5, 6}))
 
 	got := first.Concat(second).Items()
 
@@ -912,9 +912,9 @@ func TestLazySliceConcatYieldsAllItemsFromBothSources(t *testing.T) {
 func TestLazySliceGroupByGroupsAllItemsByKeyIntoEagerSubCollections(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5, 6}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5, 6}))
 
-	groups := lazy.GroupBy(func(v int) string {
+	groups := lazy.GroupBy(func(i int, v int) string {
 		if v%2 == 0 {
 			return "even"
 		}
@@ -937,7 +937,7 @@ func TestLazySliceGroupByGroupsAllItemsByKeyIntoEagerSubCollections(t *testing.T
 func TestLazySliceNthPicksEveryNthItemFromIndexZero(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{0, 1, 2, 3, 4, 5, 6}))
+	lazy := collection.NewLazySlice(slices.All([]int{0, 1, 2, 3, 4, 5, 6}))
 
 	got := lazy.Nth(3).Items()
 
@@ -949,7 +949,7 @@ func TestLazySliceNthPicksEveryNthItemFromIndexZero(t *testing.T) {
 func TestLazySliceNthPicksEveryNthItemStartingAtGivenOffset(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{0, 1, 2, 3, 4, 5, 6}))
+	lazy := collection.NewLazySlice(slices.All([]int{0, 1, 2, 3, 4, 5, 6}))
 
 	got := lazy.Nth(3, 1).Items()
 
@@ -961,7 +961,7 @@ func TestLazySliceNthPicksEveryNthItemStartingAtGivenOffset(t *testing.T) {
 func TestLazySliceNthOffsetBeyondLengthReturnsEmptyLazySlice(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	got := lazy.Nth(2, 100).Items()
 
@@ -972,7 +972,7 @@ func TestLazySliceNthOffsetBeyondLengthReturnsEmptyLazySlice(t *testing.T) {
 func TestLazySliceNthPanicsOnZeroN(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	require.Panics(t, func() { lazy.Nth(0) })
 }
@@ -981,7 +981,7 @@ func TestLazySliceNthPanicsOnZeroN(t *testing.T) {
 func TestLazySliceNthPanicsOnNegativeN(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	require.Panics(t, func() { lazy.Nth(-1) })
 }
@@ -991,7 +991,7 @@ func TestLazySliceNthPanicsOnNegativeN(t *testing.T) {
 func TestLazySliceForPageReturnsFirstPage(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5, 6}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5, 6}))
 
 	got := lazy.ForPage(1, 2).Items()
 
@@ -1003,7 +1003,7 @@ func TestLazySliceForPageReturnsFirstPage(t *testing.T) {
 func TestLazySliceForPageReturnsSecondPage(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3, 4, 5, 6}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5, 6}))
 
 	got := lazy.ForPage(2, 2).Items()
 
@@ -1015,7 +1015,7 @@ func TestLazySliceForPageReturnsSecondPage(t *testing.T) {
 func TestLazySliceForPageBeyondDataReturnsEmptyLazySlice(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	got := lazy.ForPage(10, 2).Items()
 
@@ -1027,7 +1027,7 @@ func TestLazySliceForPageBeyondDataReturnsEmptyLazySlice(t *testing.T) {
 func TestLazySliceMarshalJSONMarshalsNonEmptyLazyToJSONArray(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{1, 2, 3}))
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
 
 	data, err := lazy.MarshalJSON()
 
@@ -1040,7 +1040,7 @@ func TestLazySliceMarshalJSONMarshalsNonEmptyLazyToJSONArray(t *testing.T) {
 func TestLazySliceMarshalJSONMarshalsEmptyLazyToNull(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{}))
+	lazy := collection.NewLazySlice(slices.All([]int{}))
 
 	data, err := lazy.MarshalJSON()
 
@@ -1077,7 +1077,7 @@ func TestLazySliceUnmarshalJSONReturnsErrorOnInvalidJSON(t *testing.T) {
 func TestLazySliceMarshalJSONToEncodesNonEmptyLazyToJSONArray(t *testing.T) {
 	t.Parallel()
 
-	lazy := collection.NewLazySlice(slices.Values([]int{4, 5, 6}))
+	lazy := collection.NewLazySlice(slices.All([]int{4, 5, 6}))
 
 	var buf bytes.Buffer
 	enc := jsontext.NewEncoder(&buf)
