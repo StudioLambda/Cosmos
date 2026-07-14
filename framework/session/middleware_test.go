@@ -70,7 +70,9 @@ func TestMiddlewareLoadsExistingSession(t *testing.T) {
 			found = ok
 
 			if ok {
-				userID, _ = sess.Get("user_id")
+				value, err := sess.Get[int]("user_id")
+				require.NoError(t, err)
+				userID = value
 			}
 
 			return nil
@@ -227,7 +229,7 @@ func TestMiddlewareWithExpirationDeltaExtendsSession(t *testing.T) {
 	)
 
 	handlerWithSessions := session.MiddlewareWith(
-		driver, session.MiddlewareOptions{
+		driver, session.MiddlewareConfig{
 			ExpirationDelta: 10 * time.Minute,
 			TTL:             2 * time.Hour,
 		},
@@ -293,7 +295,7 @@ func TestMiddlewareErrorHandlerCalledOnSaveError(t *testing.T) {
 	)
 
 	handlerWithSessions := session.MiddlewareWith(
-		driver, session.MiddlewareOptions{
+		driver, session.MiddlewareConfig{
 			ErrorHandler: func(err error) {
 				capturedErr = err
 			},
@@ -330,7 +332,7 @@ func TestMiddlewareSessionNotSavedWhenUnchanged(t *testing.T) {
 	)
 
 	handlerWithSessions := session.MiddlewareWith(
-		driver, session.MiddlewareOptions{
+		driver, session.MiddlewareConfig{
 			ExpirationDelta: 1 * time.Minute,
 		},
 	)(handler)
@@ -366,7 +368,7 @@ func TestMiddlewareDoesNotSetCookieWhenSaveFails(t *testing.T) {
 	)
 
 	handlerWithSessions := session.MiddlewareWith(
-		driver, session.MiddlewareOptions{
+		driver, session.MiddlewareConfig{
 			ErrorHandler: func(err error) {
 				capturedErr = err
 			},
@@ -450,15 +452,15 @@ func TestMiddlewareCreatesNewSessionWhenExpired(t *testing.T) {
 		"Save", tmock.Anything, tmock.Anything, tmock.Anything,
 	).Return(nil).Once()
 
-	var staleValue any
-	var staleFound bool
+	var staleValue bool
+	var staleErr error
 
 	handler := framework.Handler(
 		func(w http.ResponseWriter, r *http.Request) error {
 			sess, ok := request.Session(r)
 			require.True(t, ok)
 
-			staleValue, staleFound = sess.Get("stale")
+			staleValue, staleErr = sess.Get[bool]("stale")
 
 			return nil
 		},
@@ -475,8 +477,8 @@ func TestMiddlewareCreatesNewSessionWhenExpired(t *testing.T) {
 	res := handlerWithSessions.Record(req)
 	cookies := res.Cookies()
 
-	require.False(t, staleFound, "handler must not see expired session data")
-	require.Nil(t, staleValue)
+	require.ErrorIs(t, staleErr, contract.ErrSessionKeyNotFound, "handler must not see expired session data")
+	require.False(t, staleValue)
 	require.Len(t, cookies, 1)
 	require.NotEqual(t, sessionID, cookies[0].Value)
 }
@@ -513,7 +515,7 @@ func TestMiddlewareWithDefaultsMaxLifetime(t *testing.T) {
 	// MiddlewareWith with zero MaxLifetime should get DefaultMaxLifetime.
 	// The session was just created, so MaxLifetime (24h) should not trigger.
 	handlerWithSessions := session.MiddlewareWith(
-		driver, session.MiddlewareOptions{},
+		driver, session.MiddlewareConfig{},
 	)(handler)
 
 	req := httptest.NewRequest("GET", "/", nil)
@@ -543,7 +545,7 @@ func TestMiddlewareWithSecureFalseIsRespected(t *testing.T) {
 	)
 
 	handlerWithSessions := session.MiddlewareWith(
-		driver, session.MiddlewareOptions{
+		driver, session.MiddlewareConfig{
 			Secure: false,
 		},
 	)(handler)

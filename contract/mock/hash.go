@@ -69,7 +69,7 @@ type HasherMock_Check_Call struct {
 // Check is a helper method to define mock.On call
 //   - value []byte
 //   - hash []byte
-func (_e *HasherMock_Expecter) Check(value interface{}, hash interface{}) *HasherMock_Check_Call {
+func (_e *HasherMock_Expecter) Check(value any, hash any) *HasherMock_Check_Call {
 	return &HasherMock_Check_Call{Call: _e.mock.On("Check", value, hash)}
 }
 
@@ -136,7 +136,7 @@ type HasherMock_Hash_Call struct {
 
 // Hash is a helper method to define mock.On call
 //   - value []byte
-func (_e *HasherMock_Expecter) Hash(value interface{}) *HasherMock_Hash_Call {
+func (_e *HasherMock_Expecter) Hash(value any) *HasherMock_Hash_Call {
 	return &HasherMock_Hash_Call{Call: _e.mock.On("Hash", value)}
 }
 
@@ -214,7 +214,7 @@ type RehashableMock_NeedsRehash_Call struct {
 
 // NeedsRehash is a helper method to define mock.On call
 //   - hash []byte
-func (_e *RehashableMock_Expecter) NeedsRehash(hash interface{}) *RehashableMock_NeedsRehash_Call {
+func (_e *RehashableMock_Expecter) NeedsRehash(hash any) *RehashableMock_NeedsRehash_Call {
 	return &RehashableMock_NeedsRehash_Call{Call: _e.mock.On("NeedsRehash", hash)}
 }
 

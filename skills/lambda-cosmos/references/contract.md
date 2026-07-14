@@ -1,245 +1,332 @@
 # Contract
 
-The contract module defines all service interfaces and HTTP helper functions
-for the Cosmos framework. It is the foundation layer — every other Cosmos
-module depends on it.
+The `contract` module provides shared interfaces and typed wrappers used across
+Cosmos.
 
-```
+```bash
 go get github.com/studiolambda/cosmos/contract
 ```
 
-## Architecture
+## Mental model
 
-```
-contract/
-├── cache.go       # Cache interface (10 methods)
-├── crypto.go      # Encrypter interface
-├── database.go    # Database interface (transactions, named queries)
-├── event.go       # Events interface + type aliases
-├── hash.go        # Hasher interface
-├── hooks.go       # Hooks interface (lifecycle hooks)
-├── session.go     # Session + SessionDriver interfaces
-├── request/       # HTTP request helpers (params, query, body, headers, cookies, sessions)
-├── response/      # HTTP response helpers (JSON, HTML, XML, SSE, redirects)
-└── mock/          # Mockery-generated mocks for all interfaces
-```
+There are two layers:
 
-## Interfaces
+1. **Driver interfaces** for backend adapters:
+   - `CacheDriver`
+   - `DatabaseDriver`
+   - `EventDriver`
+   - `SessionDriver`
+2. **Typed wrappers** over drivers:
+   - `*contract.Cache`
+   - `*contract.Database`
+   - `*contract.Events`
 
-### Cache
+Plus shared abstractions:
+
+- `contract.Encrypter`
+- `contract.Hasher` (+ `contract.Rehashable`)
+- `*contract.Session`
+- `contract.Hooks`
+
+---
+
+## Cache
+
+### Driver interface
 
 ```go
-type Cache interface {
-    Get(ctx context.Context, key string) (any, error)
-    Put(ctx context.Context, key string, value any, ttl time.Duration) error
-    Delete(ctx context.Context, key string) error
-    Has(ctx context.Context, key string) (bool, error)
-    Pull(ctx context.Context, key string) (any, error)
-    Forever(ctx context.Context, key string, value any) error
-    Increment(ctx context.Context, key string, by int64) (int64, error)
-    Decrement(ctx context.Context, key string, by int64) (int64, error)
-    Remember(ctx context.Context, key string, ttl time.Duration, compute func() (any, error)) (any, error)
-    RememberForever(ctx context.Context, key string, compute func() (any, error)) (any, error)
+type CacheDriver interface {
+	Get(ctx context.Context, key string) ([]byte, error)
+	Put(ctx context.Context, key string, value []byte, ttl time.Duration) error
+	Delete(ctx context.Context, key string) error
+	Has(ctx context.Context, key string) (bool, error)
+	Ping(ctx context.Context) error
 }
 ```
 
-Sentinel errors: `ErrCacheKeyNotFound`, `ErrCacheUnsupportedOperation`.
-
-### Database
+Optional atomic counters:
 
 ```go
-type Database interface {
-    Close() error
-    Ping(ctx context.Context) error
-    Exec(ctx context.Context, query string, args ...any) (int64, error)
-    ExecNamed(ctx context.Context, query string, arg any) (int64, error)
-    Select(ctx context.Context, query string, dest any, args ...any) error
-    SelectNamed(ctx context.Context, query string, dest any, arg any) error
-    Find(ctx context.Context, query string, dest any, args ...any) error
-    FindNamed(ctx context.Context, query string, dest any, arg any) error
-    WithTransaction(ctx context.Context, fn func(Database) error) error
+type CacheCounter interface {
+	Increment(ctx context.Context, key string, delta int64) (int64, error)
+	Decrement(ctx context.Context, key string, delta int64) (int64, error)
 }
 ```
 
-Sentinel errors: `ErrDatabaseNoRows`, `ErrDatabaseNestedTransaction`.
-Transactions cannot be nested. `Find` joins `sql.ErrNoRows` with
-`ErrDatabaseNoRows` — check with either via `errors.Is`.
+### Typed wrapper
 
-### Encrypter
+```go
+driver := cache.NewMemory(5*time.Minute, 10*time.Minute)
+c := contract.NewCache(driver)
+
+if err := c.Put(ctx, "users:1", User{ID: 1}, time.Minute); err != nil {
+	return err
+}
+
+user, err := c.Get[User](ctx, "users:1")
+if err != nil {
+	return err
+}
+
+profile, err := c.Remember(ctx, "profiles:1", time.Minute, func() (Profile, error) {
+	return loadProfile(ctx, 1)
+})
+if err != nil {
+	return err
+}
+
+_ = user
+_ = profile
+```
+
+Sentinel errors:
+
+- `contract.ErrCacheKeyNotFound`
+- `contract.ErrCacheUnsupportedOperation`
+
+---
+
+## Database
+
+### Driver interface
+
+```go
+type DatabaseDriver interface {
+	Close() error
+	Ping(ctx context.Context) error
+	Exec(ctx context.Context, query string, args ...any) (int64, error)
+	ExecNamed(ctx context.Context, query string, arg any) (int64, error)
+	Select(ctx context.Context, query string, dest any, args ...any) error
+	SelectNamed(ctx context.Context, query string, dest any, arg any) error
+	Find(ctx context.Context, query string, dest any, args ...any) error
+	FindNamed(ctx context.Context, query string, dest any, arg any) error
+	WithTransaction(ctx context.Context, fn func(tx DatabaseDriver) error) error
+}
+```
+
+### Typed wrapper
+
+```go
+driver, err := database.NewSQL("postgres", dsn)
+if err != nil {
+	return err
+}
+
+db := contract.NewDatabase(driver)
+
+user, err := db.Find[User](ctx, "SELECT * FROM users WHERE id = $1", id)
+if err != nil {
+	return err
+}
+
+users, err := db.Select[[]User](ctx, "SELECT * FROM users WHERE active = $1", true)
+if err != nil {
+	return err
+}
+
+if err := db.WithTransaction(ctx, func(tx *contract.Database) error {
+	_, err := tx.Exec(ctx, "UPDATE users SET last_seen = NOW() WHERE id = $1", id)
+	return err
+}); err != nil {
+	return err
+}
+
+_ = user
+_ = users
+```
+
+Sentinel errors:
+
+- `contract.ErrDatabaseNoRows`
+- `contract.ErrDatabaseNestedTransaction`
+
+---
+
+## Events
+
+### Driver interface
+
+```go
+type EventHandler = func(payload []byte)
+type EventUnsubscribeFunc = func() error
+type EventDecoder[T any] = func() (T, error)
+
+type EventDriver interface {
+	Publish(ctx context.Context, event string, payload []byte) error
+	Subscribe(ctx context.Context, event string, handler EventHandler) (EventUnsubscribeFunc, error)
+	Close() error
+}
+```
+
+### Typed wrapper
+
+```go
+driver := event.NewMemoryBroker()
+ev := contract.NewEvents(driver)
+
+unsubscribe, err := ev.Subscribe[UserCreated](ctx, "users.created", func(decode contract.EventDecoder[UserCreated]) {
+	msg, err := decode()
+	if err != nil {
+		return
+	}
+	_ = msg
+})
+if err != nil {
+	return err
+}
+defer unsubscribe()
+
+if err := ev.Publish(ctx, "users.created", UserCreated{ID: 1}); err != nil {
+	return err
+}
+```
+
+---
+
+## Session
+
+### SessionDriver interface
+
+```go
+type SessionDriver interface {
+	Get(ctx context.Context, id string) (*Session, error)
+	Save(ctx context.Context, session *Session, ttl time.Duration) error
+	Delete(ctx context.Context, id string) error
+}
+```
+
+### Session API
+
+`*contract.Session` is concurrency-safe and generic:
+
+```go
+session, err := contract.NewSession(time.Now().Add(24*time.Hour), map[string]any{})
+if err != nil {
+	return err
+}
+
+session.Put("user_id", 123)
+userID, err := session.Get[int]("user_id")
+if err != nil {
+	return err
+}
+
+if err := session.Regenerate(); err != nil {
+	return err
+}
+
+_ = userID
+```
+
+Use `Regenerate()` after auth state changes.
+
+---
+
+## Crypto / Hash interfaces
 
 ```go
 type Encrypter interface {
-    Encrypt(value []byte) ([]byte, error)
-    Decrypt(value []byte) ([]byte, error)
+	Encrypt(value []byte) ([]byte, error)
+	Decrypt(value []byte) ([]byte, error)
+	Close() error
 }
-```
 
-### Hasher
-
-```go
 type Hasher interface {
-    Hash(value []byte) ([]byte, error)
-    Check(value, hash []byte) (bool, error)
+	Hash(value []byte) ([]byte, error)
+	Check(value []byte, hash []byte) (bool, error)
+}
+
+type Rehashable interface {
+	NeedsRehash(hash []byte) bool
 }
 ```
 
-### Session & SessionDriver
+`contract.ErrEncrypterClosed` is returned when `Encrypt` or `Decrypt` is
+called after `Close`.
+
+---
+
+## Hooks and request context keys
+
+Context keys exported by `contract`:
+
+- `contract.HooksKey`
+- `contract.SessionKey`
+- `contract.CorrelationIDKey`
+
+`contract.Hooks` interface:
 
 ```go
-type Session interface {
-    SessionID() string
-    OriginalSessionID() string
-    Get(key string) (any, bool)
-    Put(key string, value any)
-    Delete(key string)
-    Extend(expiresAt time.Time)
-    Regenerate() error
-    Clear()
-    ExpiresAt() time.Time
-    HasExpired() bool
-    ExpiresSoon(delta time.Duration) bool
-    HasChanged() bool
-    HasRegenerated() bool
-    MarkAsUnchanged()
-}
-
-type SessionDriver interface {
-    Get(ctx context.Context, id string) (Session, error)
-    Save(ctx context.Context, session Session, ttl time.Duration) error
-    Delete(ctx context.Context, id string) error
-}
-```
-
-### Events
-
-```go
-type EventPayload  = func(dest any) error
-type EventHandler  = func(payload EventPayload)
-type EventUnsubscribeFunc = func() error
-
-type Events interface {
-    Publish(ctx context.Context, event string, payload any) error
-    Subscribe(ctx context.Context, event string, handler EventHandler) (EventUnsubscribeFunc, error)
-    Close() error
-}
-```
-
-### Hooks
-
-```go
-type AfterResponseHook    = func(err error)
-type BeforeWriteHeaderHook = func(w http.ResponseWriter, status int)
-type BeforeWriteHook       = func(w http.ResponseWriter, content []byte)
-
 type Hooks interface {
-    AfterResponse(hooks ...AfterResponseHook)
-    AfterResponseFuncs() []AfterResponseHook
-    BeforeWrite(hooks ...BeforeWriteHook)
-    BeforeWriteFuncs() []BeforeWriteHook
-    BeforeWriteHeader(hooks ...BeforeWriteHeaderHook)
-    BeforeWriteHeaderFuncs() []BeforeWriteHeaderHook
+	AfterResponse(callbacks ...AfterResponseHook)
+	AfterResponseFuncs() []AfterResponseHook
+	BeforeWrite(callbacks ...BeforeWriteHook)
+	BeforeWriteFuncs() []BeforeWriteHook
+	BeforeWriteHeader(callbacks ...BeforeWriteHeaderHook)
+	BeforeWriteHeaderFuncs() []BeforeWriteHeaderHook
 }
 ```
 
-Hooks are injected into request context by the framework. Access via
-`request.Hooks(r)`. Hook `*Funcs()` methods return reversed clones (LIFO
-execution order).
+---
 
-## Request Helpers
+## Request helpers (`contract/request`)
 
-All functions in `contract/request` take `*http.Request` as first argument.
-
-### Parameters & Query
+Highlights:
 
 ```go
-request.Param(r, "id")              // URL path parameter
-request.ParamOr(r, "id", "default") // with fallback
-request.Query(r, "page")            // query string value
-request.QueryOr(r, "page", "1")     // with fallback
-request.HasQuery(r, "verbose")      // existence check
+id := request.Param(r, "id")
+idInt, err := request.ParamInt(r, "id")
+
+q := request.QueryOr(r, "q", "")
+page := request.QueryIntOr(r, "page", 1)
+
+payload, err := request.StrictLimitedJSON[Input](r, -1)
+
+session, ok := request.Session(r)
+mustSession := request.MustSession(r) // panics if missing
+
+hooks := request.Hooks(r)             // panics if missing
+safeHooks, ok := request.TryHooks(r)  // non-panicking
+
+corrID := request.CorrelationID(r)
+
+_ = id
+_ = idInt
+_ = q
+_ = page
+_ = payload
+_ = session
+_ = mustSession
+_ = hooks
+_ = safeHooks
+_ = corrID
 ```
 
-### Headers & Cookies
+Body helpers consume request body once.
 
-```go
-request.Header(r, "Authorization")
-request.HeaderOr(r, "Accept", "application/json")
-request.HasHeader(r, "X-Custom")
-request.HeaderValues(r, "Accept")        // []string
-request.Cookie(r, "session")             // *http.Cookie
-request.CookieValue(r, "session")        // string
-request.CookieValueOr(r, "session", "") // with fallback
-```
+---
 
-### Body Parsing (generics)
+## Response helpers (`contract/response`)
 
-```go
-bytes, err := request.Bytes(r)
-text, err := request.String(r)
-user, err := request.JSON[User](r)   // generic — type param required
-order, err := request.XML[Order](r)  // generic — type param required
-```
-
-Body is consumed on first read — call only once per request.
-
-### Sessions
-
-```go
-sess, ok := request.Session(r)           // returns (Session, bool)
-sess := request.MustSession(r)           // panics if no session middleware
-sess, ok := request.SessionKeyed(r, key) // custom context key
-sess := request.MustSessionKeyed(r, key) // panics variant
-```
-
-`MustSession` and `MustSessionKeyed` panic when session middleware is not
-applied — these are programmer errors caught during development.
-
-## Response Helpers
-
-All functions in `contract/response` return `error` — usable as direct
-handler return values.
+All return `error`:
 
 ```go
 return response.Status(w, http.StatusNoContent)
-return response.String(w, http.StatusOK, "hello")
-return response.HTML(w, http.StatusOK, "<h1>hi</h1>")
-return response.JSON(w, http.StatusOK, user)           // generic
-return response.XML(w, http.StatusOK, order)
-return response.Bytes(w, http.StatusOK, data)
-return response.Raw(w, http.StatusOK, rawBytes)
-return response.Redirect(w, http.StatusFound, "/login")
-
-// Templates
-return response.StringTemplate(w, http.StatusOK, tmpl, data)
-return response.HTMLTemplate(w, http.StatusOK, tmpl, data)
-
-// Streaming
-return response.Stream(w, r, dataChan)  // raw streaming
-return response.SSE(w, r, eventChan)    // Server-Sent Events
+return response.JSON(w, http.StatusOK, data)
+return response.XML(w, http.StatusOK, data)
+return response.HTML(w, http.StatusOK, "<h1>ok</h1>")
+return response.SafeRedirect(w, http.StatusFound, "/dashboard")
+return response.Stream(w, r, chunks)
+return response.SSE(w, r, events)
 ```
 
-`response.JSON` uses `json.NewEncoder` which appends a trailing newline.
+Prefer `response.SafeRedirect` for user-influenced redirect targets.
 
-## Mocks
-
-Generated mocks in `contract/mock/` for all interfaces. Each has a
-`New<Name>Mock(t)` constructor that auto-registers cleanup.
-
-```go
-cache := mock.NewCacheMock(t)
-cache.On("Get", mock.Anything, "key").Return("value", nil)
-```
+---
 
 ## Gotchas
 
-- `request.Hooks(r)` **panics** without hooks context (only present inside
-  framework's handler pipeline).
-- `request.MustSession(r)` **panics** without session middleware.
-- Body parsing functions consume the request body — one call per request.
-- `response.JSON` appends a trailing newline (standard `json.NewEncoder`
-  behavior).
-- `EventPayload` is a function — call it with a pointer to unmarshal:
-  `payload(&user)`.
-- Context keys (`HooksKey`, `SessionKey`) are exported variables of
-  unexported types — use the provided helpers, don't construct context
-  values directly.
+- Use wrappers (`contract.NewCache`, `contract.NewDatabase`, `contract.NewEvents`) when you want typed generic operations.
+- `request.MustSession` and `request.Hooks` panic if middleware/context is missing.
+- Session `Get[T]` returns `(T, error)`, not `(any, bool)`.
+- `response.JSON` uses `json.Encoder`, so output ends with a trailing newline.

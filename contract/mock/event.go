@@ -107,7 +107,7 @@ type EventDriverMock_Publish_Call struct {
 //   - ctx context.Context
 //   - event string
 //   - payload []byte
-func (_e *EventDriverMock_Expecter) Publish(ctx interface{}, event interface{}, payload interface{}) *EventDriverMock_Publish_Call {
+func (_e *EventDriverMock_Expecter) Publish(ctx any, event any, payload any) *EventDriverMock_Publish_Call {
 	return &EventDriverMock_Publish_Call{Call: _e.mock.On("Publish", ctx, event, payload)}
 }
 
@@ -181,7 +181,7 @@ type EventDriverMock_Subscribe_Call struct {
 //   - ctx context.Context
 //   - event string
 //   - handler contract.EventHandler
-func (_e *EventDriverMock_Expecter) Subscribe(ctx interface{}, event interface{}, handler interface{}) *EventDriverMock_Subscribe_Call {
+func (_e *EventDriverMock_Expecter) Subscribe(ctx any, event any, handler any) *EventDriverMock_Subscribe_Call {
 	return &EventDriverMock_Subscribe_Call{Call: _e.mock.On("Subscribe", ctx, event, handler)}
 }
 

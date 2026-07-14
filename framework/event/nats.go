@@ -48,7 +48,7 @@ type NATSBroker struct {
 	conn *nats.Conn
 }
 
-// NATSBrokerOptions configures a NATS broker connection.
+// NATSBrokerConfig configures a NATS broker connection.
 // It provides comprehensive control over connection behavior,
 // authentication, and reliability features.
 // All fields are optional; sensible defaults are applied when
@@ -63,7 +63,7 @@ type NATSBroker struct {
 //     manager rather than hard-coding them.
 //  3. Prefer short-lived credentials or NKey/JWT auth via
 //     CredentialsFile where supported.
-type NATSBrokerOptions struct {
+type NATSBrokerConfig struct {
 	// URLs is a list of NATS server URLs to connect to.
 	// Multiple URLs enable automatic failover in clustered deployments.
 	// If empty, defaults to DefaultNATSURL.
@@ -133,7 +133,7 @@ type NATSBrokerOptions struct {
 // For clustered deployments or custom authentication, use
 // NewNATSBrokerWith instead.
 func NewNATSBroker(url string) (*NATSBroker, error) {
-	return NewNATSBrokerWith(&NATSBrokerOptions{
+	return NewNATSBrokerWith(&NATSBrokerConfig{
 		URLs: []string{url},
 	})
 }
@@ -141,46 +141,46 @@ func NewNATSBroker(url string) (*NATSBroker, error) {
 // NewNATSBrokerWith creates a new NATS broker with custom configuration.
 // It provides full control over connection behavior, authentication, and
 // reliability.
-// Applies sensible defaults for any unspecified options.
+// Applies sensible defaults for any unspecified configuration fields.
 //
 // Returns an error if connection to the NATS server fails.
-func NewNATSBrokerWith(options *NATSBrokerOptions) (*NATSBroker, error) {
+func NewNATSBrokerWith(config *NATSBrokerConfig) (*NATSBroker, error) {
 	var opts []nats.Option
 
-	if options.Name != "" {
-		opts = append(opts, nats.Name(options.Name))
+	if config.Name != "" {
+		opts = append(opts, nats.Name(config.Name))
 	}
 
 	maxReconnects := DefaultNATSMaxReconnects
 
-	if options.MaxReconnects != 0 {
-		maxReconnects = options.MaxReconnects
+	if config.MaxReconnects != 0 {
+		maxReconnects = config.MaxReconnects
 	}
 
 	opts = append(opts, nats.MaxReconnects(maxReconnects))
 
 	reconnectWait := DefaultNATSReconnectWait
 
-	if options.ReconnectWait != 0 {
-		reconnectWait = options.ReconnectWait
+	if config.ReconnectWait != 0 {
+		reconnectWait = config.ReconnectWait
 	}
 
 	opts = append(opts, nats.ReconnectWait(reconnectWait))
 
-	if options.Timeout != 0 {
-		opts = append(opts, nats.Timeout(options.Timeout))
+	if config.Timeout != 0 {
+		opts = append(opts, nats.Timeout(config.Timeout))
 	}
 
-	if options.Username != "" && options.Password != "" {
-		opts = append(opts, nats.UserInfo(options.Username, options.Password))
+	if config.Username != "" && config.Password != "" {
+		opts = append(opts, nats.UserInfo(config.Username, config.Password))
 	}
 
-	if options.Token != "" {
-		opts = append(opts, nats.Token(options.Token))
+	if config.Token != "" {
+		opts = append(opts, nats.Token(config.Token))
 	}
 
-	if options.NKeySeed != "" {
-		opt, err := nats.NkeyOptionFromSeed(options.NKeySeed)
+	if config.NKeySeed != "" {
+		opt, err := nats.NkeyOptionFromSeed(config.NKeySeed)
 
 		if err != nil {
 			return nil, err
@@ -189,19 +189,19 @@ func NewNATSBrokerWith(options *NATSBrokerOptions) (*NATSBroker, error) {
 		opts = append(opts, opt)
 	}
 
-	if options.CredentialsFile != "" {
-		opts = append(opts, nats.UserCredentials(options.CredentialsFile))
+	if config.CredentialsFile != "" {
+		opts = append(opts, nats.UserCredentials(config.CredentialsFile))
 	}
 
-	if options.TLSConfig != nil {
-		opts = append(opts, nats.Secure(options.TLSConfig))
+	if config.TLSConfig != nil {
+		opts = append(opts, nats.Secure(config.TLSConfig))
 	}
 
-	if len(options.RootCAs) > 0 {
-		opts = append(opts, nats.RootCAs(options.RootCAs...))
+	if len(config.RootCAs) > 0 {
+		opts = append(opts, nats.RootCAs(config.RootCAs...))
 	}
 
-	urls := options.URLs
+	urls := config.URLs
 
 	if len(urls) == 0 {
 		urls = []string{DefaultNATSURL}
@@ -279,6 +279,21 @@ func (broker *NATSBroker) Subscribe(
 	return func() error {
 		return sub.Unsubscribe()
 	}, nil
+}
+
+// Ping verifies that the NATS connection is still alive.
+func (broker *NATSBroker) Ping(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, nats.DefaultTimeout)
+		defer cancel()
+	}
+
+	return broker.conn.FlushWithContext(ctx)
 }
 
 // Close gracefully shuts down the NATS connection.

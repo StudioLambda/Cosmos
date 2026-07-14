@@ -64,7 +64,7 @@ type MQTTBroker struct {
 	routeWg sync.WaitGroup
 }
 
-// MQTTBrokerOptions configures the creation of a new MQTTBroker,
+// MQTTBrokerConfig configures the creation of a new MQTTBroker,
 // allowing customization of connection URLs, QoS level, and
 // authentication credentials.
 //
@@ -77,7 +77,7 @@ type MQTTBroker struct {
 //     manager rather than hard-coding them.
 //  3. Consider short-lived or certificate-based credentials
 //     where the broker supports them.
-type MQTTBrokerOptions struct {
+type MQTTBrokerConfig struct {
 	// URLs is a slice of MQTT broker URLs to connect to.
 	// Format: mqtt://host:port or mqtts://host:port for TLS.
 	// Multiple URLs enable automatic failover between brokers.
@@ -165,29 +165,29 @@ func matchParts(pattern, topic []string) bool {
 // The URL should be in the format:
 // mqtt://host:port or mqtts://host:port for TLS
 func NewMQTTBroker(url string) (*MQTTBroker, error) {
-	return NewMQTTBrokerWith(&MQTTBrokerOptions{
+	return NewMQTTBrokerWith(&MQTTBrokerConfig{
 		URLs: []string{url},
 		QoS:  DefaultMQTTQoS,
 	})
 }
 
 // NewMQTTBrokerWith creates a new MQTTBroker using the provided
-// options for connection URLs, QoS level, and authentication.
+// configuration for connection URLs, QoS level, and authentication.
 // Multiple URLs enable automatic failover between brokers. The
 // broker uses clean sessions and automatic reconnection.
-func NewMQTTBrokerWith(options *MQTTBrokerOptions) (*MQTTBroker, error) {
-	qos := options.QoS
-	if qos == 0 && len(options.URLs) > 0 {
+func NewMQTTBrokerWith(config *MQTTBrokerConfig) (*MQTTBroker, error) {
+	qos := config.QoS
+	if qos == 0 && len(config.URLs) > 0 {
 		qos = DefaultMQTTQoS
 	}
 
-	keepAlive := options.KeepAlive
+	keepAlive := config.KeepAlive
 	if keepAlive == 0 {
 		keepAlive = DefaultMQTTKeepAlive
 	}
 
-	urls := make([]*url.URL, len(options.URLs))
-	for i, urlStr := range options.URLs {
+	urls := make([]*url.URL, len(config.URLs))
+	for i, urlStr := range config.URLs {
 		parsed, err := url.Parse(urlStr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid url %q: %w", urlStr, err)
@@ -215,9 +215,9 @@ func NewMQTTBrokerWith(options *MQTTBrokerOptions) (*MQTTBroker, error) {
 		},
 	}
 
-	if options.Username != "" {
-		cfg.ConnectUsername = options.Username
-		cfg.ConnectPassword = []byte(options.Password)
+	if config.Username != "" {
+		cfg.ConnectUsername = config.Username
+		cfg.ConnectPassword = []byte(config.Password)
 	}
 
 	ctx := context.Background()
@@ -478,6 +478,15 @@ func (broker *MQTTBroker) unsubscribeFunc(
 
 		return nil
 	}
+}
+
+// Ping verifies that the MQTT connection is currently available.
+func (broker *MQTTBroker) Ping(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	return broker.client.AwaitConnection(ctx)
 }
 
 // Close gracefully disconnects from the MQTT broker and releases

@@ -6,11 +6,11 @@ import (
 	"github.com/studiolambda/cosmos/framework"
 )
 
-// SecureHeadersOptions configures which security headers are
+// SecureHeadersConfig configures which security headers are
 // set by the [SecureHeaders] middleware. Each field maps to a
 // standard HTTP security header. Empty strings disable the
 // corresponding header.
-type SecureHeadersOptions struct {
+type SecureHeadersConfig struct {
 	// ContentTypeOptions controls the X-Content-Type-Options
 	// header, which prevents MIME-type sniffing.
 	ContentTypeOptions string
@@ -46,9 +46,9 @@ type SecureHeadersOptions struct {
 	PermissionsPolicy string
 }
 
-// DefaultSecureHeadersOptions holds safe default values for
+// DefaultSecureHeadersConfig holds safe default values for
 // all commonly recommended security headers.
-var DefaultSecureHeadersOptions = SecureHeadersOptions{
+var DefaultSecureHeadersConfig = SecureHeadersConfig{
 	ContentTypeOptions:      "nosniff",
 	FrameOptions:            "DENY",
 	ReferrerPolicy:          "strict-origin-when-cross-origin",
@@ -57,45 +57,45 @@ var DefaultSecureHeadersOptions = SecureHeadersOptions{
 }
 
 // SecureHeaders returns middleware that sets standard HTTP
-// security response headers using [DefaultSecureHeadersOptions].
+// security response headers using [DefaultSecureHeadersConfig].
 // This protects against MIME sniffing, clickjacking, referrer
 // leakage, and protocol downgrade attacks.
 func SecureHeaders() framework.Middleware {
-	return SecureHeadersWith(DefaultSecureHeadersOptions)
+	return SecureHeadersWith(DefaultSecureHeadersConfig)
 }
 
 // SecureHeadersWith returns middleware that sets HTTP security
-// response headers using the provided options. Headers with
+// response headers using the provided configuration. Headers with
 // empty values are skipped.
-func SecureHeadersWith(opts SecureHeadersOptions) framework.Middleware {
+func SecureHeadersWith(config SecureHeadersConfig) framework.Middleware {
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
-			if opts.ContentTypeOptions != "" {
-				w.Header().Set("X-Content-Type-Options", opts.ContentTypeOptions)
+			if config.ContentTypeOptions != "" {
+				w.Header().Set("X-Content-Type-Options", config.ContentTypeOptions)
 			}
 
-			if opts.FrameOptions != "" {
-				w.Header().Set("X-Frame-Options", opts.FrameOptions)
+			if config.FrameOptions != "" {
+				w.Header().Set("X-Frame-Options", config.FrameOptions)
 			}
 
-			if opts.ReferrerPolicy != "" {
-				w.Header().Set("Referrer-Policy", opts.ReferrerPolicy)
+			if config.ReferrerPolicy != "" {
+				w.Header().Set("Referrer-Policy", config.ReferrerPolicy)
 			}
 
-			if opts.XSSProtection != "" {
-				w.Header().Set("X-XSS-Protection", opts.XSSProtection)
+			if config.XSSProtection != "" {
+				w.Header().Set("X-XSS-Protection", config.XSSProtection)
 			}
 
-			if opts.StrictTransportSecurity != "" {
-				w.Header().Set("Strict-Transport-Security", opts.StrictTransportSecurity)
+			if config.StrictTransportSecurity != "" {
+				w.Header().Set("Strict-Transport-Security", config.StrictTransportSecurity)
 			}
 
-			if opts.ContentSecurityPolicy != "" {
-				w.Header().Set("Content-Security-Policy", opts.ContentSecurityPolicy)
+			if config.ContentSecurityPolicy != "" {
+				w.Header().Set("Content-Security-Policy", config.ContentSecurityPolicy)
 			}
 
-			if opts.PermissionsPolicy != "" {
-				w.Header().Set("Permissions-Policy", opts.PermissionsPolicy)
+			if config.PermissionsPolicy != "" {
+				w.Header().Set("Permissions-Policy", config.PermissionsPolicy)
 			}
 
 			return next(w, r)

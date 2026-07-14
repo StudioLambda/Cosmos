@@ -9,12 +9,23 @@ import (
 // Query retrieves the first value of the named query parameter
 // from the request URL. It returns an empty string if the parameter
 // is not present.
+//
+// Example:
+//
+//	search := request.Query(r, "q")
+//	_ = search
 func Query(r *http.Request, name string) string {
 	return r.URL.Query().Get(name)
 }
 
 // HasQuery reports whether the named query parameter exists in the
 // request URL, regardless of its value.
+//
+// Example:
+//
+//	if request.HasQuery(r, "debug") {
+//		// debug mode enabled
+//	}
 func HasQuery(r *http.Request, name string) bool {
 	return r.URL.Query().Has(name)
 }
@@ -22,6 +33,11 @@ func HasQuery(r *http.Request, name string) bool {
 // QueryOr retrieves the named query parameter, falling back to the
 // provided default value if the parameter does not exist. If the
 // parameter exists but has an empty value, the empty value is returned.
+//
+// Example:
+//
+//	sort := request.QueryOr(r, "sort", "created_at")
+//	_ = sort
 func QueryOr(r *http.Request, name string, fallback string) string {
 	values := r.URL.Query()
 
@@ -35,6 +51,14 @@ func QueryOr(r *http.Request, name string, fallback string) string {
 // QueryInt retrieves the named query parameter and parses it as an
 // integer. It returns an error if the parameter is missing or is not
 // a valid integer string.
+//
+// Example:
+//
+//	limit, err := request.QueryInt(r, "limit")
+//	if err != nil {
+//		return err
+//	}
+//	_ = limit
 func QueryInt(r *http.Request, name string) (int, error) {
 	raw := Query(r, name)
 
@@ -57,6 +81,11 @@ func QueryInt(r *http.Request, name string) (int, error) {
 // QueryIntOr retrieves the named query parameter and parses it as an
 // integer, falling back to the provided default value if the parameter
 // is missing or cannot be parsed.
+//
+// Example:
+//
+//	page := request.QueryIntOr(r, "page", 1)
+//	_ = page
 func QueryIntOr(r *http.Request, name string, fallback int) int {
 	value, err := QueryInt(r, name)
 

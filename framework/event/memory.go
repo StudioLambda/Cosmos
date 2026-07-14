@@ -133,6 +133,19 @@ func (broker *MemoryBroker) Subscribe(
 	}, nil
 }
 
+// Ping verifies that the broker is still available.
+func (broker *MemoryBroker) Ping(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	if broker.closed.Load() {
+		return ErrBrokerClosed
+	}
+
+	return nil
+}
+
 // Close shuts down the broker and waits for in-flight deliveries.
 func (broker *MemoryBroker) Close() error {
 	broker.closed.Store(true)

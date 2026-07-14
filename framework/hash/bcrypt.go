@@ -15,13 +15,13 @@ import (
 // change) should implement rate limiting to prevent
 // denial-of-service attacks through hash computation abuse.
 type Bcrypt struct {
-	options BcryptOptions
+	config BcryptConfig
 }
 
-// BcryptOptions configures the bcrypt hasher. The Cost parameter
+// BcryptConfig configures the bcrypt hasher. The Cost parameter
 // controls the computational expense of hashing; higher values
 // are more secure but slower.
-type BcryptOptions struct {
+type BcryptConfig struct {
 	Cost int
 }
 
@@ -32,22 +32,22 @@ const DefaultBcryptCost = 12
 
 // NewBcrypt creates a Bcrypt hasher with the default cost factor.
 func NewBcrypt() *Bcrypt {
-	return NewBcryptWith(BcryptOptions{
+	return NewBcryptWith(BcryptConfig{
 		Cost: DefaultBcryptCost,
 	})
 }
 
-// NewBcryptWith creates a Bcrypt hasher with the given options,
+// NewBcryptWith creates a Bcrypt hasher with the given configuration,
 // allowing a custom cost factor. The cost is clamped to a minimum
 // of bcrypt.MinCost (4). Costs below 12 are not recommended for
 // production use per OWASP guidelines.
-func NewBcryptWith(options BcryptOptions) *Bcrypt {
-	if options.Cost < bcrypt.MinCost {
-		options.Cost = bcrypt.MinCost
+func NewBcryptWith(config BcryptConfig) *Bcrypt {
+	if config.Cost < bcrypt.MinCost {
+		config.Cost = bcrypt.MinCost
 	}
 
 	return &Bcrypt{
-		options: options,
+		config: config,
 	}
 }
 
@@ -59,7 +59,7 @@ func NewBcryptWith(options BcryptOptions) *Bcrypt {
 func (hasher *Bcrypt) Hash(value []byte) ([]byte, error) {
 	defer zeroBytes(value)
 
-	hash, err := bcrypt.GenerateFromPassword(value, hasher.options.Cost)
+	hash, err := bcrypt.GenerateFromPassword(value, hasher.config.Cost)
 
 	if err != nil {
 		return nil, err
@@ -99,5 +99,5 @@ func (hasher *Bcrypt) NeedsRehash(hash []byte) bool {
 		return true
 	}
 
-	return cost != hasher.options.Cost
+	return cost != hasher.config.Cost
 }

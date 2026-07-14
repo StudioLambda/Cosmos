@@ -36,7 +36,7 @@ func TestRateLimitAllowsWithinLimit(t *testing.T) {
 func TestRateLimitBlocksExceedingBurst(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.RateLimitWith(middleware.RateLimitOptions{
+	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
 		RequestsPerSecond: 1,
 		Burst:             1,
 	})(framework.Handler(func(
@@ -58,7 +58,7 @@ func TestRateLimitBlocksExceedingBurst(t *testing.T) {
 	require.Equal(t, http.StatusTooManyRequests, second.StatusCode)
 }
 
-func TestRateLimitWithDefaultOptions(t *testing.T) {
+func TestRateLimitWithDefaultConfig(t *testing.T) {
 	t.Parallel()
 
 	called := false
@@ -82,7 +82,7 @@ func TestRateLimitWithDefaultOptions(t *testing.T) {
 func TestRateLimitWithCustomKeyFunc(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.RateLimitWith(middleware.RateLimitOptions{
+	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
 		RequestsPerSecond: 1,
 		Burst:             1,
 		KeyFunc: func(r *http.Request) string {
@@ -122,7 +122,7 @@ func TestRateLimitWithCustomErrorResponse(t *testing.T) {
 		Status: http.StatusServiceUnavailable,
 	}
 
-	handler := middleware.RateLimitWith(middleware.RateLimitOptions{
+	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
 		RequestsPerSecond: 1,
 		Burst:             1,
 		ErrorResponse:     customErr,
@@ -149,7 +149,7 @@ func TestRateLimitRegistryReusesExistingLimiter(t *testing.T) {
 	t.Parallel()
 
 	callCount := 0
-	handler := middleware.RateLimitWith(middleware.RateLimitOptions{
+	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
 		RequestsPerSecond: 100,
 		Burst:             100,
 		KeyFunc: func(r *http.Request) string {
@@ -177,7 +177,7 @@ func TestRateLimitRegistryReusesExistingLimiter(t *testing.T) {
 func TestRateLimitDifferentKeysGetSeparateLimiters(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.RateLimitWith(middleware.RateLimitOptions{
+	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
 		RequestsPerSecond: 1,
 		Burst:             1,
 		KeyFunc: func(r *http.Request) string {
@@ -213,11 +213,11 @@ func TestRateLimitDifferentKeysGetSeparateLimiters(t *testing.T) {
 	require.Equal(t, http.StatusTooManyRequests, resB2.StatusCode)
 }
 
-func TestRateLimitWithZeroOptionsUsesDefaults(t *testing.T) {
+func TestRateLimitWithZeroConfigUsesDefaults(t *testing.T) {
 	t.Parallel()
 
 	handler := middleware.RateLimitWith(
-		middleware.RateLimitOptions{},
+		middleware.RateLimitConfig{},
 	)(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
@@ -236,8 +236,8 @@ func TestRateLimitWithZeroOptionsUsesDefaults(t *testing.T) {
 func TestRateLimitDefaultsAre15ReqPerSecBurst30(t *testing.T) {
 	t.Parallel()
 
-	require.Equal(t, float64(15), middleware.DefaultRateLimitOptions.RequestsPerSecond)
-	require.Equal(t, 30, middleware.DefaultRateLimitOptions.Burst)
+	require.Equal(t, float64(15), middleware.DefaultRateLimitConfig.RequestsPerSecond)
+	require.Equal(t, 30, middleware.DefaultRateLimitConfig.Burst)
 }
 
 func TestRateLimitContextCancellationStopsCleanup(t *testing.T) {
@@ -245,7 +245,7 @@ func TestRateLimitContextCancellationStopsCleanup(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	handler := middleware.RateLimitWith(middleware.RateLimitOptions{
+	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
 		RequestsPerSecond: 100,
 		Burst:             100,
 		CleanupInterval:   50 * time.Millisecond,
@@ -278,7 +278,7 @@ func TestRateLimitContextCancellationStopsCleanup(t *testing.T) {
 func TestRateLimitKeyFuncStripsPort(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.RateLimitWith(middleware.RateLimitOptions{
+	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
 		RequestsPerSecond: 1,
 		Burst:             1,
 	})(framework.Handler(func(
@@ -304,7 +304,7 @@ func TestRateLimitKeyFuncStripsPort(t *testing.T) {
 func TestRateLimitKeyFuncFallsBackOnInvalidAddr(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.RateLimitWith(middleware.RateLimitOptions{
+	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
 		RequestsPerSecond: 1,
 		Burst:             1,
 	})(framework.Handler(func(
@@ -330,7 +330,7 @@ func TestRateLimitKeyFuncFallsBackOnInvalidAddr(t *testing.T) {
 func TestRateLimitMaxEntriesUsesOverflowLimiter(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.RateLimitWith(middleware.RateLimitOptions{
+	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
 		RequestsPerSecond: 1,
 		Burst:             2,
 		MaxEntries:        2,
@@ -373,5 +373,5 @@ func TestRateLimitMaxEntriesUsesOverflowLimiter(t *testing.T) {
 func TestRateLimitMaxEntriesDefaultIs10000(t *testing.T) {
 	t.Parallel()
 
-	require.Equal(t, 10000, middleware.DefaultRateLimitOptions.MaxEntries)
+	require.Equal(t, 10000, middleware.DefaultRateLimitConfig.MaxEntries)
 }

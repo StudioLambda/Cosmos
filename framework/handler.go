@@ -26,6 +26,12 @@ import (
 //   - r: The HTTP request containing client data and context
 //
 // Returns an error if the request handling fails, nil on success.
+//
+// Example:
+//
+//	app.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) error {
+//		return response.JSON(w, http.StatusOK, map[string]any{"id": r.PathValue("id")})
+//	})
 type Handler func(w http.ResponseWriter, r *http.Request) error
 
 // HTTPStatus is an interface that errors can implement to specify
@@ -143,6 +149,11 @@ func (handler Handler) ServeHTTP(
 // Record executes the handler with the given request and returns the resulting HTTP response.
 // It uses httptest.NewRecorder() to capture the response that would be written to a client,
 // making it useful for testing HTTP handlers without starting a server.
+//
+// Example:
+//
+//	res := handler.Record(httptest.NewRequest(http.MethodGet, "/health", nil))
+//	defer res.Body.Close()
 func (handler Handler) Record(r *http.Request) *http.Response {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, r)

@@ -186,8 +186,7 @@ func TestCacheWrapperGetDecodesJSON(t *testing.T) {
 	err := c.Put(ctx, "key", "hello", 5*time.Minute)
 	require.NoError(t, err)
 
-	var result string
-	err = c.Get(ctx, "key", &result)
+	result, err := c.Get[string](ctx, "key")
 
 	require.NoError(t, err)
 	require.Equal(t, "hello", result)
@@ -203,13 +202,12 @@ func TestCacheWrapperPullReturnsAndRemoves(t *testing.T) {
 	err := c.Put(ctx, "key", "value", 5*time.Minute)
 	require.NoError(t, err)
 
-	var result string
-	err = c.Pull(ctx, "key", &result)
+	result, err := c.Pull[string](ctx, "key")
 
 	require.NoError(t, err)
 	require.Equal(t, "value", result)
 
-	err = c.Get(ctx, "key", &result)
+	_, err = c.Get[string](ctx, "key")
 	require.ErrorIs(t, err, contract.ErrCacheKeyNotFound)
 }
 
@@ -223,8 +221,7 @@ func TestCacheWrapperForever(t *testing.T) {
 	err := c.Forever(ctx, "key", "permanent")
 	require.NoError(t, err)
 
-	var result string
-	err = c.Get(ctx, "key", &result)
+	result, err := c.Get[string](ctx, "key")
 
 	require.NoError(t, err)
 	require.Equal(t, "permanent", result)
@@ -241,9 +238,8 @@ func TestCacheWrapperRememberReturnsCachedValue(t *testing.T) {
 	require.NoError(t, err)
 
 	called := false
-	var result string
 
-	err = c.Remember(ctx, "key", 5*time.Minute, &result, func() (any, error) {
+	result, err := c.Remember(ctx, "key", 5*time.Minute, func() (string, error) {
 		called = true
 		return "computed", nil
 	})
@@ -260,9 +256,7 @@ func TestCacheWrapperRememberComputesOnMiss(t *testing.T) {
 	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
 	c := contract.NewCache(mem)
 
-	var result string
-
-	err := c.Remember(ctx, "key", 5*time.Minute, &result, func() (any, error) {
+	result, err := c.Remember(ctx, "key", 5*time.Minute, func() (string, error) {
 		return "computed", nil
 	})
 

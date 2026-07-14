@@ -37,7 +37,7 @@ type AMQPBroker struct {
 	mu sync.Mutex
 }
 
-// AMQPBrokerOptions configures the creation of a new AMQPBroker,
+// AMQPBrokerConfig configures the creation of a new AMQPBroker,
 // allowing customization of the connection URL and exchange name.
 //
 // WARNING: The URL field typically contains credentials in the
@@ -50,7 +50,7 @@ type AMQPBroker struct {
 //     secret manager rather than hard-coding it.
 //  3. Consider short-lived credentials or external auth
 //     mechanisms where the broker supports them.
-type AMQPBrokerOptions struct {
+type AMQPBrokerConfig struct {
 	// URL is the AMQP connection string in the format:
 	// amqp://username:password@host:port/vhost
 	URL string
@@ -81,17 +81,17 @@ func NewAMQPBroker(url string) (*AMQPBroker, error) {
 }
 
 // NewAMQPBrokerWith creates a new AMQPBroker using the provided
-// options for connection URL and exchange name. If no exchange
-// name is specified in the options, DefaultAMQPExchange is used.
+// configuration for connection URL and exchange name. If no exchange
+// name is specified in the configuration, DefaultAMQPExchange is used.
 // The broker must be closed when no longer needed to release
 // the connection and associated resources.
-func NewAMQPBrokerWith(options *AMQPBrokerOptions) (*AMQPBroker, error) {
-	conn, err := amqp091.Dial(options.URL)
+func NewAMQPBrokerWith(config *AMQPBrokerConfig) (*AMQPBroker, error) {
+	conn, err := amqp091.Dial(config.URL)
 	if err != nil {
 		return nil, err
 	}
 
-	exchange := options.Exchange
+	exchange := config.Exchange
 	if exchange == "" {
 		exchange = DefaultAMQPExchange
 	}
@@ -199,8 +199,8 @@ func (broker *AMQPBroker) Publish(
 // The handler receives messages in a separate goroutine and will
 // continue processing until the context is cancelled or the
 // returned unsubscribe function is called. The handler receives
-// an EventPayload function that can unmarshal the JSON message
-// into the desired type.
+// raw payload bytes, which callers can decode with json.Unmarshal
+// (or via [contract.NewEvents] for typed decoding).
 //
 // If subscription setup fails, the returned unsubscribe function
 // will return the setup error when called.
@@ -279,7 +279,7 @@ func (broker *AMQPBroker) Subscribe(
 					}
 				}()
 
-			handler(delivery.Body)
+				handler(delivery.Body)
 			}()
 		}
 	})
@@ -289,6 +289,20 @@ func (broker *AMQPBroker) Subscribe(
 
 		return ch.Close()
 	}, nil
+}
+
+// Ping verifies that the AMQP connection is still alive.
+func (broker *AMQPBroker) Ping(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	ch, err := broker.conn.Channel()
+	if err != nil {
+		return err
+	}
+
+	return ch.Close()
 }
 
 // Close closes the broker's publish channel and the underlying

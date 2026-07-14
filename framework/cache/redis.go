@@ -10,18 +10,18 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// RedisOptions is an alias for redis.Options, exposing the full
+// RedisConfig is an alias for redis.Options, exposing the full
 // set of connection parameters without requiring a direct import
 // of the go-redis package.
-type RedisOptions = redis.Options
+type RedisConfig = redis.Options
 
 // RedisClient implements [contract.CacheDriver] and [contract.CacheCounter]
 // using Redis as the backing store.
 type RedisClient redis.Client
 
-// NewRedis creates a RedisClient from the given connection options.
-func NewRedis(options *RedisOptions) *RedisClient {
-	return NewRedisFrom(redis.NewClient((*redis.Options)(options)))
+// NewRedis creates a RedisClient from the given connection configuration.
+func NewRedis(config *RedisConfig) *RedisClient {
+	return NewRedisFrom(redis.NewClient((*redis.Options)(config)))
 }
 
 // NewRedisFrom wraps an existing redis.Client as a RedisClient,
@@ -80,4 +80,9 @@ func (client *RedisClient) Increment(ctx context.Context, key string, delta int6
 // does not exist before decrementing.
 func (client *RedisClient) Decrement(ctx context.Context, key string, delta int64) (int64, error) {
 	return (*redis.Client)(client).DecrBy(ctx, key, delta).Result()
+}
+
+// Ping verifies that the connection is still alive.
+func (client *RedisClient) Ping(ctx context.Context) error {
+	return (*redis.Client)(client).Ping(ctx).Err()
 }

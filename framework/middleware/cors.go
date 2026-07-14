@@ -8,10 +8,10 @@ import (
 	"github.com/studiolambda/cosmos/framework"
 )
 
-// CORSOptions configures the Cross-Origin Resource Sharing
+// CORSConfig configures the Cross-Origin Resource Sharing
 // (CORS) middleware behaviour. Each field maps directly to a
 // CORS response header.
-type CORSOptions struct {
+type CORSConfig struct {
 	// AllowedOrigins is the list of origins permitted to make
 	// cross-origin requests. Use "*" to allow any origin (not
 	// recommended when AllowCredentials is true).
@@ -44,11 +44,11 @@ type CORSOptions struct {
 	MaxAge int
 }
 
-// DefaultCORSOptions provides sensible CORS defaults that allow
+// DefaultCORSConfig provides sensible CORS defaults that allow
 // common JSON API usage from any origin without credentials. The
 // defaults permit GET, POST, and HEAD with standard headers and
 // a 5-minute preflight cache.
-var DefaultCORSOptions = CORSOptions{
+var DefaultCORSConfig = CORSConfig{
 	AllowedOrigins: []string{"*"},
 	AllowedMethods: []string{
 		http.MethodGet,
@@ -66,10 +66,10 @@ var DefaultCORSOptions = CORSOptions{
 // response and handles preflight OPTIONS requests by responding
 // with a 204 No Content after setting the required headers.
 //
-// For the default configuration, pass [DefaultCORSOptions].
-func CORS(options CORSOptions) framework.Middleware {
-	if options.AllowCredentials {
-		for _, origin := range options.AllowedOrigins {
+// For the default configuration, pass [DefaultCORSConfig].
+func CORS(config CORSConfig) framework.Middleware {
+	if config.AllowCredentials {
+		for _, origin := range config.AllowedOrigins {
 			if origin == "*" {
 				panic("cors: AllowCredentials must not be used with wildcard AllowedOrigins")
 			}
@@ -87,13 +87,13 @@ func CORS(options CORSOptions) framework.Middleware {
 				return next(w, r)
 			}
 
-			if !originAllowed(options.AllowedOrigins, origin) {
+			if !originAllowed(config.AllowedOrigins, origin) {
 				w.Header().Add("Vary", "Origin")
 
 				return next(w, r)
 			}
 
-			setCORSHeaders(w, options, origin)
+			setCORSHeaders(w, config, origin)
 
 			if r.Method == http.MethodOptions &&
 				r.Header.Get("Access-Control-Request-Method") != "" {
@@ -125,52 +125,52 @@ func originAllowed(allowed []string, origin string) bool {
 // origin.
 func setCORSHeaders(
 	w http.ResponseWriter,
-	options CORSOptions,
+	config CORSConfig,
 	origin string,
 ) {
 	header := w.Header()
 
-	if len(options.AllowedOrigins) == 1 &&
-		options.AllowedOrigins[0] == "*" &&
-		!options.AllowCredentials {
+	if len(config.AllowedOrigins) == 1 &&
+		config.AllowedOrigins[0] == "*" &&
+		!config.AllowCredentials {
 		header.Set("Access-Control-Allow-Origin", "*")
 	} else {
 		header.Set("Access-Control-Allow-Origin", origin)
 		header.Add("Vary", "Origin")
 	}
 
-	if len(options.AllowedMethods) > 0 {
+	if len(config.AllowedMethods) > 0 {
 		header.Set(
 			"Access-Control-Allow-Methods",
-			strings.Join(options.AllowedMethods, ", "),
+			strings.Join(config.AllowedMethods, ", "),
 		)
 	}
 
-	if len(options.AllowedHeaders) > 0 {
+	if len(config.AllowedHeaders) > 0 {
 		header.Set(
 			"Access-Control-Allow-Headers",
-			strings.Join(options.AllowedHeaders, ", "),
+			strings.Join(config.AllowedHeaders, ", "),
 		)
 	}
 
-	if len(options.ExposedHeaders) > 0 {
+	if len(config.ExposedHeaders) > 0 {
 		header.Set(
 			"Access-Control-Expose-Headers",
-			strings.Join(options.ExposedHeaders, ", "),
+			strings.Join(config.ExposedHeaders, ", "),
 		)
 	}
 
-	if options.AllowCredentials {
+	if config.AllowCredentials {
 		header.Set(
 			"Access-Control-Allow-Credentials",
 			"true",
 		)
 	}
 
-	if options.MaxAge > 0 {
+	if config.MaxAge > 0 {
 		header.Set(
 			"Access-Control-Max-Age",
-			strconv.Itoa(options.MaxAge),
+			strconv.Itoa(config.MaxAge),
 		)
 	}
 }

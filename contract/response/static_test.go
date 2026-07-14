@@ -1,7 +1,7 @@
 package response_test
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"encoding/xml"
 	htmltemplate "html/template"
 	"net/http"
@@ -436,6 +436,16 @@ func TestSafeRedirectRejectsUnparseableURL(t *testing.T) {
 	)
 
 	require.ErrorIs(t, err, response.ErrUnsafeRedirect)
+}
+
+func TestErrUnsafeRedirectMessage(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(
+		t,
+		"unsafe redirect URL",
+		response.ErrUnsafeRedirect.Error(),
+	)
 }
 
 func TestStringTemplateBuffersBeforeWritingStatus(t *testing.T) {

@@ -101,3 +101,8 @@ func (memory *Memory) Decrement(_ context.Context, key string, delta int64) (int
 
 	return result, nil
 }
+
+// Ping verifies that the connection is still alive.
+func (memory *Memory) Ping(ctx context.Context) error {
+	return nil // always connected, in memory
+}

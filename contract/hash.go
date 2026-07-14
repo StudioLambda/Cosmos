@@ -6,6 +6,18 @@ package contract
 //
 // Both Hash and Check zero the input value slice after use as a security
 // measure. Callers must not reuse the value slice after calling either method.
+//
+// Example:
+//
+//	hash, err := hasher.Hash([]byte("password"))
+//	if err != nil {
+//		return err
+//	}
+//	ok, err := hasher.Check([]byte("password"), hash)
+//	if err != nil {
+//		return err
+//	}
+//	_ = ok
 type Hasher interface {
 	// Hash computes a cryptographic hash of the given byte slice and returns the hash.
 	// The input value is zeroed after hashing as a security measure.
@@ -25,6 +37,16 @@ type Hasher interface {
 // Implementations should return true when the given hash was produced with
 // different parameters than the current configuration, indicating the value
 // should be re-hashed on the next successful authentication.
+//
+// Example:
+//
+//	if rehashable, ok := hasher.(contract.Rehashable); ok && rehashable.NeedsRehash(hash) {
+//		newHash, err := hasher.Hash([]byte("password"))
+//		if err != nil {
+//			return err
+//		}
+//		_ = newHash
+//	}
 type Rehashable interface {
 	// NeedsRehash reports whether the given hash was produced with
 	// different parameters than the current configuration, indicating

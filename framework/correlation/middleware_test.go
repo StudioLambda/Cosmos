@@ -157,7 +157,7 @@ func TestMiddlewareWithCustomHeader(t *testing.T) {
 
 	var captured string
 
-	handler := correlation.MiddlewareWith(correlation.Options{
+	handler := correlation.MiddlewareWith(correlation.MiddlewareConfig{
 		Header: "X-Request-ID",
 	})(framework.Handler(func(
 		w http.ResponseWriter,
@@ -177,12 +177,66 @@ func TestMiddlewareWithCustomHeader(t *testing.T) {
 	require.Equal(t, "custom-id", res.Header.Get("X-Request-ID"))
 }
 
+func TestMiddlewareRejectsUnsafeHeaderAndGenerates(t *testing.T) {
+	t.Parallel()
+
+	var captured string
+
+	handler := correlation.MiddlewareWith(correlation.MiddlewareConfig{
+		Generate: func() (string, error) {
+			return "generated-safe-id", nil
+		},
+	})(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		captured = request.CorrelationID(r)
+		w.WriteHeader(http.StatusOK)
+
+		return nil
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Correlation-ID", "bad\nvalue")
+	res := handler.Record(req)
+
+	require.Equal(t, "generated-safe-id", captured)
+	require.Equal(t, "generated-safe-id", res.Header.Get("X-Correlation-ID"))
+}
+
+func TestMiddlewareRejectsOverlongHeaderAndGenerates(t *testing.T) {
+	t.Parallel()
+
+	var captured string
+
+	handler := correlation.MiddlewareWith(correlation.MiddlewareConfig{
+		Generate: func() (string, error) {
+			return "generated-safe-id", nil
+		},
+	})(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		captured = request.CorrelationID(r)
+		w.WriteHeader(http.StatusOK)
+
+		return nil
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Correlation-ID", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	res := handler.Record(req)
+
+	require.Equal(t, "generated-safe-id", captured)
+	require.Equal(t, "generated-safe-id", res.Header.Get("X-Correlation-ID"))
+}
+
 func TestMiddlewareWithCustomGenerator(t *testing.T) {
 	t.Parallel()
 
 	var captured string
 
-	handler := correlation.MiddlewareWith(correlation.Options{
+	handler := correlation.MiddlewareWith(correlation.MiddlewareConfig{
 		Generate: func() (string, error) {
 			return "custom-generated", nil
 		},
@@ -202,14 +256,12 @@ func TestMiddlewareWithCustomGenerator(t *testing.T) {
 	require.Equal(t, "custom-generated", captured)
 }
 
-func TestMiddlewareGeneratorErrorPropagates(t *testing.T) {
+func TestMiddlewareGeneratorErrorFallsBackAndContinues(t *testing.T) {
 	t.Parallel()
 
-	genErr := errors.New("generator failed")
-
-	handler := correlation.MiddlewareWith(correlation.Options{
+	handler := correlation.MiddlewareWith(correlation.MiddlewareConfig{
 		Generate: func() (string, error) {
-			return "", genErr
+			return "", errors.New("generator failed")
 		},
 	})(framework.Handler(func(
 		w http.ResponseWriter,
@@ -221,10 +273,35 @@ func TestMiddlewareGeneratorErrorPropagates(t *testing.T) {
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-	err := handler(rec, req)
+	res := handler.Record(req)
+	id := res.Header.Get("X-Correlation-ID")
 
-	require.ErrorIs(t, err, genErr)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Len(t, id, 32)
+}
+
+func TestMiddlewareInvalidGeneratedIDFallsBackAndContinues(t *testing.T) {
+	t.Parallel()
+
+	handler := correlation.MiddlewareWith(correlation.MiddlewareConfig{
+		Generate: func() (string, error) {
+			return "bad\nvalue", nil
+		},
+	})(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		w.WriteHeader(http.StatusOK)
+
+		return nil
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	res := handler.Record(req)
+	id := res.Header.Get("X-Correlation-ID")
+
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Len(t, id, 32)
 }
 
 func TestFromMatchesRequestHelper(t *testing.T) {

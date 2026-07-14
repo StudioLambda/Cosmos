@@ -21,8 +21,8 @@ var ErrRateLimited = problem.Problem{
 	Status: http.StatusTooManyRequests,
 }
 
-// RateLimitOptions configures the rate limiter middleware.
-type RateLimitOptions struct {
+// RateLimitConfig configures the rate limiter middleware.
+type RateLimitConfig struct {
 	// RequestsPerSecond is the sustained request rate allowed
 	// per key (typically per IP). Defaults to 15.
 	RequestsPerSecond float64
@@ -62,10 +62,10 @@ type RateLimitOptions struct {
 	Context context.Context
 }
 
-// DefaultRateLimitOptions holds sensible defaults: 15 req/s
+// DefaultRateLimitConfig holds sensible defaults: 15 req/s
 // sustained with a burst of 30, keyed by remote address.
 // Idle entries are evicted after 5 minutes of inactivity.
-var DefaultRateLimitOptions = RateLimitOptions{
+var DefaultRateLimitConfig = RateLimitConfig{
 	RequestsPerSecond: 15,
 	Burst:             30,
 	KeyFunc: func(r *http.Request) string {
@@ -82,42 +82,42 @@ var DefaultRateLimitOptions = RateLimitOptions{
 	MaxEntries:      10000,
 }
 
-// withDefaults returns a copy of the options with zero values
-// replaced by the corresponding [DefaultRateLimitOptions] fields.
-func (options RateLimitOptions) withDefaults() RateLimitOptions {
-	if options.RequestsPerSecond == 0 {
-		options.RequestsPerSecond = DefaultRateLimitOptions.RequestsPerSecond
+// withDefaults returns a copy of the config with zero values
+// replaced by the corresponding [DefaultRateLimitConfig] fields.
+func (config RateLimitConfig) withDefaults() RateLimitConfig {
+	if config.RequestsPerSecond == 0 {
+		config.RequestsPerSecond = DefaultRateLimitConfig.RequestsPerSecond
 	}
 
-	if options.Burst == 0 {
-		options.Burst = DefaultRateLimitOptions.Burst
+	if config.Burst == 0 {
+		config.Burst = DefaultRateLimitConfig.Burst
 	}
 
-	if options.KeyFunc == nil {
-		options.KeyFunc = DefaultRateLimitOptions.KeyFunc
+	if config.KeyFunc == nil {
+		config.KeyFunc = DefaultRateLimitConfig.KeyFunc
 	}
 
-	if options.ErrorResponse.Status == 0 {
-		options.ErrorResponse = DefaultRateLimitOptions.ErrorResponse
+	if config.ErrorResponse.Status == 0 {
+		config.ErrorResponse = DefaultRateLimitConfig.ErrorResponse
 	}
 
-	if options.CleanupInterval == 0 {
-		options.CleanupInterval = DefaultRateLimitOptions.CleanupInterval
+	if config.CleanupInterval == 0 {
+		config.CleanupInterval = DefaultRateLimitConfig.CleanupInterval
 	}
 
-	if options.MaxIdleTime == 0 {
-		options.MaxIdleTime = DefaultRateLimitOptions.MaxIdleTime
+	if config.MaxIdleTime == 0 {
+		config.MaxIdleTime = DefaultRateLimitConfig.MaxIdleTime
 	}
 
-	if options.MaxEntries == 0 {
-		options.MaxEntries = DefaultRateLimitOptions.MaxEntries
+	if config.MaxEntries == 0 {
+		config.MaxEntries = DefaultRateLimitConfig.MaxEntries
 	}
 
-	return options
+	return config
 }
 
 // rateLimitEntry pairs a token bucket limiter with the time it
-// was last accessed. Entries idle longer than [RateLimitOptions.MaxIdleTime]
+// was last accessed. Entries idle longer than [RateLimitConfig.MaxIdleTime]
 // are evicted by the cleanup goroutine.
 type rateLimitEntry struct {
 	limiter  *rate.Limiter
@@ -254,47 +254,47 @@ func (registry *rateLimitRegistry) close() {
 }
 
 // RateLimit returns middleware that limits requests to 15 req/s
-// per IP with a burst of 30 using [DefaultRateLimitOptions].
+// per IP with a burst of 30 using [DefaultRateLimitConfig].
 // Idle entries are automatically evicted after 5 minutes.
 func RateLimit() framework.Middleware {
-	return RateLimitWith(DefaultRateLimitOptions)
+	return RateLimitWith(DefaultRateLimitConfig)
 }
 
 // RateLimitWith returns middleware that limits requests using
-// the provided options. It uses a per-key token bucket algorithm
+// the provided configuration. It uses a per-key token bucket algorithm
 // backed by [golang.org/x/time/rate]. A background goroutine
 // periodically evicts entries that have been idle longer than
-// [RateLimitOptions.MaxIdleTime] to prevent unbounded memory
+// [RateLimitConfig.MaxIdleTime] to prevent unbounded memory
 // growth.
 //
-// If [RateLimitOptions.Context] is set, the cleanup goroutine
+// If [RateLimitConfig.Context] is set, the cleanup goroutine
 // stops when the context is cancelled. Otherwise it runs for
 // the lifetime of the process.
-func RateLimitWith(opts RateLimitOptions) framework.Middleware {
-	opts = opts.withDefaults()
+func RateLimitWith(config RateLimitConfig) framework.Middleware {
+	config = config.withDefaults()
 
 	registry := newRateLimitRegistry(
-		opts.RequestsPerSecond,
-		opts.Burst,
-		opts.MaxEntries,
-		opts.CleanupInterval,
-		opts.MaxIdleTime,
+		config.RequestsPerSecond,
+		config.Burst,
+		config.MaxEntries,
+		config.CleanupInterval,
+		config.MaxIdleTime,
 	)
 
-	if opts.Context != nil {
+	if config.Context != nil {
 		go func() {
-			<-opts.Context.Done()
+			<-config.Context.Done()
 			registry.close()
 		}()
 	}
 
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
-			key := opts.KeyFunc(r)
+			key := config.KeyFunc(r)
 			limiter := registry.get(key)
 
 			if !limiter.Allow() {
-				return opts.ErrorResponse
+				return config.ErrorResponse
 			}
 
 			return next(w, r)

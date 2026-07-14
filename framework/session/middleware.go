@@ -11,10 +11,10 @@ import (
 	"github.com/studiolambda/cosmos/framework"
 )
 
-// MiddlewareOptions configures the session middleware behaviour
+// MiddlewareConfig configures the session middleware behaviour
 // including cookie attributes, session lifetime, and the context
 // key used to store the session in the request.
-type MiddlewareOptions struct {
+type MiddlewareConfig struct {
 	// Name is the cookie name sent to the client.
 	Name string
 
@@ -88,21 +88,21 @@ func validSessionID(id string) bool {
 
 // currentSession loads an existing session from the cookie-provided
 // ID or creates a fresh one when no valid session is found.
-func currentSession(r *http.Request, driver contract.SessionDriver, options MiddlewareOptions) (*contract.Session, error) {
-	id := request.CookieValue(r, options.Name)
+func currentSession(r *http.Request, driver contract.SessionDriver, config MiddlewareConfig) (*contract.Session, error) {
+	id := request.CookieValue(r, config.Name)
 
 	if id != "" && validSessionID(id) {
 		if session, err := driver.Get(r.Context(), id); err == nil {
 			if session.HasExpired() {
 				_ = driver.Delete(r.Context(), id)
 
-				return contract.NewSession(time.Now().Add(options.TTL), map[string]any{})
+				return contract.NewSession(time.Now().Add(config.TTL), map[string]any{})
 			}
 
-			if options.MaxLifetime > 0 && time.Since(session.CreatedAt()) >= options.MaxLifetime {
+			if config.MaxLifetime > 0 && time.Since(session.CreatedAt()) >= config.MaxLifetime {
 				_ = driver.Delete(r.Context(), id)
 
-				return contract.NewSession(time.Now().Add(options.TTL), map[string]any{})
+				return contract.NewSession(time.Now().Add(config.TTL), map[string]any{})
 			}
 
 			session.MarkAsUnchanged()
@@ -111,58 +111,58 @@ func currentSession(r *http.Request, driver contract.SessionDriver, options Midd
 		}
 	}
 
-	return contract.NewSession(time.Now().Add(options.TTL), map[string]any{})
+	return contract.NewSession(time.Now().Add(config.TTL), map[string]any{})
 }
 
-// withDefaults returns a copy of the options with secure defaults
+// withDefaults returns a copy of the config with secure defaults
 // applied to any zero-valued fields.
-func (options MiddlewareOptions) withDefaults() MiddlewareOptions {
-	if options.Name == "" {
-		options.Name = DefaultCookie
+func (config MiddlewareConfig) withDefaults() MiddlewareConfig {
+	if config.Name == "" {
+		config.Name = DefaultCookie
 	}
 
-	if options.Path == "" {
-		options.Path = "/"
+	if config.Path == "" {
+		config.Path = "/"
 	}
 
-	if options.SameSite == 0 {
-		options.SameSite = http.SameSiteLaxMode
+	if config.SameSite == 0 {
+		config.SameSite = http.SameSiteLaxMode
 	}
 
-	if options.TTL == 0 {
-		options.TTL = DefaultTTL
+	if config.TTL == 0 {
+		config.TTL = DefaultTTL
 	}
 
-	if options.ExpirationDelta == 0 {
-		options.ExpirationDelta = DefaultExpirationDelta
+	if config.ExpirationDelta == 0 {
+		config.ExpirationDelta = DefaultExpirationDelta
 	}
 
-	if options.MaxLifetime == 0 {
-		options.MaxLifetime = DefaultMaxLifetime
+	if config.MaxLifetime == 0 {
+		config.MaxLifetime = DefaultMaxLifetime
 	}
 
-	if options.Key == nil {
-		options.Key = contract.SessionKey
+	if config.Key == nil {
+		config.Key = contract.SessionKey
 	}
 
-	return options
+	return config
 }
 
 // reportError invokes the configured error handler if set.
-func reportError(options MiddlewareOptions, err error) {
-	if err != nil && options.ErrorHandler != nil {
-		options.ErrorHandler(err)
+func reportError(config MiddlewareConfig, err error) {
+	if err != nil && config.ErrorHandler != nil {
+		config.ErrorHandler(err)
 	}
 }
 
 // MiddlewareWith returns a session middleware configured with the
-// given driver and options.
-func MiddlewareWith(driver contract.SessionDriver, options MiddlewareOptions) framework.Middleware {
-	options = options.withDefaults()
+// given driver and configuration.
+func MiddlewareWith(driver contract.SessionDriver, config MiddlewareConfig) framework.Middleware {
+	config = config.withDefaults()
 
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
-			session, err := currentSession(r, driver, options)
+			session, err := currentSession(r, driver, config)
 
 			if err != nil {
 				return err
@@ -172,30 +172,30 @@ func MiddlewareWith(driver contract.SessionDriver, options MiddlewareOptions) fr
 			hooks.BeforeWriteHeader(func(w http.ResponseWriter, status int) {
 				saveCtx := context.WithoutCancel(r.Context())
 
-				if options.MaxLifetime > 0 {
+				if config.MaxLifetime > 0 {
 					age := time.Since(session.CreatedAt())
 
-					if age >= options.MaxLifetime {
+					if age >= config.MaxLifetime {
 						reportError(
-							options,
+							config,
 							session.Regenerate(),
 						)
-						session.Extend(time.Now().Add(options.TTL))
+						session.Extend(time.Now().Add(config.TTL))
 					}
 				}
 
 				if session.HasExpired() {
-					reportError(options, session.Regenerate())
-					session.Extend(time.Now().Add(options.TTL))
+					reportError(config, session.Regenerate())
+					session.Extend(time.Now().Add(config.TTL))
 				}
 
-				if session.ExpiresSoon(options.ExpirationDelta) {
-					session.Extend(time.Now().Add(options.TTL))
+				if session.ExpiresSoon(config.ExpirationDelta) {
+					session.Extend(time.Now().Add(config.TTL))
 				}
 
 				if session.HasRegenerated() {
 					reportError(
-						options,
+						config,
 						driver.Delete(
 							saveCtx,
 							session.OriginalSessionID(),
@@ -207,27 +207,27 @@ func MiddlewareWith(driver contract.SessionDriver, options MiddlewareOptions) fr
 					ttl := time.Until(session.ExpiresAt())
 
 					if err := driver.Save(saveCtx, session, ttl); err != nil {
-						reportError(options, err)
+						reportError(config, err)
 
 						return
 					}
 
 					http.SetCookie(w, &http.Cookie{
-						Name:        options.Name,
+						Name:        config.Name,
 						Value:       session.SessionID(),
-						Path:        options.Path,
-						Domain:      options.Domain,
+						Path:        config.Path,
+						Domain:      config.Domain,
 						Expires:     session.ExpiresAt(),
 						MaxAge:      int(ttl.Seconds()),
-						Secure:      options.Secure,
+						Secure:      config.Secure,
 						HttpOnly:    true,
-						SameSite:    options.SameSite,
-						Partitioned: options.Partitioned,
+						SameSite:    config.SameSite,
+						Partitioned: config.Partitioned,
 					})
 				}
 			})
 
-			ctx := context.WithValue(r.Context(), options.Key, session)
+			ctx := context.WithValue(r.Context(), config.Key, session)
 
 			return next(w, r.WithContext(ctx))
 		}
@@ -237,7 +237,7 @@ func MiddlewareWith(driver contract.SessionDriver, options MiddlewareOptions) fr
 // Middleware returns a session middleware using the given driver and
 // sensible defaults.
 func Middleware(driver contract.SessionDriver) framework.Middleware {
-	return MiddlewareWith(driver, MiddlewareOptions{
+	return MiddlewareWith(driver, MiddlewareConfig{
 		Name:            DefaultCookie,
 		Path:            "/",
 		Domain:          "",

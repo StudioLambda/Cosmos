@@ -3,9 +3,12 @@ package correlation
 import (
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"net/http"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/contract/request"
@@ -21,8 +24,8 @@ const DefaultHeader = "X-Correlation-ID"
 // for distributed tracing.
 type Generator = func() (string, error)
 
-// Options configures the correlation ID middleware.
-type Options struct {
+// MiddlewareConfig configures the correlation ID middleware.
+type MiddlewareConfig struct {
 	// Header is the HTTP header name used to read and write
 	// the correlation ID. Defaults to "X-Correlation-ID".
 	Header string
@@ -41,9 +44,11 @@ type Options struct {
 //  1. The W3C traceparent header (extracts the trace ID component)
 //  2. The X-Correlation-ID header
 //
-// If neither is present, a new 16-byte random hex ID is generated.
-// The correlation ID is stored in the request context and set on
-// the response header.
+// If a client-provided header value is present, it is accepted only
+// when it matches a constrained safe format (ASCII alphanumeric plus
+// '-', '_', '.' and max length 64). Otherwise, a new 16-byte random
+// hex ID is generated. The correlation ID is stored in the request
+// context and set on the response header.
 //
 // Retrieve the correlation ID downstream with [From].
 //
@@ -51,24 +56,24 @@ type Options struct {
 //
 //	app.Use(correlation.Middleware())
 func Middleware() framework.Middleware {
-	return MiddlewareWith(Options{})
+	return MiddlewareWith(MiddlewareConfig{})
 }
 
 // MiddlewareWith returns correlation ID middleware with custom
-// options. See [Options] for available configuration.
+// configuration. See [MiddlewareConfig] for available configuration.
 //
 // Example usage:
 //
-//	app.Use(correlation.MiddlewareWith(correlation.Options{
+//	app.Use(correlation.MiddlewareWith(correlation.MiddlewareConfig{
 //	    Header: "X-Request-ID",
 //	}))
-func MiddlewareWith(options Options) framework.Middleware {
-	if options.Header == "" {
-		options.Header = DefaultHeader
+func MiddlewareWith(config MiddlewareConfig) framework.Middleware {
+	if config.Header == "" {
+		config.Header = DefaultHeader
 	}
 
-	if options.Generate == nil {
-		options.Generate = generate
+	if config.Generate == nil {
+		config.Generate = generate
 	}
 
 	return func(next framework.Handler) framework.Handler {
@@ -76,20 +81,18 @@ func MiddlewareWith(options Options) framework.Middleware {
 			id := extractTraceID(r)
 
 			if id == "" {
-				id = r.Header.Get(options.Header)
+				candidate := strings.TrimSpace(r.Header.Get(config.Header))
+
+				if isSafeCorrelationID(candidate) {
+					id = candidate
+				}
 			}
 
 			if id == "" {
-				generated, err := options.Generate()
-
-				if err != nil {
-					return err
-				}
-
-				id = generated
+				id = generateSafeID(config.Generate)
 			}
 
-			w.Header().Set(options.Header, id)
+			w.Header().Set(config.Header, id)
 
 			ctx := context.WithValue(r.Context(), contract.CorrelationIDKey, id)
 
@@ -158,4 +161,58 @@ func generate() (string, error) {
 	}
 
 	return hex.EncodeToString(buf), nil
+}
+
+var fallbackSequence atomic.Uint64
+
+// generateSafeID attempts to generate a correlation ID using the configured
+// generator. If generation fails or produces an unsafe ID, it falls back to a
+// deterministic-safe ID derived from current time and an atomic sequence.
+func generateSafeID(generator Generator) string {
+	if generated, err := generator(); err == nil {
+		generated = strings.TrimSpace(generated)
+
+		if isSafeCorrelationID(generated) {
+			return generated
+		}
+	}
+
+	buf := make([]byte, 16)
+	binary.BigEndian.PutUint64(buf[:8], uint64(time.Now().UnixNano()))
+	binary.BigEndian.PutUint64(buf[8:], fallbackSequence.Add(1))
+
+	return hex.EncodeToString(buf)
+}
+
+// isSafeCorrelationID reports whether a client-provided correlation
+// ID is acceptable for propagation and logging. It enforces a bounded
+// length and a conservative ASCII character set.
+func isSafeCorrelationID(id string) bool {
+	if len(id) == 0 || len(id) > 64 {
+		return false
+	}
+
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+
+		if c >= 'a' && c <= 'z' {
+			continue
+		}
+
+		if c >= 'A' && c <= 'Z' {
+			continue
+		}
+
+		if c >= '0' && c <= '9' {
+			continue
+		}
+
+		if c == '-' || c == '_' || c == '.' {
+			continue
+		}
+
+		return false
+	}
+
+	return true
 }

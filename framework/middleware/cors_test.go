@@ -14,7 +14,7 @@ import (
 func TestCORSPreflightSetsHeaders(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.CORS(middleware.CORSOptions{
+	handler := middleware.CORS(middleware.CORSConfig{
 		AllowedOrigins:   []string{"https://example.com"},
 		AllowedMethods:   []string{"GET", "POST"},
 		AllowedHeaders:   []string{"Content-Type"},
@@ -71,7 +71,7 @@ func TestCORSDisallowedOriginSkipsHeaders(t *testing.T) {
 	t.Parallel()
 
 	called := false
-	handler := middleware.CORS(middleware.CORSOptions{
+	handler := middleware.CORS(middleware.CORSConfig{
 		AllowedOrigins: []string{"https://trusted.com"},
 		AllowedMethods: []string{"GET"},
 	})(framework.Handler(func(
@@ -97,7 +97,7 @@ func TestCORSNoOriginHeaderPassesThrough(t *testing.T) {
 
 	called := false
 	handler := middleware.CORS(
-		middleware.DefaultCORSOptions,
+		middleware.DefaultCORSConfig,
 	)(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
@@ -117,7 +117,7 @@ func TestCORSNoOriginHeaderPassesThrough(t *testing.T) {
 func TestCORSWildcardOriginSetsStarHeader(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.CORS(middleware.CORSOptions{
+	handler := middleware.CORS(middleware.CORSConfig{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET"},
 	})(framework.Handler(func(
@@ -142,7 +142,7 @@ func TestCORSWildcardOriginSetsStarHeader(t *testing.T) {
 func TestCORSExposedHeaders(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.CORS(middleware.CORSOptions{
+	handler := middleware.CORS(middleware.CORSConfig{
 		AllowedOrigins: []string{"*"},
 		ExposedHeaders: []string{"X-Request-Id", "X-Total-Count"},
 	})(framework.Handler(func(
@@ -166,7 +166,7 @@ func TestCORSExposedHeaders(t *testing.T) {
 func TestCORSVaryHeaderIsAddedNotOverwritten(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.CORS(middleware.CORSOptions{
+	handler := middleware.CORS(middleware.CORSConfig{
 		AllowedOrigins: []string{"https://example.com"},
 		AllowedMethods: []string{"GET"},
 	})(framework.Handler(func(
@@ -196,7 +196,7 @@ func TestCORSNonPreflightOptionsPassesToNext(t *testing.T) {
 	t.Parallel()
 
 	called := false
-	handler := middleware.CORS(middleware.CORSOptions{
+	handler := middleware.CORS(middleware.CORSConfig{
 		AllowedOrigins: []string{"https://example.com"},
 		AllowedMethods: []string{"GET", "POST"},
 	})(framework.Handler(func(
@@ -229,7 +229,7 @@ func TestCORSPanicsOnCredentialsWithWildcard(t *testing.T) {
 		t,
 		"cors: AllowCredentials must not be used with wildcard AllowedOrigins",
 		func() {
-			middleware.CORS(middleware.CORSOptions{
+			middleware.CORS(middleware.CORSConfig{
 				AllowedOrigins:   []string{"*"},
 				AllowCredentials: true,
 			})
@@ -241,7 +241,7 @@ func TestCORSDoesNotPanicOnCredentialsWithExplicitOrigins(t *testing.T) {
 	t.Parallel()
 
 	require.NotPanics(t, func() {
-		middleware.CORS(middleware.CORSOptions{
+		middleware.CORS(middleware.CORSConfig{
 			AllowedOrigins:   []string{"https://example.com"},
 			AllowCredentials: true,
 		})

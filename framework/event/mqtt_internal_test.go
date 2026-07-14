@@ -1,7 +1,7 @@
 package event
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"sync"
 	"sync/atomic"
 	"testing"

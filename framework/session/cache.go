@@ -2,7 +2,7 @@ package session
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"time"
 
@@ -19,12 +19,12 @@ import (
 // values before calling Put or use a backend with transport/at-rest
 // encryption.
 type CacheDriver struct {
-	cache   contract.CacheDriver
-	options CacheDriverOptions
+	cache  contract.Cache
+	config CacheDriverConfig
 }
 
-// CacheDriverOptions holds configuration for the CacheDriver.
-type CacheDriverOptions struct {
+// CacheDriverConfig holds configuration for the CacheDriver.
+type CacheDriverConfig struct {
 	Prefix string
 }
 
@@ -39,38 +39,32 @@ type sessionData struct {
 
 // NewCacheDriver creates a CacheDriver with the default key prefix
 // "cosmos.sessions".
-func NewCacheDriver(cache contract.CacheDriver) *CacheDriver {
-	return NewCacheDriverWith(cache, CacheDriverOptions{
+func NewCacheDriver(cache contract.Cache) *CacheDriver {
+	return NewCacheDriverWith(cache, CacheDriverConfig{
 		Prefix: "cosmos.sessions",
 	})
 }
 
 // NewCacheDriverWith creates a CacheDriver with the given cache
-// backend and options.
-func NewCacheDriverWith(cache contract.CacheDriver, options CacheDriverOptions) *CacheDriver {
+// backend and configuration.
+func NewCacheDriverWith(cache contract.Cache, config CacheDriverConfig) *CacheDriver {
 	return &CacheDriver{
-		cache:   cache,
-		options: options,
+		cache:  cache,
+		config: config,
 	}
 }
 
 // key builds the full cache key by joining the configured prefix
 // with the session ID.
 func (driver *CacheDriver) key(id string) string {
-	return fmt.Sprintf("%s.%s", driver.options.Prefix, id)
+	return fmt.Sprintf("%s.%s", driver.config.Prefix, id)
 }
 
 // Get retrieves a session from the cache by its ID.
 func (driver *CacheDriver) Get(ctx context.Context, id string) (*contract.Session, error) {
-	raw, err := driver.cache.Get(ctx, driver.key(id))
+	data, err := driver.cache.Get[sessionData](ctx, driver.key(id))
 
 	if err != nil {
-		return nil, err
-	}
-
-	var data sessionData
-
-	if err := json.Unmarshal(raw, &data); err != nil {
 		return nil, err
 	}
 

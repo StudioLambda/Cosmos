@@ -95,9 +95,9 @@ func TestNewSessionWithInitialStorage(t *testing.T) {
 
 	require.NoError(t, err)
 
-	val, ok := sess.Get("user_id")
+	val, err := sess.Get[int]("user_id")
 
-	require.True(t, ok)
+	require.NoError(t, err)
 	require.Equal(t, 42, val)
 }
 
@@ -129,9 +129,9 @@ func TestSessionGetReturnsStoredValue(t *testing.T) {
 
 	require.NoError(t, err)
 
-	val, ok := sess.Get("key")
+	val, err := sess.Get[string]("key")
 
-	require.True(t, ok)
+	require.NoError(t, err)
 	require.Equal(t, "value", val)
 }
 
@@ -145,9 +145,9 @@ func TestSessionGetReturnsFalseForMissingKey(t *testing.T) {
 
 	require.NoError(t, err)
 
-	_, ok := sess.Get("missing")
+	_, err = sess.Get[string]("missing")
 
-	require.False(t, ok)
+	require.ErrorIs(t, err, contract.ErrSessionKeyNotFound)
 }
 
 func TestSessionPutStoresValue(t *testing.T) {
@@ -163,9 +163,9 @@ func TestSessionPutStoresValue(t *testing.T) {
 	sess.MarkAsUnchanged()
 	sess.Put("key", "value")
 
-	val, ok := sess.Get("key")
+	val, err := sess.Get[string]("key")
 
-	require.True(t, ok)
+	require.NoError(t, err)
 	require.Equal(t, "value", val)
 }
 
@@ -197,9 +197,9 @@ func TestSessionPutOverwritesExistingValue(t *testing.T) {
 
 	sess.Put("key", "new")
 
-	val, ok := sess.Get("key")
+	val, err := sess.Get[string]("key")
 
-	require.True(t, ok)
+	require.NoError(t, err)
 	require.Equal(t, "new", val)
 }
 
@@ -215,9 +215,9 @@ func TestSessionDeleteRemovesKey(t *testing.T) {
 
 	sess.Delete("key")
 
-	_, ok := sess.Get("key")
+	_, err = sess.Get[string]("key")
 
-	require.False(t, ok)
+	require.ErrorIs(t, err, contract.ErrSessionKeyNotFound)
 }
 
 func TestSessionDeleteMarksAsChanged(t *testing.T) {
@@ -264,13 +264,13 @@ func TestSessionClearRemovesAllData(t *testing.T) {
 
 	sess.Clear()
 
-	_, okA := sess.Get("a")
-	_, okB := sess.Get("b")
-	_, okC := sess.Get("c")
+	_, errA := sess.Get[int]("a")
+	_, errB := sess.Get[int]("b")
+	_, errC := sess.Get[int]("c")
 
-	require.False(t, okA)
-	require.False(t, okB)
-	require.False(t, okC)
+	require.ErrorIs(t, errA, contract.ErrSessionKeyNotFound)
+	require.ErrorIs(t, errB, contract.ErrSessionKeyNotFound)
+	require.ErrorIs(t, errC, contract.ErrSessionKeyNotFound)
 }
 
 func TestSessionClearMarksAsChanged(t *testing.T) {
@@ -498,8 +498,8 @@ func TestSessionPreservesDataAfterRegenerate(t *testing.T) {
 
 	require.NoError(t, err)
 
-	val, ok := sess.Get("user_id")
+	val, err := sess.Get[int]("user_id")
 
-	require.True(t, ok)
+	require.NoError(t, err)
 	require.Equal(t, 42, val)
 }
