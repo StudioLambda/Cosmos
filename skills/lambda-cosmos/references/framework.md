@@ -84,7 +84,7 @@ if err := server.ListenAndServe(); err != nil {
 Custom options:
 
 ```go
-opts := framework.DefaultServerOptions()
+config := framework.DefaultServerConfig()
 opts.Addr = ":8443"
 server := framework.NewServerWith(opts, app)
 _ = server
@@ -98,7 +98,7 @@ _ = server
 app.Use(middleware.Recover())
 app.Use(middleware.Logger(slog.Default()))
 app.Use(middleware.CSRF("https://example.com"))
-app.Use(middleware.CORS(middleware.CORSOptions{}))
+app.Use(middleware.CORS(middleware.CORSConfig{}))
 app.Use(middleware.SecureHeaders())
 app.Use(middleware.RateLimit())
 app.Use(middleware.Provide("db", db))
@@ -138,7 +138,7 @@ app.Use(session.Middleware(sessionDriver))
 Custom middleware options:
 
 ```go
-app.Use(session.MiddlewareWith(sessionDriver, session.MiddlewareOptions{
+app.Use(session.MiddlewareWith(sessionDriver, session.MiddlewareConfig{
 	Name:            "my_session",
 	Path:            "/",
 	Domain:          "example.com",
@@ -167,7 +167,7 @@ Wrap with `contract.NewCache` for typed API.
 
 ```go
 memDriver := cache.NewMemory(5*time.Minute, 10*time.Minute)
-redisDriver := cache.NewRedis(&cache.RedisOptions{Addr: "localhost:6379"})
+redisDriver := cache.NewRedis(&cache.RedisConfig{Addr: "localhost:6379"})
 
 c := contract.NewCache(memDriver)
 value, err := c.Remember(ctx, "key", time.Minute, func() (string, error) {

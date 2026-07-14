@@ -162,55 +162,55 @@ func TestRegistryEvictedKeyGetsNewLimiterOnRevisit(t *testing.T) {
 func TestWithDefaultsFillsCleanupInterval(t *testing.T) {
 	t.Parallel()
 
-	opts := RateLimitOptions{}.withDefaults()
+	config := RateLimitConfig{}.withDefaults()
 
-	require.Equal(t, 1*time.Minute, opts.CleanupInterval)
+	require.Equal(t, 1*time.Minute, config.CleanupInterval)
 }
 
 func TestWithDefaultsFillsMaxIdleTime(t *testing.T) {
 	t.Parallel()
 
-	opts := RateLimitOptions{}.withDefaults()
+	config := RateLimitConfig{}.withDefaults()
 
-	require.Equal(t, 5*time.Minute, opts.MaxIdleTime)
+	require.Equal(t, 5*time.Minute, config.MaxIdleTime)
 }
 
 func TestWithDefaultsPreservesCustomCleanupInterval(t *testing.T) {
 	t.Parallel()
 
-	opts := RateLimitOptions{
+	config := RateLimitConfig{
 		CleanupInterval: 30 * time.Second,
 	}.withDefaults()
 
-	require.Equal(t, 30*time.Second, opts.CleanupInterval)
+	require.Equal(t, 30*time.Second, config.CleanupInterval)
 }
 
 func TestWithDefaultsPreservesCustomMaxIdleTime(t *testing.T) {
 	t.Parallel()
 
-	opts := RateLimitOptions{
+	config := RateLimitConfig{
 		MaxIdleTime: 10 * time.Minute,
 	}.withDefaults()
 
-	require.Equal(t, 10*time.Minute, opts.MaxIdleTime)
+	require.Equal(t, 10*time.Minute, config.MaxIdleTime)
 }
 
 func TestWithDefaultsFillsMaxEntries(t *testing.T) {
 	t.Parallel()
 
-	opts := RateLimitOptions{}.withDefaults()
+	config := RateLimitConfig{}.withDefaults()
 
-	require.Equal(t, 10000, opts.MaxEntries)
+	require.Equal(t, 10000, config.MaxEntries)
 }
 
 func TestWithDefaultsPreservesCustomMaxEntries(t *testing.T) {
 	t.Parallel()
 
-	opts := RateLimitOptions{
+	config := RateLimitConfig{
 		MaxEntries: 500,
 	}.withDefaults()
 
-	require.Equal(t, 500, opts.MaxEntries)
+	require.Equal(t, 500, config.MaxEntries)
 }
 
 func TestRegistryGetReturnsOverflowWhenFull(t *testing.T) {

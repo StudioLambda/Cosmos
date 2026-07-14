@@ -50,11 +50,11 @@ func TestSecureHeadersDefault(t *testing.T) {
 	require.Empty(t, res.Header.Get("Permissions-Policy"))
 }
 
-func TestSecureHeadersWithCustomOptions(t *testing.T) {
+func TestSecureHeadersWithCustomConfig(t *testing.T) {
 	t.Parallel()
 
 	handler := middleware.SecureHeadersWith(
-		middleware.SecureHeadersOptions{
+		middleware.SecureHeadersConfig{
 			ContentTypeOptions: "nosniff",
 			FrameOptions:       "SAMEORIGIN",
 			ReferrerPolicy:     "no-referrer",
@@ -85,11 +85,11 @@ func TestSecureHeadersWithCustomOptions(t *testing.T) {
 	require.Empty(t, res.Header.Get("Strict-Transport-Security"))
 }
 
-func TestSecureHeadersEmptyOptionsSkipsHeaders(t *testing.T) {
+func TestSecureHeadersEmptyConfigSkipsHeaders(t *testing.T) {
 	t.Parallel()
 
 	handler := middleware.SecureHeadersWith(
-		middleware.SecureHeadersOptions{},
+		middleware.SecureHeadersConfig{},
 	)(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
@@ -112,11 +112,11 @@ func TestSecureHeadersEmptyOptionsSkipsHeaders(t *testing.T) {
 	require.Empty(t, res.Header.Get("Permissions-Policy"))
 }
 
-func TestSecureHeadersAllOptions(t *testing.T) {
+func TestSecureHeadersAllConfig(t *testing.T) {
 	t.Parallel()
 
 	handler := middleware.SecureHeadersWith(
-		middleware.SecureHeadersOptions{
+		middleware.SecureHeadersConfig{
 			ContentTypeOptions:      "nosniff",
 			FrameOptions:            "DENY",
 			ReferrerPolicy:          "no-referrer",

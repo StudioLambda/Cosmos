@@ -395,7 +395,7 @@ if err != nil {
 defer broker.Close()
 
 // Or with custom options
-broker, err := event.NewAMQPBrokerWithOptions(&event.AMQPBrokerOptions{
+broker, err := event.NewAMQPBrokerWith(&event.AMQPBrokerConfig{
     URL:      "amqp://guest:guest@localhost:5672/",
     Exchange: "my-events",
 })
@@ -444,7 +444,7 @@ if err != nil {
 defer broker.Close()
 
 // Or with custom options
-broker, err := event.NewMQTTBrokerWith(&event.MQTTBrokerOptions{
+broker, err := event.NewMQTTBrokerWith(&event.MQTTBrokerConfig{
     URLs: []string{
         "mqtt://broker1:1883",
         "mqtt://broker2:1883", // Failover support
@@ -513,7 +513,7 @@ if err != nil {
 defer broker.Close()
 
 // Or with custom options (clustering, auth, TLS)
-broker, err := event.NewNATSBrokerWith(&event.NATSBrokerOptions{
+broker, err := event.NewNATSBrokerWith(&event.NATSBrokerConfig{
     URLs: []string{
         "nats://server1:4222",
         "nats://server2:4222", // Automatic failover

@@ -129,7 +129,7 @@ func TestCacheDriverWithUsesEmptyPrefixWhenDefault(t *testing.T) {
 
 	cache := contract.NewCache(cacheMock)
 	driver := session.NewCacheDriverWith(
-		*cache, session.CacheDriverOptions{},
+		*cache, session.CacheDriverConfig{},
 	)
 	result, err := driver.Get(ctx, "abc123")
 

@@ -37,10 +37,10 @@ func TestBcryptCheckMatchesCorrectPassword(t *testing.T) {
 	require.True(t, ok)
 }
 
-func TestBcryptWithDefaultOptions(t *testing.T) {
+func TestBcryptWithDefaultConfig(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewBcryptWith(hash.BcryptOptions{})
+	hasher := hash.NewBcryptWith(hash.BcryptConfig{})
 
 	hashed, err := hasher.Hash([]byte("hello, world"))
 
@@ -111,7 +111,7 @@ func TestBcryptCheckZerosInputPassword(t *testing.T) {
 func TestBcryptNewBcryptWithCustomCost(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewBcryptWith(hash.BcryptOptions{Cost: 14})
+	hasher := hash.NewBcryptWith(hash.BcryptConfig{Cost: 14})
 
 	hashed, err := hasher.Hash([]byte("hello, world"))
 
@@ -126,8 +126,8 @@ func TestBcryptNewBcryptWithCustomCost(t *testing.T) {
 func TestBcryptNeedsRehashReturnsTrueForDifferentCost(t *testing.T) {
 	t.Parallel()
 
-	hasher12 := hash.NewBcryptWith(hash.BcryptOptions{Cost: 12})
-	hasher14 := hash.NewBcryptWith(hash.BcryptOptions{Cost: 14})
+	hasher12 := hash.NewBcryptWith(hash.BcryptConfig{Cost: 12})
+	hasher14 := hash.NewBcryptWith(hash.BcryptConfig{Cost: 14})
 
 	hashed, err := hasher12.Hash([]byte("hello, world"))
 
@@ -138,7 +138,7 @@ func TestBcryptNeedsRehashReturnsTrueForDifferentCost(t *testing.T) {
 func TestBcryptNeedsRehashReturnsFalseForSameCost(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewBcryptWith(hash.BcryptOptions{Cost: 12})
+	hasher := hash.NewBcryptWith(hash.BcryptConfig{Cost: 12})
 
 	hashed, err := hasher.Hash([]byte("hello, world"))
 

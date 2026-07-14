@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewServerUsesDefaultOptions(t *testing.T) {
+func TestNewServerUsesDefaultConfig(t *testing.T) {
 	t.Parallel()
 
 	mux := http.NewServeMux()
@@ -25,11 +25,11 @@ func TestNewServerUsesDefaultOptions(t *testing.T) {
 	require.Equal(t, 1<<20, server.MaxHeaderBytes)
 }
 
-func TestNewServerWithCustomOptions(t *testing.T) {
+func TestNewServerWithCustomConfig(t *testing.T) {
 	t.Parallel()
 
 	mux := http.NewServeMux()
-	opts := framework.ServerOptions{
+	config := framework.ServerConfig{
 		Addr:              ":3000",
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
@@ -38,7 +38,7 @@ func TestNewServerWithCustomOptions(t *testing.T) {
 		MaxHeaderBytes:    512 << 10,
 	}
 
-	server := framework.NewServerWith(opts, mux)
+	server := framework.NewServerWith(config, mux)
 
 	require.Equal(t, ":3000", server.Addr)
 	require.Equal(t, mux, server.Handler)
@@ -52,11 +52,11 @@ func TestNewServerWithCustomOptions(t *testing.T) {
 func TestWithDefaultsFillsZeroValues(t *testing.T) {
 	t.Parallel()
 
-	opts := framework.ServerOptions{
+	config := framework.ServerConfig{
 		Addr: ":4000",
 	}
 
-	server := framework.NewServerWith(opts, nil)
+	server := framework.NewServerWith(config, nil)
 
 	require.Equal(t, ":4000", server.Addr)
 	require.Equal(t, 10*time.Second, server.ReadHeaderTimeout)
@@ -69,7 +69,7 @@ func TestWithDefaultsFillsZeroValues(t *testing.T) {
 func TestWithDefaultsPreservesNonZeroValues(t *testing.T) {
 	t.Parallel()
 
-	opts := framework.ServerOptions{
+	config := framework.ServerConfig{
 		Addr:              ":5000",
 		ReadHeaderTimeout: 1 * time.Second,
 		ReadTimeout:       2 * time.Second,
@@ -78,7 +78,7 @@ func TestWithDefaultsPreservesNonZeroValues(t *testing.T) {
 		MaxHeaderBytes:    256,
 	}
 
-	server := framework.NewServerWith(opts, nil)
+	server := framework.NewServerWith(config, nil)
 
 	require.Equal(t, 1*time.Second, server.ReadHeaderTimeout)
 	require.Equal(t, 2*time.Second, server.ReadTimeout)
@@ -87,10 +87,10 @@ func TestWithDefaultsPreservesNonZeroValues(t *testing.T) {
 	require.Equal(t, 256, server.MaxHeaderBytes)
 }
 
-func TestDefaultServerOptionsValues(t *testing.T) {
+func TestDefaultServerConfigValues(t *testing.T) {
 	t.Parallel()
 
-	defaults := framework.DefaultServerOptions()
+	defaults := framework.DefaultServerConfig()
 
 	require.Equal(t, ":8080", defaults.Addr)
 	require.Equal(t, 10*time.Second, defaults.ReadHeaderTimeout)
@@ -100,11 +100,11 @@ func TestDefaultServerOptionsValues(t *testing.T) {
 	require.Equal(t, 1<<20, defaults.MaxHeaderBytes)
 }
 
-func TestDefaultServerOptionsReturnsNewCopy(t *testing.T) {
+func TestDefaultServerConfigReturnsNewCopy(t *testing.T) {
 	t.Parallel()
 
-	first := framework.DefaultServerOptions()
-	second := framework.DefaultServerOptions()
+	first := framework.DefaultServerConfig()
+	second := framework.DefaultServerConfig()
 
 	first.Addr = ":9999"
 	first.ReadTimeout = 999 * time.Second

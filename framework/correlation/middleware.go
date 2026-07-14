@@ -24,8 +24,8 @@ const DefaultHeader = "X-Correlation-ID"
 // for distributed tracing.
 type Generator = func() (string, error)
 
-// Options configures the correlation ID middleware.
-type Options struct {
+// MiddlewareConfig configures the correlation ID middleware.
+type MiddlewareConfig struct {
 	// Header is the HTTP header name used to read and write
 	// the correlation ID. Defaults to "X-Correlation-ID".
 	Header string
@@ -56,24 +56,24 @@ type Options struct {
 //
 //	app.Use(correlation.Middleware())
 func Middleware() framework.Middleware {
-	return MiddlewareWith(Options{})
+	return MiddlewareWith(MiddlewareConfig{})
 }
 
 // MiddlewareWith returns correlation ID middleware with custom
-// options. See [Options] for available configuration.
+// configuration. See [MiddlewareConfig] for available configuration.
 //
 // Example usage:
 //
-//	app.Use(correlation.MiddlewareWith(correlation.Options{
+//	app.Use(correlation.MiddlewareWith(correlation.MiddlewareConfig{
 //	    Header: "X-Request-ID",
 //	}))
-func MiddlewareWith(options Options) framework.Middleware {
-	if options.Header == "" {
-		options.Header = DefaultHeader
+func MiddlewareWith(config MiddlewareConfig) framework.Middleware {
+	if config.Header == "" {
+		config.Header = DefaultHeader
 	}
 
-	if options.Generate == nil {
-		options.Generate = generate
+	if config.Generate == nil {
+		config.Generate = generate
 	}
 
 	return func(next framework.Handler) framework.Handler {
@@ -81,7 +81,7 @@ func MiddlewareWith(options Options) framework.Middleware {
 			id := extractTraceID(r)
 
 			if id == "" {
-				candidate := strings.TrimSpace(r.Header.Get(options.Header))
+				candidate := strings.TrimSpace(r.Header.Get(config.Header))
 
 				if isSafeCorrelationID(candidate) {
 					id = candidate
@@ -89,10 +89,10 @@ func MiddlewareWith(options Options) framework.Middleware {
 			}
 
 			if id == "" {
-				id = generateSafeID(options.Generate)
+				id = generateSafeID(config.Generate)
 			}
 
-			w.Header().Set(options.Header, id)
+			w.Header().Set(config.Header, id)
 
 			ctx := context.WithValue(r.Context(), contract.CorrelationIDKey, id)
 

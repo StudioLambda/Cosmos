@@ -68,7 +68,7 @@ func TestRedisBrokerPingCancelledContextReturnsError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	broker := event.NewRedisBroker(&event.RedisBrokerOptions{Addr: "localhost:6379"})
+	broker := event.NewRedisBroker(&event.RedisBrokerConfig{Addr: "localhost:6379"})
 
 	t.Cleanup(func() {
 		require.NoError(t, broker.Close())

@@ -159,7 +159,7 @@ return response.SSE(w, r, eventChan)
 middleware.Recover()
 middleware.Logger(slog.Default())
 middleware.CSRF("https://example.com")
-middleware.CORS(middleware.CORSOptions{})
+middleware.CORS(middleware.CORSConfig{})
 middleware.SecureHeaders()
 middleware.RateLimit()
 middleware.Provide("db", db)
@@ -190,7 +190,7 @@ app.Use(session.Middleware(driver))
 
 ```go
 memDriver := cache.NewMemory(5*time.Minute, 10*time.Minute)
-redisDriver := cache.NewRedis(&cache.RedisOptions{Addr: "localhost:6379"})
+redisDriver := cache.NewRedis(&cache.RedisConfig{Addr: "localhost:6379"})
 
 c := contract.NewCache(memDriver)
 value, err := c.Remember(ctx, "key", time.Minute, computeFn)

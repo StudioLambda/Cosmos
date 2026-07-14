@@ -20,15 +20,15 @@ type RedisBroker struct {
 	wg     sync.WaitGroup
 }
 
-// RedisBrokerOptions is an alias for redis.Options, exposing the
+// RedisBrokerConfig is an alias for redis.Options, exposing the
 // full set of Redis connection parameters without requiring a
 // direct import of the go-redis package.
-type RedisBrokerOptions = redis.Options
+type RedisBrokerConfig = redis.Options
 
 // NewRedisBroker creates a RedisBroker by connecting to Redis
-// with the given options.
-func NewRedisBroker(options *redis.Options) *RedisBroker {
-	client := redis.NewClient(options)
+// with the given configuration.
+func NewRedisBroker(config *RedisBrokerConfig) *RedisBroker {
+	client := redis.NewClient((*redis.Options)(config))
 
 	return NewRedisBrokerFrom(client)
 }

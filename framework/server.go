@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-// ServerOptions configures the HTTP server created by [NewServer].
-// All zero-valued fields default to secure values from [DefaultServerOptions].
-type ServerOptions struct {
+// ServerConfig configures the HTTP server created by [NewServer].
+// All zero-valued fields default to secure values from [DefaultServerConfig].
+type ServerConfig struct {
 	// Addr is the TCP address to listen on (e.g. ":8080").
 	Addr string
 
@@ -33,16 +33,16 @@ type ServerOptions struct {
 	MaxHeaderBytes int
 }
 
-// DefaultServerOptions returns the default server options with secure
+// DefaultServerConfig returns the default server configuration with secure
 // timeout values. Each call returns a fresh copy, preventing
 // accidental mutation of shared defaults.
 //
 // Example:
 //
-//	opts := framework.DefaultServerOptions()
-//	opts.Addr = ":9090"
-func DefaultServerOptions() ServerOptions {
-	return ServerOptions{
+//	config := framework.DefaultServerConfig()
+//	config.Addr = ":9090"
+func DefaultServerConfig() ServerConfig {
+	return ServerConfig{
 		Addr:              ":8080",
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
@@ -52,36 +52,36 @@ func DefaultServerOptions() ServerOptions {
 	}
 }
 
-// withDefaults returns a copy of the options with zero values
-// replaced by the corresponding [DefaultServerOptions] fields.
-func (options ServerOptions) withDefaults() ServerOptions {
-	defaults := DefaultServerOptions()
+// withDefaults returns a copy of the config with zero values
+// replaced by the corresponding [DefaultServerConfig] fields.
+func (config ServerConfig) withDefaults() ServerConfig {
+	defaults := DefaultServerConfig()
 
-	if options.ReadHeaderTimeout == 0 {
-		options.ReadHeaderTimeout = defaults.ReadHeaderTimeout
+	if config.ReadHeaderTimeout == 0 {
+		config.ReadHeaderTimeout = defaults.ReadHeaderTimeout
 	}
 
-	if options.ReadTimeout == 0 {
-		options.ReadTimeout = defaults.ReadTimeout
+	if config.ReadTimeout == 0 {
+		config.ReadTimeout = defaults.ReadTimeout
 	}
 
-	if options.WriteTimeout == 0 {
-		options.WriteTimeout = defaults.WriteTimeout
+	if config.WriteTimeout == 0 {
+		config.WriteTimeout = defaults.WriteTimeout
 	}
 
-	if options.IdleTimeout == 0 {
-		options.IdleTimeout = defaults.IdleTimeout
+	if config.IdleTimeout == 0 {
+		config.IdleTimeout = defaults.IdleTimeout
 	}
 
-	if options.MaxHeaderBytes == 0 {
-		options.MaxHeaderBytes = defaults.MaxHeaderBytes
+	if config.MaxHeaderBytes == 0 {
+		config.MaxHeaderBytes = defaults.MaxHeaderBytes
 	}
 
-	return options
+	return config
 }
 
 // NewServer creates an [http.Server] with secure timeout defaults
-// using the given handler. It applies [DefaultServerOptions]
+// using the given handler. It applies [DefaultServerConfig]
 // values, protecting against Slowloris and connection-exhaustion
 // attacks that are possible when using [http.ListenAndServe]
 // directly (which sets all timeouts to zero/infinite).
@@ -94,30 +94,30 @@ func (options ServerOptions) withDefaults() ServerOptions {
 //		return err
 //	}
 func NewServer(addr string, handler http.Handler) *http.Server {
-	opts := DefaultServerOptions()
-	opts.Addr = addr
+	config := DefaultServerConfig()
+	config.Addr = addr
 
-	return NewServerWith(opts, handler)
+	return NewServerWith(config, handler)
 }
 
 // NewServerWith creates an [http.Server] with the provided
-// options and handler. Zero-valued timeout fields are replaced
-// with their secure defaults from [DefaultServerOptions].
+// configuration and handler. Zero-valued timeout fields are replaced
+// with their secure defaults from [DefaultServerConfig].
 //
 // Example:
 //
-//	server := framework.NewServerWith(framework.ServerOptions{Addr: ":8443"}, app)
+//	server := framework.NewServerWith(framework.ServerConfig{Addr: ":8443"}, app)
 //	_ = server
-func NewServerWith(opts ServerOptions, handler http.Handler) *http.Server {
-	opts = opts.withDefaults()
+func NewServerWith(config ServerConfig, handler http.Handler) *http.Server {
+	config = config.withDefaults()
 
 	return &http.Server{
-		Addr:              opts.Addr,
+		Addr:              config.Addr,
 		Handler:           handler,
-		ReadHeaderTimeout: opts.ReadHeaderTimeout,
-		ReadTimeout:       opts.ReadTimeout,
-		WriteTimeout:      opts.WriteTimeout,
-		IdleTimeout:       opts.IdleTimeout,
-		MaxHeaderBytes:    opts.MaxHeaderBytes,
+		ReadHeaderTimeout: config.ReadHeaderTimeout,
+		ReadTimeout:       config.ReadTimeout,
+		WriteTimeout:      config.WriteTimeout,
+		IdleTimeout:       config.IdleTimeout,
+		MaxHeaderBytes:    config.MaxHeaderBytes,
 	}
 }

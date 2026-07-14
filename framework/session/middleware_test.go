@@ -229,7 +229,7 @@ func TestMiddlewareWithExpirationDeltaExtendsSession(t *testing.T) {
 	)
 
 	handlerWithSessions := session.MiddlewareWith(
-		driver, session.MiddlewareOptions{
+		driver, session.MiddlewareConfig{
 			ExpirationDelta: 10 * time.Minute,
 			TTL:             2 * time.Hour,
 		},
@@ -295,7 +295,7 @@ func TestMiddlewareErrorHandlerCalledOnSaveError(t *testing.T) {
 	)
 
 	handlerWithSessions := session.MiddlewareWith(
-		driver, session.MiddlewareOptions{
+		driver, session.MiddlewareConfig{
 			ErrorHandler: func(err error) {
 				capturedErr = err
 			},
@@ -332,7 +332,7 @@ func TestMiddlewareSessionNotSavedWhenUnchanged(t *testing.T) {
 	)
 
 	handlerWithSessions := session.MiddlewareWith(
-		driver, session.MiddlewareOptions{
+		driver, session.MiddlewareConfig{
 			ExpirationDelta: 1 * time.Minute,
 		},
 	)(handler)
@@ -368,7 +368,7 @@ func TestMiddlewareDoesNotSetCookieWhenSaveFails(t *testing.T) {
 	)
 
 	handlerWithSessions := session.MiddlewareWith(
-		driver, session.MiddlewareOptions{
+		driver, session.MiddlewareConfig{
 			ErrorHandler: func(err error) {
 				capturedErr = err
 			},
@@ -515,7 +515,7 @@ func TestMiddlewareWithDefaultsMaxLifetime(t *testing.T) {
 	// MiddlewareWith with zero MaxLifetime should get DefaultMaxLifetime.
 	// The session was just created, so MaxLifetime (24h) should not trigger.
 	handlerWithSessions := session.MiddlewareWith(
-		driver, session.MiddlewareOptions{},
+		driver, session.MiddlewareConfig{},
 	)(handler)
 
 	req := httptest.NewRequest("GET", "/", nil)
@@ -545,7 +545,7 @@ func TestMiddlewareWithSecureFalseIsRespected(t *testing.T) {
 	)
 
 	handlerWithSessions := session.MiddlewareWith(
-		driver, session.MiddlewareOptions{
+		driver, session.MiddlewareConfig{
 			Secure: false,
 		},
 	)(handler)

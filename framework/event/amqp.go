@@ -37,7 +37,7 @@ type AMQPBroker struct {
 	mu sync.Mutex
 }
 
-// AMQPBrokerOptions configures the creation of a new AMQPBroker,
+// AMQPBrokerConfig configures the creation of a new AMQPBroker,
 // allowing customization of the connection URL and exchange name.
 //
 // WARNING: The URL field typically contains credentials in the
@@ -50,7 +50,7 @@ type AMQPBroker struct {
 //     secret manager rather than hard-coding it.
 //  3. Consider short-lived credentials or external auth
 //     mechanisms where the broker supports them.
-type AMQPBrokerOptions struct {
+type AMQPBrokerConfig struct {
 	// URL is the AMQP connection string in the format:
 	// amqp://username:password@host:port/vhost
 	URL string
@@ -81,17 +81,17 @@ func NewAMQPBroker(url string) (*AMQPBroker, error) {
 }
 
 // NewAMQPBrokerWith creates a new AMQPBroker using the provided
-// options for connection URL and exchange name. If no exchange
-// name is specified in the options, DefaultAMQPExchange is used.
+// configuration for connection URL and exchange name. If no exchange
+// name is specified in the configuration, DefaultAMQPExchange is used.
 // The broker must be closed when no longer needed to release
 // the connection and associated resources.
-func NewAMQPBrokerWith(options *AMQPBrokerOptions) (*AMQPBroker, error) {
-	conn, err := amqp091.Dial(options.URL)
+func NewAMQPBrokerWith(config *AMQPBrokerConfig) (*AMQPBroker, error) {
+	conn, err := amqp091.Dial(config.URL)
 	if err != nil {
 		return nil, err
 	}
 
-	exchange := options.Exchange
+	exchange := config.Exchange
 	if exchange == "" {
 		exchange = DefaultAMQPExchange
 	}

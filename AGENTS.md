@@ -146,7 +146,7 @@ Available in `framework/middleware`:
 - `Recover()` / `RecoverWith(fn)` — panic recovery with error wrapping
 - `Logger(slog.Logger)` — structured request logging (fires AfterResponse)
 - `CSRF(origins...)` / `CSRFWith(csrf, problem)` — cross-origin protection
-- `CORS(CORSOptions)` — configurable CORS headers
+- `CORS(CORSConfig)` — configurable CORS headers
 - `SecureHeaders()` / `SecureHeadersWith(opts)` — security headers (HSTS, CSP, X-Frame-Options)
 - `RateLimit()` / `RateLimitWith(opts)` — per-key token bucket (default 15 req/s, burst 30, idle eviction after 5m)
 - `Provide(key, value)` / `ProvideWith(fn)` — context injection
