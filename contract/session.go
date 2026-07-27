@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"maps"
@@ -180,6 +181,17 @@ func (session *Session) Get[T any](key string) (res T, err error) {
 
 	if value, ok := raw.(T); ok {
 		return value, nil
+	}
+
+	// Session drivers may serialize values before persistence. Re-decode the
+	// stored representation so JSON-compatible values retain their API type.
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return res, fmt.Errorf("%w for key %q: %w", ErrSessionInvalidValueType, key, err)
+	}
+
+	if err := json.Unmarshal(encoded, &res); err == nil {
+		return res, nil
 	}
 
 	return res, fmt.Errorf("%w for key %q", ErrSessionInvalidValueType, key)

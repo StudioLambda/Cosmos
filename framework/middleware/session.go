@@ -56,6 +56,10 @@ type SessionRuntime struct {
 	// ErrorHandler is an optional callback invoked when internal
 	// session operations fail. When nil, errors are silently discarded.
 	ErrorHandler func(error)
+
+	// PersistenceTimeout bounds session storage operations performed before
+	// response headers are written. Zero defaults to five seconds.
+	PersistenceTimeout time.Duration
 }
 
 // DefaultSessionConfig holds the default session middleware
@@ -75,7 +79,8 @@ var DefaultSessionConfig = SessionConfig{
 // DefaultSessionRuntime holds the default runtime settings for the
 // session middleware.
 var DefaultSessionRuntime = SessionRuntime{
-	Key: contract.SessionKey,
+	Key:                contract.SessionKey,
+	PersistenceTimeout: 5 * time.Second,
 }
 
 const (
@@ -173,6 +178,10 @@ func (runtime SessionRuntime) withDefaults() SessionRuntime {
 		runtime.Key = DefaultSessionRuntime.Key
 	}
 
+	if runtime.PersistenceTimeout == 0 {
+		runtime.PersistenceTimeout = DefaultSessionRuntime.PersistenceTimeout
+	}
+
 	return runtime
 }
 
@@ -221,7 +230,11 @@ func SessionWith(driver contract.SessionDriver, config SessionConfig, runtime Se
 
 			hooks := request.Hooks(r)
 			hooks.BeforeWriteHeader(func(w http.ResponseWriter, status int) {
-				saveCtx := context.WithoutCancel(r.Context())
+				saveCtx, cancel := context.WithTimeout(
+					context.WithoutCancel(r.Context()),
+					runtime.PersistenceTimeout,
+				)
+				defer cancel()
 
 				if config.MaxLifetime > 0 {
 					age := time.Since(session.CreatedAt())

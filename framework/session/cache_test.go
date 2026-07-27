@@ -41,6 +41,24 @@ func TestCacheDriverGetReturnsSession(t *testing.T) {
 	_ = sess // reference to avoid unused
 }
 
+func TestCacheDriverGetRestoresNumericSessionValue(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	cacheMock := mock.NewCacheDriverMock(t)
+	cacheMock.On(
+		"Get", tmock.Anything, "cosmos:sessions:abc123",
+	).Return([]byte(`{"id":"abc123","created_at":"2025-01-01T00:00:00Z","expires_at":"2025-01-01T01:00:00Z","storage":{"user_id":42}}`), nil).Once()
+
+	driver := session.NewCacheDriver(contract.NewCache(cacheMock), session.DefaultCacheDriverConfig)
+	result, err := driver.Get(ctx, "abc123")
+
+	require.NoError(t, err)
+	userID, err := result.Get[int]("user_id")
+	require.NoError(t, err)
+	require.Equal(t, 42, userID)
+}
+
 func TestCacheDriverGetReturnsErrorWhenCacheFails(t *testing.T) {
 	t.Parallel()
 

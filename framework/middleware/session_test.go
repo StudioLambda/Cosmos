@@ -1,6 +1,7 @@
 package middleware_test
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -557,4 +558,40 @@ func TestMiddlewareWithSecureFalseIsRespected(t *testing.T) {
 
 	require.Len(t, cookies, 1)
 	require.False(t, cookies[0].Secure)
+}
+
+func TestMiddlewareBoundsSessionPersistence(t *testing.T) {
+	t.Parallel()
+
+	driver := &blockingSessionDriver{}
+	handler := sessionmiddleware.SessionWith(driver, sessionmiddleware.DefaultSessionConfig, sessionmiddleware.SessionRuntime{
+		PersistenceTimeout: 10 * time.Millisecond,
+	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
+		return nil
+	}))
+
+	started := time.Now()
+	_ = handler.Record(httptest.NewRequest(http.MethodGet, "/", nil))
+
+	require.Less(t, time.Since(started), time.Second)
+	require.True(t, driver.saveContextCancelled)
+}
+
+type blockingSessionDriver struct {
+	saveContextCancelled bool
+}
+
+func (driver *blockingSessionDriver) Get(context.Context, string) (*contract.Session, error) {
+	return nil, contract.ErrSessionKeyNotFound
+}
+
+func (driver *blockingSessionDriver) Save(ctx context.Context, session *contract.Session, ttl time.Duration) error {
+	<-ctx.Done()
+	driver.saveContextCancelled = true
+
+	return ctx.Err()
+}
+
+func (driver *blockingSessionDriver) Delete(context.Context, string) error {
+	return nil
 }
