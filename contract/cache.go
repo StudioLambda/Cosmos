@@ -54,6 +54,16 @@ type CacheDriver interface {
 	Ping(ctx context.Context) error
 }
 
+// CacheCounterWithTTL is an optional cache-driver capability for atomically
+// incrementing a counter while ensuring it has an expiration. It is useful for
+// fixed-window rate limiting, where separating counter creation from increment
+// can otherwise recreate an expired counter without a TTL.
+type CacheCounterWithTTL interface {
+	// IncrementWithTTL atomically increments key and ensures it expires after
+	// ttl. It returns the new counter value and remaining TTL.
+	IncrementWithTTL(ctx context.Context, key string, delta int64, ttl time.Duration) (int64, time.Duration, error)
+}
+
 // Cache provides a type-safe caching layer over a [CacheDriver].
 // It handles JSON serialization and offers convenience methods such
 // as Pull, Forever, Remember, and atomic counters.

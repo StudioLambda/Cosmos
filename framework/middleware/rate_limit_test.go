@@ -158,6 +158,30 @@ func TestRateLimitPropagatesCacheErrors(t *testing.T) {
 	require.Equal(t, errBrokenCache, err)
 }
 
+func TestRateLimitUsesAtomicCounterWithTTL(t *testing.T) {
+	t.Parallel()
+
+	driver := &atomicCounterCacheDriver{}
+	store := contract.NewCache(driver)
+	handler := middleware.RateLimitWith(store, middleware.RateLimitConfig{
+		Limit:  1,
+		Window: time.Minute,
+	}, func(*http.Request) (string, bool) {
+		return "caller-a", true
+	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
+		w.WriteHeader(http.StatusOK)
+
+		return nil
+	}))
+
+	res := handler.Record(httptest.NewRequest(http.MethodGet, "/", nil))
+
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Equal(t, 1, driver.incrementWithTTLCalls)
+	require.Zero(t, driver.addCalls)
+	require.Equal(t, time.Minute, driver.ttl)
+}
+
 type brokenCacheDriver struct{}
 
 var errBrokenCache = problem.Problem{Title: "broken cache", Status: http.StatusInternalServerError}
@@ -181,3 +205,23 @@ func (brokenCacheDriver) TTL(_ context.Context, _ string) (time.Duration, error)
 	return 0, errBrokenCache
 }
 func (brokenCacheDriver) Ping(_ context.Context) error { return errBrokenCache }
+
+type atomicCounterCacheDriver struct {
+	brokenCacheDriver
+	incrementWithTTLCalls int
+	addCalls              int
+	ttl                   time.Duration
+}
+
+func (driver *atomicCounterCacheDriver) Add(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error) {
+	driver.addCalls++
+
+	return driver.brokenCacheDriver.Add(ctx, key, value, ttl)
+}
+
+func (driver *atomicCounterCacheDriver) IncrementWithTTL(_ context.Context, _ string, _ int64, ttl time.Duration) (int64, time.Duration, error) {
+	driver.incrementWithTTLCalls++
+	driver.ttl = ttl
+
+	return 1, ttl, nil
+}

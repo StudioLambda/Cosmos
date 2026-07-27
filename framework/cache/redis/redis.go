@@ -4,6 +4,7 @@ package redis
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/studiolambda/cosmos/contract"
@@ -119,6 +120,31 @@ func (client *RedisClient) Add(ctx context.Context, key string, value []byte, tt
 // does not exist before incrementing.
 func (client *RedisClient) Increment(ctx context.Context, key string, delta int64) (int64, error) {
 	return (*redis.Client)(client).IncrBy(ctx, key, delta).Result()
+}
+
+// IncrementWithTTL atomically increments key and ensures it expires after ttl.
+// A counter recreated after expiry receives a new expiration in the same Redis
+// operation, preventing permanent rate-limit entries.
+func (client *RedisClient) IncrementWithTTL(ctx context.Context, key string, delta int64, ttl time.Duration) (int64, time.Duration, error) {
+	if ttl <= 0 {
+		return 0, 0, fmt.Errorf("redis: counter TTL must be positive")
+	}
+
+	result, err := (*redis.Client)(client).Eval(ctx, `
+local remaining = redis.call('PTTL', KEYS[1])
+if remaining < 0 then
+  redis.call('SET', KEYS[1], '0', 'PX', ARGV[1])
+end
+local count = redis.call('INCRBY', KEYS[1], ARGV[2])
+remaining = redis.call('PTTL', KEYS[1])
+return {count, remaining}
+`, []string{key}, ttl.Milliseconds(), delta).Int64Slice()
+
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return result[0], time.Duration(result[1]) * time.Millisecond, nil
 }
 
 // Decrement atomically decreases the integer value stored at key by

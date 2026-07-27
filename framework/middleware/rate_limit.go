@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -176,6 +175,15 @@ func takeFixedWindow(
 	limit int,
 	window time.Duration,
 ) (rateLimitDecision, error) {
+	if counter, ok := cache.Driver().(contract.CacheCounterWithTTL); ok {
+		count, ttl, err := counter.IncrementWithTTL(ctx, key, 1, window)
+		if err != nil {
+			return rateLimitDecision{}, err
+		}
+
+		return buildDecision(count, limit, ttl), nil
+	}
+
 	added, err := cache.Add(ctx, key, int64(0), window)
 	if err != nil {
 		return rateLimitDecision{}, err
@@ -183,26 +191,20 @@ func takeFixedWindow(
 
 	if added {
 		count, err := cache.Increment(ctx, key, 1)
-		if err == nil {
-			ttl, err := cache.TTL(ctx, key)
-			if err != nil {
-				return rateLimitDecision{}, err
-			}
-
-			return buildDecision(count, limit, ttl), nil
-		}
-
-		if !errors.Is(err, contract.ErrCacheKeyNotFound) {
+		if err != nil {
 			return rateLimitDecision{}, err
 		}
+
+		ttl, err := cache.TTL(ctx, key)
+		if err != nil {
+			return rateLimitDecision{}, err
+		}
+
+		return buildDecision(count, limit, ttl), nil
 	}
 
 	count, err := cache.Increment(ctx, key, 1)
 	if err != nil {
-		if errors.Is(err, contract.ErrCacheKeyNotFound) {
-			return takeFixedWindow(ctx, cache, key, limit, window)
-		}
-
 		return rateLimitDecision{}, err
 	}
 
