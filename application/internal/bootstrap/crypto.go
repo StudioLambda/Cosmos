@@ -1,13 +1,20 @@
 package bootstrap
 
 import (
-	"github.com/studiolambda/cosmos/contract"
+	"errors"
+	"os"
+
 	"github.com/studiolambda/cosmos/framework/crypto/aes"
 )
 
-// NewCrypto creates an AES-GCM encrypter from crypto.aes configuration.
-func NewCrypto(configuration *contract.Configuration) (contract.Encrypter, error) {
-	config := aes.ConfigFrom(configuration, "crypto.aes")
+const cryptoAESKeyEnvironment = "COSMOS_CRYPTO_AES_KEY"
 
-	return aes.NewAES(config)
+// NewCrypto creates an AES-GCM encrypter from crypto.aes configuration.
+func NewCrypto() (*aes.AES, error) {
+	key, ok := os.LookupEnv(cryptoAESKeyEnvironment)
+	if !ok || key == "" {
+		return nil, errors.New("COSMOS_CRYPTO_AES_KEY must be configured")
+	}
+
+	return aes.NewAES(aes.AESConfig{Key: []byte(key)})
 }
