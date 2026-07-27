@@ -58,21 +58,36 @@ func ParseAccept(request *http.Request) Accept {
 //
 // The second return value is true when found, and false otherwise.
 func (accept Accept) find(media string) (acceptPair, bool) {
+	var matched acceptPair
+	found := false
+
 	for _, pair := range accept.values {
 		if media == pair.media {
-			return pair, true
+			if !found || pair.quality > matched.quality {
+				matched, found = pair, true
+			}
+
+			continue
 		}
 
 		// Full wildcard matches anything.
 		if media == "*/*" || pair.media == "*/*" {
-			return pair, true
+			if !found || pair.quality > matched.quality {
+				matched, found = pair, true
+			}
+
+			continue
 		}
 
 		// Test for wildcard in media type
 		if strings.Contains(media, "/*") {
 			// Compare only the first part, ensuring the "/" boundary.
 			if trimmed, ok := strings.CutSuffix(media, "/*"); ok && strings.HasPrefix(pair.media, trimmed+"/") {
-				return pair, true
+				if !found || pair.quality > matched.quality {
+					matched, found = pair, true
+				}
+
+				continue
 			}
 		}
 
@@ -80,12 +95,14 @@ func (accept Accept) find(media string) (acceptPair, bool) {
 		if strings.Contains(pair.media, "/*") {
 			// Compare only the first part, ensuring the "/" boundary.
 			if trimmed, ok := strings.CutSuffix(pair.media, "/*"); ok && strings.HasPrefix(media, trimmed+"/") {
-				return pair, true
+				if !found || pair.quality > matched.quality {
+					matched, found = pair, true
+				}
 			}
 		}
 	}
 
-	return acceptPair{}, false
+	return matched, found
 }
 
 // Accepts reports whether the given media

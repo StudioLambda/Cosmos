@@ -995,6 +995,36 @@ func TestServeHTTPJSONPreferredOverProblemJSON(t *testing.T) {
 	}
 }
 
+func TestServeHTTPDoesNotServeExcludedJSON(t *testing.T) {
+	t.Parallel()
+
+	p := problem.Problem{Status: http.StatusBadRequest, Title: "Bad Request"}
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Accept", "application/json;q=0, application/problem+json;q=0")
+	rec := httptest.NewRecorder()
+
+	p.ServeHTTP(rec, req)
+
+	if rec.Header().Get("Content-Type") == "application/json" || rec.Header().Get("Content-Type") == "application/problem+json" {
+		t.Fatal("served an explicitly excluded JSON representation")
+	}
+}
+
+func TestServeHTTPServesJSONForApplicationWildcard(t *testing.T) {
+	t.Parallel()
+
+	p := problem.Problem{Status: http.StatusBadRequest, Title: "Bad Request"}
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Accept", "application/*")
+	rec := httptest.NewRecorder()
+
+	p.ServeHTTP(rec, req)
+
+	if rec.Header().Get("Content-Type") != "application/json" {
+		t.Fatalf("expected application/json, got %q", rec.Header().Get("Content-Type"))
+	}
+}
+
 func TestMarshalJSONEmpty(t *testing.T) {
 	t.Parallel()
 

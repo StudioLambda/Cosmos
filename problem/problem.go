@@ -401,25 +401,22 @@ func (problem Problem) ServeHTTPDev(w http.ResponseWriter, r *http.Request) {
 //	problem.Problem{Status: http.StatusNotFound, Title: "Not Found"}.ServeHTTP(w, r)
 func (problem Problem) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	problem = problem.Defaulted(r)
-	responses := map[string]http.Handler{
-		"application/problem+json": http.HandlerFunc(problem.jsonProblemHandler),
-		"application/json":         http.HandlerFunc(problem.jsonHandler),
+	accept := internal.ParseAccept(r)
+
+	problemQuality := accept.Quality("application/problem+json")
+	jsonQuality := accept.Quality("application/json")
+
+	if jsonQuality > 0 && jsonQuality >= problemQuality {
+		problem.jsonHandler(w, r)
+		return
 	}
 
-	for _, media := range internal.ParseAccept(r).Order() {
-		if response, ok := responses[media]; ok {
-			response.ServeHTTP(w, r)
-			return
-		}
-
-		// When */* is accepted, prefer application/json as the default format.
-		if media == "*/*" {
-			responses["application/json"].ServeHTTP(w, r)
-			return
-		}
+	if problemQuality > 0 {
+		problem.jsonProblemHandler(w, r)
+		return
 	}
 
-	http.HandlerFunc(problem.textHandler).ServeHTTP(w, r)
+	problem.textHandler(w, r)
 }
 
 // HTTPStatus returns the HTTP status code of the problem.
