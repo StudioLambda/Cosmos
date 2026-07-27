@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -42,17 +41,21 @@ func run() error {
 	router := bootstrap.NewHTTPRouter(configuration, logger)
 	server := bootstrap.NewHTTPServer(configuration, router)
 
-	wg := sync.WaitGroup{}
+	serverErrors := make(chan error, 1)
 
-	wg.Go(func() {
+	go func() {
 		logger.Driver().InfoContext(ctx, "started http server", "addr", "http://"+server.Addr)
 
 		if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-			logger.Driver().ErrorContext(ctx, "failed to listen http server", "err", err)
+			serverErrors <- err
 		}
-	})
+	}()
 
-	<-ctx.Done()
+	select {
+	case err := <-serverErrors:
+		return fmt.Errorf("listen http server: %w", err)
+	case <-ctx.Done():
+	}
 
 	fmt.Fprint(os.Stdout, "\r")
 	logger.Driver().InfoContext(ctx, "shutting down...")
