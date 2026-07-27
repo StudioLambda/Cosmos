@@ -52,6 +52,16 @@ func TestNewServerWithCustomConfig(t *testing.T) {
 	require.Equal(t, 512<<10, server.MaxHeaderBytes)
 }
 
+func TestNewServerDisablesWriteTimeoutWhenConfiguredNegative(t *testing.T) {
+	t.Parallel()
+
+	server := framework.NewServer(framework.ServerConfig{
+		WriteTimeout: -time.Second,
+	}, nil)
+
+	require.Zero(t, server.WriteTimeout)
+}
+
 func TestWithDefaultsFillsZeroValues(t *testing.T) {
 	t.Parallel()
 

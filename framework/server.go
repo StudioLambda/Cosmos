@@ -30,7 +30,8 @@ type ServerConfig struct {
 	ReadTimeout time.Duration
 
 	// WriteTimeout limits the time for writing the response.
-	// Defaults to 60s.
+	// Defaults to 60s. Set a negative value to disable the deadline for
+	// long-lived streaming responses.
 	WriteTimeout time.Duration
 
 	// IdleTimeout limits the keep-alive idle time between
@@ -98,6 +99,10 @@ func (config ServerConfig) withDefaults() ServerConfig {
 
 	if config.WriteTimeout == 0 {
 		config.WriteTimeout = defaults.WriteTimeout
+	}
+
+	if config.WriteTimeout < 0 {
+		config.WriteTimeout = 0
 	}
 
 	if config.IdleTimeout == 0 {
