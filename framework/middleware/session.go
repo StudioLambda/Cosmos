@@ -24,8 +24,14 @@ type SessionConfig struct {
 	// Domain restricts the cookie to the given domain.
 	Domain string
 
-	// Secure marks the cookie for HTTPS-only transmission.
+	// Secure marks the cookie for HTTPS-only transmission. It is derived from
+	// AllowInsecure during defaulting; cookies are secure unless explicitly
+	// opted out of below.
 	Secure bool
+
+	// AllowInsecure explicitly permits cookies over HTTP. This is intended only
+	// for local development; production deployments should leave it false.
+	AllowInsecure bool
 
 	// SameSite controls cross-site cookie behaviour. Supported values
 	// are "lax", "strict", "none", and "default".
@@ -169,6 +175,8 @@ func (config SessionConfig) withDefaults() SessionConfig {
 	if config.MaxLifetime == 0 {
 		config.MaxLifetime = DefaultSessionMaxLifetime
 	}
+
+	config.Secure = !config.AllowInsecure
 
 	return config
 }

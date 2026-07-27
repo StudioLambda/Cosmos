@@ -531,7 +531,7 @@ func TestMiddlewareWithDefaultsMaxLifetime(t *testing.T) {
 	require.Equal(t, sessionmiddleware.DefaultSessionMaxLifetime, 24*time.Hour)
 }
 
-func TestMiddlewareWithSecureFalseIsRespected(t *testing.T) {
+func TestMiddlewareWithAllowInsecureDisablesSecureCookie(t *testing.T) {
 	t.Parallel()
 
 	driver := mock.NewSessionDriverMock(t)
@@ -547,7 +547,7 @@ func TestMiddlewareWithSecureFalseIsRespected(t *testing.T) {
 
 	handlerWithSessions := sessionmiddleware.Session(
 		driver, sessionmiddleware.SessionConfig{
-			Secure: false,
+			AllowInsecure: true,
 		},
 	)(handler)
 
@@ -558,6 +558,23 @@ func TestMiddlewareWithSecureFalseIsRespected(t *testing.T) {
 
 	require.Len(t, cookies, 1)
 	require.False(t, cookies[0].Secure)
+}
+
+func TestMiddlewarePartialConfigKeepsSecureCookie(t *testing.T) {
+	t.Parallel()
+
+	driver := mock.NewSessionDriverMock(t)
+	driver.On("Save", tmock.Anything, tmock.Anything, tmock.Anything).Return(nil).Once()
+	handler := sessionmiddleware.Session(driver, sessionmiddleware.SessionConfig{
+		TTL: time.Hour,
+	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
+		return nil
+	}))
+
+	res := handler.Record(httptest.NewRequest(http.MethodGet, "/", nil))
+
+	require.Len(t, res.Cookies(), 1)
+	require.True(t, res.Cookies()[0].Secure)
 }
 
 func TestMiddlewareBoundsSessionPersistence(t *testing.T) {
