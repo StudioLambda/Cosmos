@@ -38,12 +38,12 @@ func TestMatchEventStarDoesNotMatchMultipleTokens(t *testing.T) {
 	require.False(t, result)
 }
 
-func TestMatchEventHashMatchesZeroTokens(t *testing.T) {
+func TestMatchEventHashDoesNotMatchZeroTokens(t *testing.T) {
 	t.Parallel()
 
 	result := matchEvent("logs.#", "logs")
 
-	require.True(t, result)
+	require.False(t, result)
 }
 
 func TestMatchEventHashMatchesOneToken(t *testing.T) {
@@ -116,28 +116,4 @@ func TestMatchEventNoWildcardsDifferentValues(t *testing.T) {
 	result := matchEvent("a.b.c", "a.b.d")
 
 	require.False(t, result)
-}
-
-func TestMatchEventPartsBothEmptySlices(t *testing.T) {
-	t.Parallel()
-
-	result := matchEventParts([]string{}, []string{})
-
-	require.True(t, result)
-}
-
-func TestMatchEventPartsEmptyPatternNonEmptyEvent(t *testing.T) {
-	t.Parallel()
-
-	result := matchEventParts([]string{}, []string{"a"})
-
-	require.False(t, result)
-}
-
-func TestMatchEventPartsHashPatternEmptyEvent(t *testing.T) {
-	t.Parallel()
-
-	result := matchEventParts([]string{"#"}, []string{})
-
-	require.True(t, result)
 }

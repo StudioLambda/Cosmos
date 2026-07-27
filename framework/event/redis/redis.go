@@ -112,6 +112,10 @@ func (broker *RedisBroker) Subscribe(
 		defer broker.wg.Done()
 
 		for message := range sub.Channel() {
+			if !core.Match(event, message.Channel) {
+				continue
+			}
+
 			func() {
 				defer func() {
 					if r := recover(); r != nil {

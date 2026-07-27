@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log/slog"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -100,13 +99,15 @@ func (broker *MemoryBroker) Publish(
 	broker.mu.RUnlock()
 
 	broker.lifecycle.Lock()
-	defer broker.lifecycle.Unlock()
 
 	if broker.closed.Load() {
+		broker.lifecycle.Unlock()
+
 		return ErrBrokerClosed
 	}
 
 	broker.wg.Add(len(matched))
+	broker.lifecycle.Unlock()
 
 	for _, handler := range matched {
 		broker.sem <- struct{}{}
@@ -215,33 +216,5 @@ func (broker *MemoryBroker) deliverToHandler(
 
 // matchEvent checks if a subscription pattern matches an event name.
 func matchEvent(pattern, event string) bool {
-	if pattern == event {
-		return true
-	}
-
-	patternParts := strings.Split(pattern, ".")
-	eventParts := strings.Split(event, ".")
-
-	return matchEventParts(patternParts, eventParts)
-}
-
-// matchEventParts recursively matches event parts against pattern parts.
-func matchEventParts(pattern, event []string) bool {
-	if len(pattern) == 0 {
-		return len(event) == 0
-	}
-
-	if len(event) == 0 {
-		return pattern[0] == "#"
-	}
-
-	if pattern[0] == "#" {
-		return true
-	}
-
-	if pattern[0] == "*" || pattern[0] == event[0] {
-		return matchEventParts(pattern[1:], event[1:])
-	}
-
-	return false
+	return core.Match(pattern, event)
 }
