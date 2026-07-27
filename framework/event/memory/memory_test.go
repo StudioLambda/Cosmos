@@ -455,6 +455,35 @@ func TestMemoryBrokerCloseWaitsForInFlightDeliveries(t *testing.T) {
 	require.True(t, completed.Load())
 }
 
+func TestMemoryBrokerCloseRejectsDeliveryAdmittedAfterShutdown(t *testing.T) {
+	t.Parallel()
+
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	completed := make(chan error, 1)
+
+	_, err := broker.Subscribe(context.Background(), "test.event", func([]byte) {
+		close(started)
+		<-release
+	})
+	require.NoError(t, err)
+	require.NoError(t, broker.Publish(context.Background(), "test.event", nil))
+
+	<-started
+
+	go func() {
+		completed <- broker.Close()
+	}()
+
+	require.Eventually(t, func() bool {
+		return broker.Publish(context.Background(), "test.event", nil) == event.ErrBrokerClosed
+	}, time.Second, time.Millisecond)
+
+	close(release)
+	require.NoError(t, <-completed)
+}
+
 func TestMemoryBrokerCloseClearsHandlers(t *testing.T) {
 	t.Parallel()
 

@@ -182,6 +182,27 @@ func TestMQTTBrokerRouteDeliversToMatchingHandler(t *testing.T) {
 	require.True(t, called.Load())
 }
 
+func TestMQTTBrokerRouteSkipsDeliveriesAfterCloseBegins(t *testing.T) {
+	t.Parallel()
+
+	var called atomic.Bool
+	broker := newTestMQTTBroker(map[string]map[string]contract.EventHandler{
+		"user/created": {
+			"1": func([]byte) {
+				called.Store(true)
+			},
+		},
+	})
+
+	broker.lifecycle.Lock()
+	broker.closed = true
+	broker.lifecycle.Unlock()
+	broker.route(&paho.Publish{Topic: "user/created"})
+	broker.routeWg.Wait()
+
+	require.False(t, called.Load())
+}
+
 func TestMQTTBrokerRouteDeliversToWildcardHandler(t *testing.T) {
 	t.Parallel()
 

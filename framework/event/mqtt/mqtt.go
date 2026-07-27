@@ -37,6 +37,11 @@ const defaultMaxConcurrentDeliveries = 1024
 // converted to MQTT '+' (single-level), and '#' matches multiple levels
 // (must be the last token).
 type MQTTBroker struct {
+	// lifecycle serializes route admission with Close so no WaitGroup work is
+	// added after shutdown begins waiting.
+	lifecycle sync.Mutex
+	closed    bool
+
 	// client is the autopaho connection manager with auto-reconnection.
 	client *autopaho.ConnectionManager
 
@@ -302,8 +307,17 @@ func (broker *MQTTBroker) route(pb *paho.Publish) {
 
 	broker.mu.RUnlock()
 
+	broker.lifecycle.Lock()
+	if broker.closed {
+		broker.lifecycle.Unlock()
+
+		return
+	}
+
+	broker.routeWg.Add(len(matched))
+	broker.lifecycle.Unlock()
+
 	for _, handler := range matched {
-		broker.routeWg.Add(1)
 		broker.sem <- struct{}{}
 
 		go func(h contract.EventHandler) {
@@ -492,6 +506,10 @@ func (broker *MQTTBroker) Ping(ctx context.Context) error {
 // complete before disconnecting. This will terminate all active
 // subscriptions and close the underlying connection.
 func (broker *MQTTBroker) Close() error {
+	broker.lifecycle.Lock()
+	broker.closed = true
+	broker.lifecycle.Unlock()
+
 	broker.routeWg.Wait()
 
 	return broker.client.Disconnect(context.Background())

@@ -47,12 +47,15 @@ func ConfigFrom(configuration *contract.Configuration, prefix string) MemoryBrok
 // Wildcard patterns: '*' matches a single dot-separated token,
 // '#' matches zero or more tokens (must be the last token in the pattern).
 type MemoryBroker struct {
-	mu       sync.RWMutex
-	handlers map[string]map[string]contract.EventHandler
-	nextID   atomic.Uint64
-	closed   atomic.Bool
-	sem      chan struct{}
-	wg       sync.WaitGroup
+	// lifecycle serializes delivery admission with Close so no WaitGroup work
+	// is added after shutdown begins waiting.
+	lifecycle sync.Mutex
+	mu        sync.RWMutex
+	handlers  map[string]map[string]contract.EventHandler
+	nextID    atomic.Uint64
+	closed    atomic.Bool
+	sem       chan struct{}
+	wg        sync.WaitGroup
 }
 
 // NewMemoryBroker creates a new in-memory event broker.
@@ -74,10 +77,6 @@ func (broker *MemoryBroker) Publish(
 	event string,
 	payload []byte,
 ) error {
-	if broker.closed.Load() {
-		return ErrBrokerClosed
-	}
-
 	if err := core.Validate(event); err != nil {
 		return err
 	}
@@ -100,8 +99,16 @@ func (broker *MemoryBroker) Publish(
 
 	broker.mu.RUnlock()
 
+	broker.lifecycle.Lock()
+	defer broker.lifecycle.Unlock()
+
+	if broker.closed.Load() {
+		return ErrBrokerClosed
+	}
+
+	broker.wg.Add(len(matched))
+
 	for _, handler := range matched {
-		broker.wg.Add(1)
 		broker.sem <- struct{}{}
 
 		go func() {
@@ -174,7 +181,9 @@ func (broker *MemoryBroker) Ping(ctx context.Context) error {
 
 // Close shuts down the broker and waits for in-flight deliveries.
 func (broker *MemoryBroker) Close() error {
+	broker.lifecycle.Lock()
 	broker.closed.Store(true)
+	broker.lifecycle.Unlock()
 
 	broker.wg.Wait()
 
