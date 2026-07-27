@@ -194,7 +194,7 @@ Cosmos includes security hardening across all modules:
 
 - **CORS** — Configurable cross-origin resource sharing middleware
 - **CSRF** — Cross-site request forgery protection via Go's `http.CrossOriginProtection`
-- **Rate Limiting** — Per-key token bucket rate limiting middleware
+- **Rate Limiting** — Per-key fixed-window rate limiting middleware backed by cache
 - **Secure Headers** — X-Content-Type-Options, X-Frame-Options, HSTS, Referrer-Policy, CSP
 - **Server Timeouts** — Secure defaults preventing Slowloris and connection exhaustion
 - **Session Security** — Cryptographically random IDs (256-bit), absolute lifetime enforcement, session ID validation, secure cookie defaults

@@ -122,3 +122,51 @@ func TestCacheForever(t *testing.T) {
 	err := c.Forever(ctx, "mykey", val)
 	require.NoError(t, err)
 }
+
+func TestCacheIncrement(t *testing.T) {
+	t.Parallel()
+
+	m := new(cmock.CacheDriverMock)
+	c := contract.NewCache(m)
+
+	ctx := context.Background()
+
+	m.EXPECT().Increment(ctx, "mykey", int64(2)).Return(int64(7), nil)
+
+	result, err := c.Increment(ctx, "mykey", 2)
+	require.NoError(t, err)
+	require.Equal(t, int64(7), result)
+}
+
+func TestCacheAdd(t *testing.T) {
+	t.Parallel()
+
+	m := new(cmock.CacheDriverMock)
+	c := contract.NewCache(m)
+
+	ctx := context.Background()
+	ttl := time.Minute
+	val := map[string]string{"foo": "bar"}
+	raw, _ := json.Marshal(val)
+
+	m.EXPECT().Add(ctx, "mykey", raw, ttl).Return(true, nil)
+
+	added, err := c.Add(ctx, "mykey", val, ttl)
+	require.NoError(t, err)
+	require.True(t, added)
+}
+
+func TestCacheDecrement(t *testing.T) {
+	t.Parallel()
+
+	m := new(cmock.CacheDriverMock)
+	c := contract.NewCache(m)
+
+	ctx := context.Background()
+
+	m.EXPECT().Decrement(ctx, "mykey", int64(2)).Return(int64(3), nil)
+
+	result, err := c.Decrement(ctx, "mykey", 2)
+	require.NoError(t, err)
+	require.Equal(t, int64(3), result)
+}

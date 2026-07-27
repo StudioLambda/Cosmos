@@ -24,11 +24,11 @@ func TestCacheDriverGetReturnsSession(t *testing.T) {
 
 	// The CacheDriver stores JSON; simulate what Save would have stored.
 	cacheMock.On(
-		"Get", tmock.Anything, "cosmos.sessions.abc123",
+		"Get", tmock.Anything, "cosmos:sessions:abc123",
 	).Return([]byte(`{"id":"abc123","created_at":"2025-01-01T00:00:00Z","expires_at":"2025-01-01T01:00:00Z","storage":{"user":"test"}}`), nil).Once()
 
 	cache := contract.NewCache(cacheMock)
-	driver := session.NewCacheDriver(*cache)
+	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig)
 	result, err := driver.Get(ctx, "abc123")
 
 	require.NoError(t, err)
@@ -49,11 +49,11 @@ func TestCacheDriverGetReturnsErrorWhenCacheFails(t *testing.T) {
 	cacheErr := errors.New("cache failure")
 
 	cacheMock.On(
-		"Get", tmock.Anything, "cosmos.sessions.abc123",
+		"Get", tmock.Anything, "cosmos:sessions:abc123",
 	).Return([]byte(nil), cacheErr).Once()
 
 	cache := contract.NewCache(cacheMock)
-	driver := session.NewCacheDriver(*cache)
+	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig)
 	_, err := driver.Get(ctx, "abc123")
 
 	require.ErrorIs(t, err, cacheErr)
@@ -66,11 +66,11 @@ func TestCacheDriverGetReturnsErrorForInvalidJSON(t *testing.T) {
 	cacheMock := mock.NewCacheDriverMock(t)
 
 	cacheMock.On(
-		"Get", tmock.Anything, "cosmos.sessions.abc123",
+		"Get", tmock.Anything, "cosmos:sessions:abc123",
 	).Return([]byte("not-json"), nil).Once()
 
 	cache := contract.NewCache(cacheMock)
-	driver := session.NewCacheDriver(*cache)
+	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig)
 	_, err := driver.Get(ctx, "abc123")
 
 	require.Error(t, err)
@@ -88,13 +88,13 @@ func TestCacheDriverSavePersistsSession(t *testing.T) {
 	cacheMock.On(
 		"Put",
 		tmock.Anything,
-		"cosmos.sessions.session-id-123",
+		"cosmos:sessions:session-id-123",
 		tmock.AnythingOfType("[]uint8"),
 		ttl,
 	).Return(nil).Once()
 
 	cache := contract.NewCache(cacheMock)
-	driver := session.NewCacheDriver(*cache)
+	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig)
 	err := driver.Save(ctx, sess, ttl)
 
 	require.NoError(t, err)
@@ -107,30 +107,28 @@ func TestCacheDriverDeleteRemovesSession(t *testing.T) {
 	cacheMock := mock.NewCacheDriverMock(t)
 
 	cacheMock.On(
-		"Delete", tmock.Anything, "cosmos.sessions.abc123",
+		"Delete", tmock.Anything, "cosmos:sessions:abc123",
 	).Return(nil).Once()
 
 	cache := contract.NewCache(cacheMock)
-	driver := session.NewCacheDriver(*cache)
+	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig)
 	err := driver.Delete(ctx, "abc123")
 
 	require.NoError(t, err)
 }
 
-func TestCacheDriverWithUsesEmptyPrefixWhenDefault(t *testing.T) {
+func TestCacheDriverUsesDefaultPrefixWhenConfigPrefixEmpty(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
 	cacheMock := mock.NewCacheDriverMock(t)
 
 	cacheMock.On(
-		"Get", tmock.Anything, ".abc123",
+		"Get", tmock.Anything, "cosmos:sessions:abc123",
 	).Return([]byte(`{"id":"abc123","created_at":"2025-01-01T00:00:00Z","expires_at":"2025-01-01T01:00:00Z","storage":{}}`), nil).Once()
 
 	cache := contract.NewCache(cacheMock)
-	driver := session.NewCacheDriverWith(
-		*cache, session.CacheDriverConfig{},
-	)
+	driver := session.NewCacheDriver(cache, session.CacheDriverConfig{})
 	result, err := driver.Get(ctx, "abc123")
 
 	require.NoError(t, err)
@@ -144,11 +142,11 @@ func TestCacheDriverGetReturnsNotFoundError(t *testing.T) {
 	cacheMock := mock.NewCacheDriverMock(t)
 
 	cacheMock.On(
-		"Get", tmock.Anything, "cosmos.sessions.missing",
+		"Get", tmock.Anything, "cosmos:sessions:missing",
 	).Return([]byte(nil), contract.ErrCacheKeyNotFound).Once()
 
 	cache := contract.NewCache(cacheMock)
-	driver := session.NewCacheDriver(*cache)
+	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig)
 	_, err := driver.Get(ctx, "missing")
 
 	require.ErrorIs(t, err, contract.ErrCacheKeyNotFound)

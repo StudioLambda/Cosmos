@@ -62,30 +62,19 @@ type AMQPBrokerConfig struct {
 
 // DefaultAMQPExchange is the default name for the topic exchange
 // used by AMQPBroker when no custom exchange is specified.
-const DefaultAMQPExchange = "cosmos.events"
+const DefaultAMQPExchange = "cosmos:events"
 
-// NewAMQPBroker creates a new AMQPBroker by establishing a connection
-// to the RabbitMQ server at the given URL and using the default
-// exchange name. The broker must be closed when no longer needed
-// to release the connection and associated resources.
-//
-// The URL should be in the format:
-// amqp://username:password@host:port/vhost
-func NewAMQPBroker(url string) (*AMQPBroker, error) {
-	conn, err := amqp091.Dial(url)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewAMQPBrokerFrom(conn, DefaultAMQPExchange)
+// DefaultAMQPBrokerConfig returns the default AMQP broker configuration.
+func DefaultAMQPBrokerConfig() AMQPBrokerConfig {
+	return AMQPBrokerConfig{Exchange: DefaultAMQPExchange}
 }
 
-// NewAMQPBrokerWith creates a new AMQPBroker using the provided
+// NewAMQPBroker creates a new AMQPBroker using the provided
 // configuration for connection URL and exchange name. If no exchange
 // name is specified in the configuration, DefaultAMQPExchange is used.
 // The broker must be closed when no longer needed to release
 // the connection and associated resources.
-func NewAMQPBrokerWith(config *AMQPBrokerConfig) (*AMQPBroker, error) {
+func NewAMQPBroker(config AMQPBrokerConfig) (*AMQPBroker, error) {
 	conn, err := amqp091.Dial(config.URL)
 	if err != nil {
 		return nil, err

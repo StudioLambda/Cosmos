@@ -10,18 +10,58 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// RedisConfig is an alias for redis.Options, exposing the full
-// set of connection parameters without requiring a direct import
-// of the go-redis package.
-type RedisConfig = redis.Options
+// RedisConfig configures the Redis cache driver.
+type RedisConfig struct {
+	// Network is the network type passed to the Redis client.
+	// Common values are "tcp" and "unix".
+	Network string
+
+	// Addr is the Redis server address.
+	Addr string
+
+	// Username is the optional ACL username.
+	Username string
+
+	// Password is the optional ACL password.
+	Password string
+
+	// DB is the Redis logical database number.
+	DB int
+}
 
 // RedisClient implements [contract.CacheDriver] and [contract.CacheCounter]
 // using Redis as the backing store.
 type RedisClient redis.Client
 
+// DefaultRedisConfig holds the default Redis cache configuration.
+var DefaultRedisConfig = RedisConfig{
+	Network: "tcp",
+	Addr:    "localhost:6379",
+}
+
 // NewRedis creates a RedisClient from the given connection configuration.
-func NewRedis(config *RedisConfig) *RedisClient {
-	return NewRedisFrom(redis.NewClient((*redis.Options)(config)))
+func NewRedis(config RedisConfig) *RedisClient {
+	config = config.withDefaults()
+
+	return NewRedisFrom(redis.NewClient(&redis.Options{
+		Network:  config.Network,
+		Addr:     config.Addr,
+		Username: config.Username,
+		Password: config.Password,
+		DB:       config.DB,
+	}))
+}
+
+func (config RedisConfig) withDefaults() RedisConfig {
+	if config.Network == "" {
+		config.Network = DefaultRedisConfig.Network
+	}
+
+	if config.Addr == "" {
+		config.Addr = DefaultRedisConfig.Addr
+	}
+
+	return config
 }
 
 // NewRedisFrom wraps an existing redis.Client as a RedisClient,
@@ -68,6 +108,11 @@ func (client *RedisClient) Has(ctx context.Context, key string) (bool, error) {
 	return count > 0, nil
 }
 
+// Add stores raw bytes only if the key does not already exist.
+func (client *RedisClient) Add(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error) {
+	return (*redis.Client)(client).SetNX(ctx, key, value, ttl).Result()
+}
+
 // Increment atomically increases the integer value stored at key by
 // the given amount. Redis auto-creates the key with value 0 if it
 // does not exist before incrementing.
@@ -80,6 +125,28 @@ func (client *RedisClient) Increment(ctx context.Context, key string, delta int6
 // does not exist before decrementing.
 func (client *RedisClient) Decrement(ctx context.Context, key string, delta int64) (int64, error) {
 	return (*redis.Client)(client).DecrBy(ctx, key, delta).Result()
+}
+
+// TTL returns the remaining lifetime for key.
+func (client *RedisClient) TTL(ctx context.Context, key string) (time.Duration, error) {
+	ttl, err := (*redis.Client)(client).TTL(ctx, key).Result()
+	if errors.Is(err, redis.Nil) {
+		return 0, contract.ErrCacheKeyNotFound
+	}
+
+	if err != nil {
+		return 0, err
+	}
+
+	if ttl == -2 {
+		return 0, contract.ErrCacheKeyNotFound
+	}
+
+	if ttl == -1 {
+		return 0, nil
+	}
+
+	return ttl, nil
 }
 
 // Ping verifies that the connection is still alive.

@@ -19,6 +19,19 @@ var ErrBrokerClosed = errors.New("broker is closed")
 // concurrent handler goroutines allowed per MemoryBroker.
 const DefaultMaxConcurrentDeliveries = 1024
 
+// MemoryBrokerConfig configures the in-memory event broker.
+type MemoryBrokerConfig struct {
+	// MaxConcurrentDeliveries is the maximum number of concurrent
+	// handler goroutines allowed per MemoryBroker.
+	MaxConcurrentDeliveries int
+}
+
+// DefaultMemoryBrokerConfig holds the default in-memory event broker
+// configuration.
+var DefaultMemoryBrokerConfig = MemoryBrokerConfig{
+	MaxConcurrentDeliveries: DefaultMaxConcurrentDeliveries,
+}
+
 // MemoryBroker implements [contract.EventDriver] using only in-memory
 // data structures with no external dependencies.
 //
@@ -34,10 +47,14 @@ type MemoryBroker struct {
 }
 
 // NewMemoryBroker creates a new in-memory event broker.
-func NewMemoryBroker() *MemoryBroker {
+func NewMemoryBroker(config MemoryBrokerConfig) *MemoryBroker {
+	if config.MaxConcurrentDeliveries == 0 {
+		config.MaxConcurrentDeliveries = DefaultMemoryBrokerConfig.MaxConcurrentDeliveries
+	}
+
 	return &MemoryBroker{
 		handlers: make(map[string]map[string]contract.EventHandler),
-		sem:      make(chan struct{}, DefaultMaxConcurrentDeliveries),
+		sem:      make(chan struct{}, config.MaxConcurrentDeliveries),
 	}
 }
 

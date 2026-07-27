@@ -20,17 +20,57 @@ type RedisBroker struct {
 	wg     sync.WaitGroup
 }
 
-// RedisBrokerConfig is an alias for redis.Options, exposing the
-// full set of Redis connection parameters without requiring a
-// direct import of the go-redis package.
-type RedisBrokerConfig = redis.Options
+// RedisBrokerConfig configures the Redis pub/sub event broker.
+type RedisBrokerConfig struct {
+	// Network is the network type passed to the Redis client.
+	// Common values are "tcp" and "unix".
+	Network string
+
+	// Addr is the Redis server address.
+	Addr string
+
+	// Username is the optional ACL username.
+	Username string
+
+	// Password is the optional ACL password.
+	Password string
+
+	// DB is the Redis logical database number.
+	DB int
+}
+
+// DefaultRedisBrokerConfig holds the default Redis event broker configuration.
+var DefaultRedisBrokerConfig = RedisBrokerConfig{
+	Network: "tcp",
+	Addr:    "localhost:6379",
+}
 
 // NewRedisBroker creates a RedisBroker by connecting to Redis
 // with the given configuration.
-func NewRedisBroker(config *RedisBrokerConfig) *RedisBroker {
-	client := redis.NewClient((*redis.Options)(config))
+func NewRedisBroker(config RedisBrokerConfig) *RedisBroker {
+	config = config.withDefaults()
+
+	client := redis.NewClient(&redis.Options{
+		Network:  config.Network,
+		Addr:     config.Addr,
+		Username: config.Username,
+		Password: config.Password,
+		DB:       config.DB,
+	})
 
 	return NewRedisBrokerFrom(client)
+}
+
+func (config RedisBrokerConfig) withDefaults() RedisBrokerConfig {
+	if config.Network == "" {
+		config.Network = DefaultRedisBrokerConfig.Network
+	}
+
+	if config.Addr == "" {
+		config.Addr = DefaultRedisBrokerConfig.Addr
+	}
+
+	return config
 }
 
 // NewRedisBrokerFrom wraps an existing redis.Client as a

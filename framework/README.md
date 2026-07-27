@@ -387,7 +387,7 @@ RabbitMQ-backed pub/sub messaging with topic exchange:
 ```go
 import "github.com/studiolambda/cosmos/framework/event"
 
-// Create broker with default exchange name "cosmos.events"
+// Create broker with default exchange name "cosmos:events"
 broker, err := event.NewAMQPBroker("amqp://guest:guest@localhost:5672/")
 if err != nil {
     log.Fatal(err)

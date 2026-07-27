@@ -39,6 +39,13 @@ type AES struct {
 	AdditionalData []byte
 }
 
+// AESConfig configures the AES-GCM encrypter.
+type AESConfig struct {
+	// Key is the raw AES key material. It must be 16, 24, or 32 bytes
+	// for AES-128, AES-192, or AES-256 respectively.
+	Key []byte
+}
+
 // ErrMismatchedAESNonceSize is returned when the ciphertext provided
 // to Decrypt is shorter than the expected GCM nonce size, indicating
 // truncated or corrupted data.
@@ -51,10 +58,13 @@ var ErrMismatchedAESNonceSize = errors.New("mismatched nonce size")
 // keep nonce collision probability negligible. For higher-volume use
 // cases, consider rotating keys or using [NewChaCha20] with XChaCha20.
 //
-// The key must be 16, 24, or 32 bytes for AES-128, AES-192, or AES-256
-// respectively. The GCM cipher is constructed eagerly so that
+// The configured key must be 16, 24, or 32 bytes for AES-128, AES-192,
+// or AES-256 respectively. The GCM cipher is constructed eagerly so that
 // Encrypt and Decrypt avoid repeated setup overhead.
-func NewAES(key []byte) (*AES, error) {
+
+func NewAES(config AESConfig) (*AES, error) {
+	key := config.Key
+
 	if len(key) != 16 && len(key) != 24 && len(key) != 32 {
 		return nil, aes.KeySizeError(len(key))
 	}

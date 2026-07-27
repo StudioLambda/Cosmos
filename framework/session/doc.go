@@ -10,8 +10,11 @@
 //
 // Example
 //
-//	driver := session.NewCacheDriver(*contract.NewCache(cache.NewMemory(5*time.Minute, 10*time.Minute)))
-//	app.Use(session.Middleware(driver))
+//	driver := session.NewCacheDriver(
+//		contract.NewCache(cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})),
+//		session.DefaultCacheDriverConfig,
+//	)
+//	app.Use(session.Middleware(driver, session.DefaultMiddlewareConfig))
 //
 //	app.Post("/login", func(w http.ResponseWriter, r *http.Request) error {
 //		sess := request.MustSession(r)

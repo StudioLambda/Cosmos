@@ -49,7 +49,6 @@ func (_mock *EncrypterMock) Close() error {
 	} else {
 		r0 = ret.Error(0)
 	}
-
 	return r0
 }
 

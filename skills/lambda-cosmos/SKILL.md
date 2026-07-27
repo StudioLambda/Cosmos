@@ -124,6 +124,20 @@ For full details, load [references/problem.md](references/problem.md).
 
 For signatures and usage, load [references/contract.md](references/contract.md).
 
+## Cache Key Convention
+
+Use `:` as the unified cache-key separator across Cosmos.
+
+Examples:
+
+- `cosmos:sessions:<id>`
+- `cosmos:ratelimit:<policy>:<key>`
+- `users:1`
+- `api:hits`
+
+Cache drivers do not normalize keys automatically; keys should be composed
+consistently by the caller.
+
 ## Request Helpers
 
 ```go
@@ -161,7 +175,10 @@ middleware.Logger(slog.Default())
 middleware.CSRF("https://example.com")
 middleware.CORS(middleware.CORSConfig{})
 middleware.SecureHeaders()
-middleware.RateLimit()
+middleware.RateLimit(*contract.NewCache(cache.NewMemory(time.Second, time.Minute)))
+
+// Uses cache-backed fixed-window counters. Provide a custom cache
+// with middleware.RateLimitWith when you need cross-pod limits.
 middleware.Provide("db", db)
 middleware.HTTP(stdlibMiddleware)
 ```

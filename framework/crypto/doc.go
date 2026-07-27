@@ -10,7 +10,7 @@
 //
 // Example
 //
-//	enc, err := crypto.NewAES(key)
+//	enc, err := crypto.NewAES(crypto.AESConfig{Key: key})
 //	if err != nil {
 //		return err
 //	}

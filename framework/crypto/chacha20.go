@@ -39,6 +39,13 @@ type ChaCha20 struct {
 	AdditionalData []byte
 }
 
+// ChaCha20Config configures the ChaCha20-Poly1305 encrypter.
+type ChaCha20Config struct {
+	// Key is the raw ChaCha20-Poly1305 key material. It must be exactly
+	// 32 bytes.
+	Key []byte
+}
+
 // ErrMismatchedChaCha20NonceSize is returned when the ciphertext
 // provided to Decrypt is shorter than the expected nonce size,
 // indicating truncated or corrupted data.
@@ -52,8 +59,11 @@ var ErrMismatchedChaCha20NonceSize = errors.New("mismatched nonce size")
 // cases, consider rotating keys or using XChaCha20-Poly1305 which has a
 // 192-bit nonce and supports 2^64 encryptions per key.
 //
-// The key must be exactly 32 bytes.
-func NewChaCha20(key []byte) (*ChaCha20, error) {
+
+// The configured key must be exactly 32 bytes.
+func NewChaCha20(config ChaCha20Config) (*ChaCha20, error) {
+	key := config.Key
+
 	aead, err := chacha20poly1305.New(key)
 
 	if err != nil {

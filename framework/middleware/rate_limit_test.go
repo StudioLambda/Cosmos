@@ -2,376 +2,182 @@ package middleware_test
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework"
+	"github.com/studiolambda/cosmos/framework/cache"
 	"github.com/studiolambda/cosmos/framework/middleware"
 	"github.com/studiolambda/cosmos/problem"
-
-	"github.com/stretchr/testify/require"
 )
 
-func TestRateLimitAllowsWithinLimit(t *testing.T) {
+func TestRateLimitAllowsRequestsWithinLimit(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.RateLimit()(framework.Handler(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) error {
+	store := contract.NewCache(cache.NewMemory(cache.MemoryConfig{Expiration: time.Minute, Cleanup: time.Minute}))
+	handler := middleware.RateLimitWith(store, middleware.RateLimitConfig{
+		Name:   "login",
+		Limit:  2,
+		Window: time.Minute,
+	}, func(*http.Request) (string, bool) {
+			return "caller-a", true
+	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 
 		return nil
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	res := handler.Record(req)
+	res := handler.Record(httptest.NewRequest(http.MethodGet, "/", nil))
 
 	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Equal(t, "2", res.Header.Get("RateLimit-Limit"))
+	require.Equal(t, "1", res.Header.Get("RateLimit-Remaining"))
+	require.NotEmpty(t, res.Header.Get("RateLimit-Reset"))
+	require.Empty(t, res.Header.Get("Retry-After"))
 }
 
-func TestRateLimitBlocksExceedingBurst(t *testing.T) {
+func TestRateLimitRejectsRequestsBeyondLimit(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
-		RequestsPerSecond: 1,
-		Burst:             1,
-	})(framework.Handler(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) error {
+	store := contract.NewCache(cache.NewMemory(cache.MemoryConfig{Expiration: time.Minute, Cleanup: time.Minute}))
+	handler := middleware.RateLimitWith(store, middleware.RateLimitConfig{
+		Name:   "login",
+		Limit:  1,
+		Window: time.Minute,
+	}, func(*http.Request) (string, bool) {
+			return "caller-a", true
+	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 
 		return nil
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.RemoteAddr = "192.168.1.1:12345"
+	first := handler.Record(httptest.NewRequest(http.MethodGet, "/", nil))
+	second := handler.Record(httptest.NewRequest(http.MethodGet, "/", nil))
 
-	first := handler.Record(req)
 	require.Equal(t, http.StatusOK, first.StatusCode)
-
-	second := handler.Record(req)
 	require.Equal(t, http.StatusTooManyRequests, second.StatusCode)
+	require.NotEmpty(t, second.Header.Get("Retry-After"))
 }
 
-func TestRateLimitWithDefaultConfig(t *testing.T) {
+func TestRateLimitUsesIndependentBucketsPerKey(t *testing.T) {
 	t.Parallel()
 
-	called := false
-	handler := middleware.RateLimit()(framework.Handler(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) error {
-		called = true
+	store := contract.NewCache(cache.NewMemory(cache.MemoryConfig{Expiration: time.Minute, Cleanup: time.Minute}))
+	keys := []string{"caller-a", "caller-b"}
+	index := 0
+	handler := middleware.RateLimitWith(store, middleware.RateLimitConfig{
+		Name:   "login",
+		Limit:  1,
+		Window: time.Minute,
+	}, func(*http.Request) (string, bool) {
+			key := keys[index]
+			index++
+			return key, true
+	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 
 		return nil
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	res := handler.Record(req)
+	first := handler.Record(httptest.NewRequest(http.MethodGet, "/", nil))
+	second := handler.Record(httptest.NewRequest(http.MethodGet, "/", nil))
 
-	require.True(t, called)
-	require.Equal(t, http.StatusOK, res.StatusCode)
-}
-
-func TestRateLimitWithCustomKeyFunc(t *testing.T) {
-	t.Parallel()
-
-	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
-		RequestsPerSecond: 1,
-		Burst:             1,
-		KeyFunc: func(r *http.Request) string {
-			return r.Header.Get("X-API-Key")
-		},
-	})(framework.Handler(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) error {
-		w.WriteHeader(http.StatusOK)
-
-		return nil
-	}))
-
-	reqA := httptest.NewRequest(http.MethodGet, "/", nil)
-	reqA.Header.Set("X-API-Key", "key-a")
-	resA := handler.Record(reqA)
-	require.Equal(t, http.StatusOK, resA.StatusCode)
-
-	reqB := httptest.NewRequest(http.MethodGet, "/", nil)
-	reqB.Header.Set("X-API-Key", "key-b")
-	resB := handler.Record(reqB)
-	require.Equal(t, http.StatusOK, resB.StatusCode)
-
-	reqA2 := httptest.NewRequest(http.MethodGet, "/", nil)
-	reqA2.Header.Set("X-API-Key", "key-a")
-	resA2 := handler.Record(reqA2)
-	require.Equal(t, http.StatusTooManyRequests, resA2.StatusCode)
-}
-
-func TestRateLimitWithCustomErrorResponse(t *testing.T) {
-	t.Parallel()
-
-	customErr := problem.Problem{
-		Title:  "Slow Down",
-		Detail: "You are going too fast.",
-		Status: http.StatusServiceUnavailable,
-	}
-
-	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
-		RequestsPerSecond: 1,
-		Burst:             1,
-		ErrorResponse:     customErr,
-	})(framework.Handler(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) error {
-		w.WriteHeader(http.StatusOK)
-
-		return nil
-	}))
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.RemoteAddr = "10.0.0.1:9999"
-
-	first := handler.Record(req)
 	require.Equal(t, http.StatusOK, first.StatusCode)
-
-	second := handler.Record(req)
-	require.Equal(t, http.StatusServiceUnavailable, second.StatusCode)
+	require.Equal(t, http.StatusOK, second.StatusCode)
 }
 
-func TestRateLimitRegistryReusesExistingLimiter(t *testing.T) {
+func TestRateLimitSkipsRequestWhenKeyResolutionFails(t *testing.T) {
 	t.Parallel()
 
-	callCount := 0
-	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
-		RequestsPerSecond: 100,
-		Burst:             100,
-		KeyFunc: func(r *http.Request) string {
-			return "same-key"
-		},
-	})(framework.Handler(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) error {
-		callCount++
+	store := contract.NewCache(cache.NewMemory(cache.MemoryConfig{Expiration: time.Minute, Cleanup: time.Minute}))
+	handler := middleware.RateLimitWith(store, middleware.RateLimitConfig{
+		Name:   "login",
+		Limit:  1,
+		Window: time.Minute,
+	}, func(*http.Request) (string, bool) {
+			return "", false
+	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 
 		return nil
 	}))
 
-	for range 5 {
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		res := handler.Record(req)
-		require.Equal(t, http.StatusOK, res.StatusCode)
-	}
+	first := handler.Record(httptest.NewRequest(http.MethodGet, "/", nil))
+	second := handler.Record(httptest.NewRequest(http.MethodGet, "/", nil))
 
-	require.Equal(t, 5, callCount)
+	require.Equal(t, http.StatusOK, first.StatusCode)
+	require.Equal(t, http.StatusOK, second.StatusCode)
+	require.Empty(t, second.Header.Get("RateLimit-Limit"))
 }
 
-func TestRateLimitDifferentKeysGetSeparateLimiters(t *testing.T) {
+func TestRateLimitUsesCustomErrorResponse(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
-		RequestsPerSecond: 1,
-		Burst:             1,
-		KeyFunc: func(r *http.Request) string {
-			return r.RemoteAddr
-		},
-	})(framework.Handler(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) error {
+	store := contract.NewCache(cache.NewMemory(cache.MemoryConfig{Expiration: time.Minute, Cleanup: time.Minute}))
+	customErr := problem.Problem{Title: "Slow Down", Status: http.StatusServiceUnavailable}
+	handler := middleware.RateLimitWith(store, middleware.RateLimitConfig{
+		Name:          "login",
+		Limit:         1,
+		Window:        time.Minute,
+		ErrorResponse: customErr,
+	}, func(*http.Request) (string, bool) {
+			return "caller-a", true
+	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 
 		return nil
 	}))
 
-	reqA := httptest.NewRequest(http.MethodGet, "/", nil)
-	reqA.RemoteAddr = "10.0.0.1:1111"
-	resA := handler.Record(reqA)
-	require.Equal(t, http.StatusOK, resA.StatusCode)
-
-	reqB := httptest.NewRequest(http.MethodGet, "/", nil)
-	reqB.RemoteAddr = "10.0.0.2:2222"
-	resB := handler.Record(reqB)
-	require.Equal(t, http.StatusOK, resB.StatusCode)
-
-	reqA2 := httptest.NewRequest(http.MethodGet, "/", nil)
-	reqA2.RemoteAddr = "10.0.0.1:1111"
-	resA2 := handler.Record(reqA2)
-	require.Equal(t, http.StatusTooManyRequests, resA2.StatusCode)
-
-	reqB2 := httptest.NewRequest(http.MethodGet, "/", nil)
-	reqB2.RemoteAddr = "10.0.0.2:2222"
-	resB2 := handler.Record(reqB2)
-	require.Equal(t, http.StatusTooManyRequests, resB2.StatusCode)
+	require.Equal(t, http.StatusOK, handler.Record(httptest.NewRequest(http.MethodGet, "/", nil)).StatusCode)
+	require.Equal(t, http.StatusServiceUnavailable, handler.Record(httptest.NewRequest(http.MethodGet, "/", nil)).StatusCode)
 }
 
-func TestRateLimitWithZeroConfigUsesDefaults(t *testing.T) {
+func TestRateLimitPropagatesCacheErrors(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.RateLimitWith(
-		middleware.RateLimitConfig{},
-	)(framework.Handler(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) error {
+	store := contract.NewCache(brokenCacheDriver{})
+	handler := middleware.RateLimitWith(store, middleware.RateLimitConfig{
+		Name:   "login",
+		Limit:  1,
+		Window: time.Minute,
+	}, func(*http.Request) (string, bool) {
+			return "caller-a", true
+	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 
 		return nil
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	res := handler.Record(req)
+	err := handler(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
 
-	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Equal(t, errBrokenCache, err)
 }
 
-func TestRateLimitDefaultsAre15ReqPerSecBurst30(t *testing.T) {
-	t.Parallel()
+type brokenCacheDriver struct{}
 
-	require.Equal(t, float64(15), middleware.DefaultRateLimitConfig.RequestsPerSecond)
-	require.Equal(t, 30, middleware.DefaultRateLimitConfig.Burst)
+var errBrokenCache = problem.Problem{Title: "broken cache", Status: http.StatusInternalServerError}
+
+func (brokenCacheDriver) Get(_ context.Context, _ string) ([]byte, error) { return nil, errBrokenCache }
+func (brokenCacheDriver) Put(_ context.Context, _ string, _ []byte, _ time.Duration) error {
+	return errBrokenCache
 }
-
-func TestRateLimitContextCancellationStopsCleanup(t *testing.T) {
-	t.Parallel()
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
-		RequestsPerSecond: 100,
-		Burst:             100,
-		CleanupInterval:   50 * time.Millisecond,
-		MaxIdleTime:       50 * time.Millisecond,
-		Context:           ctx,
-	})(framework.Handler(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) error {
-		w.WriteHeader(http.StatusOK)
-
-		return nil
-	}))
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	res := handler.Record(req)
-	require.Equal(t, http.StatusOK, res.StatusCode)
-
-	// Cancel the context to stop the cleanup goroutine.
-	cancel()
-
-	// Allow time for the goroutine to observe the cancellation.
-	time.Sleep(100 * time.Millisecond)
-
-	// The middleware should still function after cancellation.
-	res = handler.Record(req)
-	require.Equal(t, http.StatusOK, res.StatusCode)
+func (brokenCacheDriver) Delete(_ context.Context, _ string) error      { return errBrokenCache }
+func (brokenCacheDriver) Has(_ context.Context, _ string) (bool, error) { return false, errBrokenCache }
+func (brokenCacheDriver) Add(_ context.Context, _ string, _ []byte, _ time.Duration) (bool, error) {
+	return false, errBrokenCache
 }
-
-func TestRateLimitKeyFuncStripsPort(t *testing.T) {
-	t.Parallel()
-
-	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
-		RequestsPerSecond: 1,
-		Burst:             1,
-	})(framework.Handler(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) error {
-		w.WriteHeader(http.StatusOK)
-
-		return nil
-	}))
-
-	first := httptest.NewRequest(http.MethodGet, "/", nil)
-	first.RemoteAddr = "10.0.0.1:12345"
-	res := handler.Record(first)
-	require.Equal(t, http.StatusOK, res.StatusCode)
-
-	second := httptest.NewRequest(http.MethodGet, "/", nil)
-	second.RemoteAddr = "10.0.0.1:54321"
-	res = handler.Record(second)
-	require.Equal(t, http.StatusTooManyRequests, res.StatusCode)
+func (brokenCacheDriver) Increment(_ context.Context, _ string, _ int64) (int64, error) {
+	return 0, errBrokenCache
 }
-
-func TestRateLimitKeyFuncFallsBackOnInvalidAddr(t *testing.T) {
-	t.Parallel()
-
-	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
-		RequestsPerSecond: 1,
-		Burst:             1,
-	})(framework.Handler(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) error {
-		w.WriteHeader(http.StatusOK)
-
-		return nil
-	}))
-
-	first := httptest.NewRequest(http.MethodGet, "/", nil)
-	first.RemoteAddr = "/var/run/app.sock"
-	res := handler.Record(first)
-	require.Equal(t, http.StatusOK, res.StatusCode)
-
-	second := httptest.NewRequest(http.MethodGet, "/", nil)
-	second.RemoteAddr = "/var/run/app.sock"
-	res = handler.Record(second)
-	require.Equal(t, http.StatusTooManyRequests, res.StatusCode)
+func (brokenCacheDriver) Decrement(_ context.Context, _ string, _ int64) (int64, error) {
+	return 0, errBrokenCache
 }
-
-func TestRateLimitMaxEntriesUsesOverflowLimiter(t *testing.T) {
-	t.Parallel()
-
-	handler := middleware.RateLimitWith(middleware.RateLimitConfig{
-		RequestsPerSecond: 1,
-		Burst:             2,
-		MaxEntries:        2,
-		KeyFunc: func(r *http.Request) string {
-			return r.Header.Get("X-Key")
-		},
-	})(framework.Handler(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) error {
-		w.WriteHeader(http.StatusOK)
-
-		return nil
-	}))
-
-	// Fill the registry to max capacity with 2 distinct keys.
-	for _, key := range []string{"key-1", "key-2"} {
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.Header.Set("X-Key", key)
-		res := handler.Record(req)
-		require.Equal(t, http.StatusOK, res.StatusCode)
-	}
-
-	// A third distinct key should use the shared overflow limiter.
-	// The overflow limiter has burst=2, so the first two requests
-	// succeed but the third is rate-limited.
-	for i := range 2 {
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.Header.Set("X-Key", fmt.Sprintf("overflow-%d", i))
-		res := handler.Record(req)
-		require.Equal(t, http.StatusOK, res.StatusCode)
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("X-Key", "overflow-2")
-	res := handler.Record(req)
-	require.Equal(t, http.StatusTooManyRequests, res.StatusCode)
+func (brokenCacheDriver) TTL(_ context.Context, _ string) (time.Duration, error) {
+	return 0, errBrokenCache
 }
-
-func TestRateLimitMaxEntriesDefaultIs10000(t *testing.T) {
-	t.Parallel()
-
-	require.Equal(t, 10000, middleware.DefaultRateLimitConfig.MaxEntries)
-}
+func (brokenCacheDriver) Ping(_ context.Context) error { return errBrokenCache }

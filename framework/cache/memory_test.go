@@ -15,7 +15,7 @@ func TestMemoryGetReturnsStoredValue(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 
 	err := mem.Put(ctx, "key", []byte("value"), 5*time.Minute)
 	require.NoError(t, err)
@@ -30,7 +30,7 @@ func TestMemoryGetReturnsNotFoundForMissingKey(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 
 	_, err := mem.Get(ctx, "missing")
 
@@ -41,7 +41,7 @@ func TestMemoryPutOverwritesExistingValue(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 
 	err := mem.Put(ctx, "key", []byte("old"), 5*time.Minute)
 	require.NoError(t, err)
@@ -59,7 +59,7 @@ func TestMemoryDeleteRemovesKey(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 
 	err := mem.Put(ctx, "key", []byte("value"), 5*time.Minute)
 	require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestMemoryDeleteNonExistentKeyIsNoOp(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 
 	err := mem.Delete(ctx, "nonexistent")
 
@@ -87,7 +87,7 @@ func TestMemoryHasReturnsTrueForExistingKey(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 
 	err := mem.Put(ctx, "key", []byte("value"), 5*time.Minute)
 	require.NoError(t, err)
@@ -102,7 +102,7 @@ func TestMemoryHasReturnsFalseForMissingKey(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 
 	found, err := mem.Has(ctx, "missing")
 
@@ -114,10 +114,10 @@ func TestMemoryIncrementIncreasesValue(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 
 	// go-cache Increment requires the value to be stored as int64 directly
-	mem.Store().Set("counter", int64(10), 5*time.Minute)
+	mem.Store().Set("counter", []byte("10"), 5*time.Minute)
 
 	result, err := mem.Increment(ctx, "counter", 5)
 
@@ -125,11 +125,38 @@ func TestMemoryIncrementIncreasesValue(t *testing.T) {
 	require.Equal(t, int64(15), result)
 }
 
+func TestMemoryAddStoresMissingKey(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
+
+	added, err := mem.Add(ctx, "counter", []byte("value"), time.Minute)
+
+	require.NoError(t, err)
+	require.True(t, added)
+}
+
+func TestMemoryAddReturnsFalseWhenKeyExists(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
+
+	first, err := mem.Add(ctx, "counter", []byte("value"), time.Minute)
+	require.NoError(t, err)
+	require.True(t, first)
+
+	second, err := mem.Add(ctx, "counter", []byte("other"), time.Minute)
+	require.NoError(t, err)
+	require.False(t, second)
+}
+
 func TestMemoryIncrementReturnsErrorForMissingKey(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 
 	_, err := mem.Increment(ctx, "missing", 1)
 
@@ -140,9 +167,9 @@ func TestMemoryDecrementDecreasesValue(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 
-	mem.Store().Set("counter", int64(10), 5*time.Minute)
+	mem.Store().Set("counter", []byte("10"), 5*time.Minute)
 
 	result, err := mem.Decrement(ctx, "counter", 3)
 
@@ -154,7 +181,7 @@ func TestMemoryDecrementReturnsErrorForMissingKey(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 
 	_, err := mem.Decrement(ctx, "missing", 1)
 
@@ -165,7 +192,7 @@ func TestMemoryPutZeroTTLUsesDefault(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 
 	err := mem.Put(ctx, "key", []byte("value"), 0)
 	require.NoError(t, err)
@@ -180,7 +207,7 @@ func TestCacheWrapperGetDecodesJSON(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 	c := contract.NewCache(mem)
 
 	err := c.Put(ctx, "key", "hello", 5*time.Minute)
@@ -196,7 +223,7 @@ func TestCacheWrapperPullReturnsAndRemoves(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 	c := contract.NewCache(mem)
 
 	err := c.Put(ctx, "key", "value", 5*time.Minute)
@@ -215,7 +242,7 @@ func TestCacheWrapperForever(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 	c := contract.NewCache(mem)
 
 	err := c.Forever(ctx, "key", "permanent")
@@ -231,7 +258,7 @@ func TestCacheWrapperRememberReturnsCachedValue(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 	c := contract.NewCache(mem)
 
 	err := c.Put(ctx, "key", "cached", 5*time.Minute)
@@ -253,7 +280,7 @@ func TestCacheWrapperRememberComputesOnMiss(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 	c := contract.NewCache(mem)
 
 	result, err := c.Remember(ctx, "key", 5*time.Minute, func() (string, error) {
@@ -268,13 +295,26 @@ func TestCacheWrapperIncrementDelegatesToDriver(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(5*time.Minute, 10*time.Minute)
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 	c := contract.NewCache(mem)
 
-	mem.Store().Set("counter", int64(10), 5*time.Minute)
+	mem.Store().Set("counter", []byte("10"), 5*time.Minute)
 
 	result, err := c.Increment(ctx, "counter", 5)
 
 	require.NoError(t, err)
 	require.Equal(t, int64(15), result)
+}
+
+func TestCacheWrapperAddDelegatesToDriver(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
+	c := contract.NewCache(mem)
+
+	added, err := c.Add(ctx, "counter", "value", time.Minute)
+
+	require.NoError(t, err)
+	require.True(t, added)
 }

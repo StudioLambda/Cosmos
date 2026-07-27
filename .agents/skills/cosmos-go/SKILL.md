@@ -252,6 +252,20 @@ Prefer modern Go stdlib functions:
 - `maps.Clone`, `maps.Copy` over manual map iteration.
 - `path.Join` for URL path construction.
 
+## Cache Keys
+
+Use `:` as the unified cache-key separator across Cosmos.
+
+Examples:
+
+- `cosmos:sessions:<id>`
+- `cosmos:ratelimit:<policy>:<key>`
+- `users:1`
+- `api:hits`
+
+Do not add automatic cache-key normalization in drivers. Cache keys are opaque
+application strings and should be composed consistently at the call site.
+
 ## Testing
 
 See [references/testing-guide.md](references/testing-guide.md) for complete patterns and examples.

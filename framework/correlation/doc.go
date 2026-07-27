@@ -10,7 +10,7 @@
 //
 // Example
 //
-//	app.Use(correlation.Middleware())
+//	app.Use(correlation.Middleware(correlation.DefaultMiddlewareConfig))
 //	logger := slog.New(correlation.Handler(slog.NewJSONHandler(os.Stdout, nil)))
 //	app.Use(middleware.Logger(*logger))
 package correlation

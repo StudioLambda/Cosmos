@@ -11,7 +11,7 @@ import (
 func TestArgon2HashProducesOutput(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewArgon2()
+	hasher := hash.NewArgon2(hash.DefaultArgon2Config())
 	content := []byte("hello, world")
 
 	hashed, err := hasher.Hash(content)
@@ -23,7 +23,7 @@ func TestArgon2HashProducesOutput(t *testing.T) {
 func TestArgon2CheckMatchesCorrectPassword(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewArgon2()
+	hasher := hash.NewArgon2(hash.DefaultArgon2Config())
 
 	hashed, err := hasher.Hash([]byte("hello, world"))
 
@@ -48,7 +48,7 @@ func TestArgon2WithCustomConfig(t *testing.T) {
 		Version:     0,
 	}
 
-	hasher := hash.NewArgon2With(config)
+	hasher := hash.NewArgon2(config)
 
 	hashed, err := hasher.Hash([]byte("hello, world"))
 
@@ -59,7 +59,7 @@ func TestArgon2WithCustomConfig(t *testing.T) {
 func TestArgon2CheckWrongPasswordReturnsFalse(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewArgon2()
+	hasher := hash.NewArgon2(hash.DefaultArgon2Config())
 
 	hashed, err := hasher.Hash([]byte("correct-password"))
 
@@ -74,7 +74,7 @@ func TestArgon2CheckWrongPasswordReturnsFalse(t *testing.T) {
 func TestArgon2HashZerosInputPassword(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewArgon2()
+	hasher := hash.NewArgon2(hash.DefaultArgon2Config())
 	password := []byte("sensitive-data")
 
 	_, err := hasher.Hash(password)
@@ -86,7 +86,7 @@ func TestArgon2HashZerosInputPassword(t *testing.T) {
 func TestArgon2CheckZerosInputPassword(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewArgon2()
+	hasher := hash.NewArgon2(hash.DefaultArgon2Config())
 
 	hashed, err := hasher.Hash([]byte("hello"))
 
@@ -123,8 +123,8 @@ func TestArgon2NeedsRehashReturnsTrueForDifferentParams(t *testing.T) {
 		Version:     0x13,
 	}
 
-	hasher1 := hash.NewArgon2With(config1)
-	hasher2 := hash.NewArgon2With(config2)
+	hasher1 := hash.NewArgon2(config1)
+	hasher2 := hash.NewArgon2(config2)
 
 	hashed, err := hasher1.Hash([]byte("hello, world"))
 
@@ -145,7 +145,7 @@ func TestArgon2NeedsRehashReturnsFalseForSameParams(t *testing.T) {
 		Version:     0x13,
 	}
 
-	hasher := hash.NewArgon2With(config)
+	hasher := hash.NewArgon2(config)
 
 	hashed, err := hasher.Hash([]byte("hello, world"))
 
@@ -156,7 +156,7 @@ func TestArgon2NeedsRehashReturnsFalseForSameParams(t *testing.T) {
 func TestArgon2NeedsRehashReturnsTrueForInvalidHash(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewArgon2()
+	hasher := hash.NewArgon2(hash.DefaultArgon2Config())
 
 	require.True(t, hasher.NeedsRehash([]byte("not-a-valid-hash")))
 }

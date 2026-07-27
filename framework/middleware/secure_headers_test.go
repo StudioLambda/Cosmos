@@ -14,7 +14,7 @@ import (
 func TestSecureHeadersDefault(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.SecureHeaders()(framework.Handler(func(
+	handler := middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig)(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -53,7 +53,7 @@ func TestSecureHeadersDefault(t *testing.T) {
 func TestSecureHeadersWithCustomConfig(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.SecureHeadersWith(
+	handler := middleware.SecureHeaders(
 		middleware.SecureHeadersConfig{
 			ContentTypeOptions: "nosniff",
 			FrameOptions:       "SAMEORIGIN",
@@ -88,7 +88,7 @@ func TestSecureHeadersWithCustomConfig(t *testing.T) {
 func TestSecureHeadersEmptyConfigSkipsHeaders(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.SecureHeadersWith(
+	handler := middleware.SecureHeaders(
 		middleware.SecureHeadersConfig{},
 	)(framework.Handler(func(
 		w http.ResponseWriter,
@@ -115,7 +115,7 @@ func TestSecureHeadersEmptyConfigSkipsHeaders(t *testing.T) {
 func TestSecureHeadersAllConfig(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.SecureHeadersWith(
+	handler := middleware.SecureHeaders(
 		middleware.SecureHeadersConfig{
 			ContentTypeOptions:      "nosniff",
 			FrameOptions:            "DENY",
@@ -167,7 +167,7 @@ func TestSecureHeadersCallsNextHandler(t *testing.T) {
 	t.Parallel()
 
 	called := false
-	handler := middleware.SecureHeaders()(framework.Handler(func(
+	handler := middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig)(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -185,7 +185,7 @@ func TestSecureHeadersCallsNextHandler(t *testing.T) {
 func TestSecureHeadersDefaultXSSProtectionIsZero(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.SecureHeaders()(framework.Handler(func(
+	handler := middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig)(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {

@@ -29,6 +29,9 @@
 //	app.Get("/health", func(w http.ResponseWriter, r *http.Request) error {
 //		return response.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 //	})
-//	server := framework.NewServer(":8080", app)
+//	config := framework.DefaultServerConfig()
+//	config.Host = "0.0.0.0"
+//	config.Port = 8080
+//	server := framework.NewServer(config, app)
 //	_ = server.ListenAndServe()
 package framework

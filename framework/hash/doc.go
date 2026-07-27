@@ -10,7 +10,7 @@
 //
 // Example
 //
-//	hasher := hash.NewArgon2()
+//	hasher := hash.NewArgon2(hash.DefaultArgon2Config())
 //	digest, err := hasher.Hash(ctx, []byte("correct horse battery staple"))
 //	if err != nil {
 //		return err

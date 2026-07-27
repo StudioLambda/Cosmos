@@ -30,18 +30,16 @@ type BcryptConfig struct {
 // to provide adequate resistance against brute-force attacks.
 const DefaultBcryptCost = 12
 
-// NewBcrypt creates a Bcrypt hasher with the default cost factor.
-func NewBcrypt() *Bcrypt {
-	return NewBcryptWith(BcryptConfig{
-		Cost: DefaultBcryptCost,
-	})
+// DefaultBcryptConfig holds the default bcrypt hasher configuration.
+var DefaultBcryptConfig = BcryptConfig{
+	Cost: DefaultBcryptCost,
 }
 
-// NewBcryptWith creates a Bcrypt hasher with the given configuration,
+// NewBcrypt creates a Bcrypt hasher with the given configuration,
 // allowing a custom cost factor. The cost is clamped to a minimum
 // of bcrypt.MinCost (4). Costs below 12 are not recommended for
 // production use per OWASP guidelines.
-func NewBcryptWith(config BcryptConfig) *Bcrypt {
+func NewBcrypt(config BcryptConfig) *Bcrypt {
 	if config.Cost < bcrypt.MinCost {
 		config.Cost = bcrypt.MinCost
 	}

@@ -14,9 +14,11 @@ func TestNewServerUsesDefaultConfig(t *testing.T) {
 	t.Parallel()
 
 	mux := http.NewServeMux()
-	server := framework.NewServer(":9090", mux)
+	config := framework.DefaultServerConfig()
+	config.Port = 9090
+	server := framework.NewServer(config, mux)
 
-	require.Equal(t, ":9090", server.Addr)
+	require.Equal(t, "0.0.0.0:9090", server.Addr)
 	require.Equal(t, mux, server.Handler)
 	require.Equal(t, 10*time.Second, server.ReadHeaderTimeout)
 	require.Equal(t, 30*time.Second, server.ReadTimeout)
@@ -30,7 +32,8 @@ func TestNewServerWithCustomConfig(t *testing.T) {
 
 	mux := http.NewServeMux()
 	config := framework.ServerConfig{
-		Addr:              ":3000",
+		Host:              "127.0.0.1",
+		Port:              3000,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -38,9 +41,9 @@ func TestNewServerWithCustomConfig(t *testing.T) {
 		MaxHeaderBytes:    512 << 10,
 	}
 
-	server := framework.NewServerWith(config, mux)
+	server := framework.NewServer(config, mux)
 
-	require.Equal(t, ":3000", server.Addr)
+	require.Equal(t, "127.0.0.1:3000", server.Addr)
 	require.Equal(t, mux, server.Handler)
 	require.Equal(t, 5*time.Second, server.ReadHeaderTimeout)
 	require.Equal(t, 15*time.Second, server.ReadTimeout)
@@ -53,12 +56,12 @@ func TestWithDefaultsFillsZeroValues(t *testing.T) {
 	t.Parallel()
 
 	config := framework.ServerConfig{
-		Addr: ":4000",
+		Port: 4000,
 	}
 
-	server := framework.NewServerWith(config, nil)
+	server := framework.NewServer(config, nil)
 
-	require.Equal(t, ":4000", server.Addr)
+	require.Equal(t, "0.0.0.0:4000", server.Addr)
 	require.Equal(t, 10*time.Second, server.ReadHeaderTimeout)
 	require.Equal(t, 30*time.Second, server.ReadTimeout)
 	require.Equal(t, 60*time.Second, server.WriteTimeout)
@@ -70,7 +73,8 @@ func TestWithDefaultsPreservesNonZeroValues(t *testing.T) {
 	t.Parallel()
 
 	config := framework.ServerConfig{
-		Addr:              ":5000",
+		Host:              "127.0.0.1",
+		Port:              5000,
 		ReadHeaderTimeout: 1 * time.Second,
 		ReadTimeout:       2 * time.Second,
 		WriteTimeout:      3 * time.Second,
@@ -78,7 +82,7 @@ func TestWithDefaultsPreservesNonZeroValues(t *testing.T) {
 		MaxHeaderBytes:    256,
 	}
 
-	server := framework.NewServerWith(config, nil)
+	server := framework.NewServer(config, nil)
 
 	require.Equal(t, 1*time.Second, server.ReadHeaderTimeout)
 	require.Equal(t, 2*time.Second, server.ReadTimeout)
@@ -92,7 +96,8 @@ func TestDefaultServerConfigValues(t *testing.T) {
 
 	defaults := framework.DefaultServerConfig()
 
-	require.Equal(t, ":8080", defaults.Addr)
+	require.Equal(t, "0.0.0.0", defaults.Host)
+	require.Equal(t, 8080, defaults.Port)
 	require.Equal(t, 10*time.Second, defaults.ReadHeaderTimeout)
 	require.Equal(t, 30*time.Second, defaults.ReadTimeout)
 	require.Equal(t, 60*time.Second, defaults.WriteTimeout)
@@ -106,9 +111,11 @@ func TestDefaultServerConfigReturnsNewCopy(t *testing.T) {
 	first := framework.DefaultServerConfig()
 	second := framework.DefaultServerConfig()
 
-	first.Addr = ":9999"
+	first.Host = "127.0.0.1"
+	first.Port = 9999
 	first.ReadTimeout = 999 * time.Second
 
-	require.Equal(t, ":8080", second.Addr)
+	require.Equal(t, "0.0.0.0", second.Host)
+	require.Equal(t, 8080, second.Port)
 	require.Equal(t, 30*time.Second, second.ReadTimeout)
 }

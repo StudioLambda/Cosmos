@@ -109,42 +109,35 @@ type NATSBrokerConfig struct {
 	// deployments.
 	CredentialsFile string
 
-	// TLSConfig enables TLS encryption for the NATS connection.
-	// When set, all communication with the NATS server is encrypted.
-	//
-	// WARNING: Setting InsecureSkipVerify to true disables
-	// certificate verification, making the connection vulnerable
-	// to man-in-the-middle attacks. This should only be used in
-	// development and testing environments. Production deployments
-	// MUST use proper certificate validation with RootCAs
-	// configured.
-	TLSConfig *tls.Config
-
 	// RootCAs is a list of paths to root CA certificate files.
 	// Used to verify the NATS server's certificate when using TLS.
 	RootCAs []string
 }
 
-// NewNATSBroker creates a new NATS broker connected to the specified URL.
-// It applies sensible defaults for reconnection behavior.
-// This constructor is suitable for simple use cases with a single NATS
-// server.
-//
-// For clustered deployments or custom authentication, use
-// NewNATSBrokerWith instead.
-func NewNATSBroker(url string) (*NATSBroker, error) {
-	return NewNATSBrokerWith(&NATSBrokerConfig{
-		URLs: []string{url},
-	})
+// NATSBrokerRuntime holds runtime-only NATS broker settings.
+type NATSBrokerRuntime struct {
+	// TLSConfig enables TLS encryption for the NATS connection.
+	TLSConfig *tls.Config
 }
 
-// NewNATSBrokerWith creates a new NATS broker with custom configuration.
-// It provides full control over connection behavior, authentication, and
-// reliability.
-// Applies sensible defaults for any unspecified configuration fields.
-//
-// Returns an error if connection to the NATS server fails.
-func NewNATSBrokerWith(config *NATSBrokerConfig) (*NATSBroker, error) {
+// DefaultNATSBrokerConfig returns the default NATS broker configuration.
+func DefaultNATSBrokerConfig() NATSBrokerConfig {
+	return NATSBrokerConfig{
+		URLs:          []string{DefaultNATSURL},
+		MaxReconnects: DefaultNATSMaxReconnects,
+		ReconnectWait: DefaultNATSReconnectWait,
+	}
+}
+
+// NewNATSBroker creates a new NATS broker with custom configuration.
+// It applies sensible defaults for any unspecified configuration fields.
+func NewNATSBroker(config NATSBrokerConfig) (*NATSBroker, error) {
+	return NewNATSBrokerWith(config, NATSBrokerRuntime{})
+}
+
+// NewNATSBrokerWith creates a new NATS broker with custom configuration
+// and runtime options. Returns an error if connection to the NATS server fails.
+func NewNATSBrokerWith(config NATSBrokerConfig, runtime NATSBrokerRuntime) (*NATSBroker, error) {
 	var opts []nats.Option
 
 	if config.Name != "" {
@@ -193,8 +186,8 @@ func NewNATSBrokerWith(config *NATSBrokerConfig) (*NATSBroker, error) {
 		opts = append(opts, nats.UserCredentials(config.CredentialsFile))
 	}
 
-	if config.TLSConfig != nil {
-		opts = append(opts, nats.Secure(config.TLSConfig))
+	if runtime.TLSConfig != nil {
+		opts = append(opts, nats.Secure(runtime.TLSConfig))
 	}
 
 	if len(config.RootCAs) > 0 {

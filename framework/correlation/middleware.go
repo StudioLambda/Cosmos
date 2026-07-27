@@ -29,12 +29,12 @@ type MiddlewareConfig struct {
 	// Header is the HTTP header name used to read and write
 	// the correlation ID. Defaults to "X-Correlation-ID".
 	Header string
+}
 
-	// Generate is the function used to create a new correlation
-	// ID when one is not present in the request. Defaults to a
-	// 16-byte random hex string (matching OpenTelemetry trace ID
-	// format).
-	Generate Generator
+// DefaultMiddlewareConfig holds the default correlation middleware
+// configuration.
+var DefaultMiddlewareConfig = MiddlewareConfig{
+	Header: DefaultHeader,
 }
 
 // Middleware returns middleware that ensures every request has
@@ -54,26 +54,25 @@ type MiddlewareConfig struct {
 //
 // Example usage:
 //
-//	app.Use(correlation.Middleware())
-func Middleware() framework.Middleware {
-	return MiddlewareWith(MiddlewareConfig{})
+//	app.Use(correlation.Middleware(correlation.DefaultMiddlewareConfig))
+func Middleware(config MiddlewareConfig) framework.Middleware {
+	return MiddlewareWith(config, nil)
 }
 
 // MiddlewareWith returns correlation ID middleware with custom
-// configuration. See [MiddlewareConfig] for available configuration.
+// configuration and generator. See [MiddlewareConfig] for available
+// configuration.
 //
 // Example usage:
 //
 //	app.Use(correlation.MiddlewareWith(correlation.MiddlewareConfig{
 //	    Header: "X-Request-ID",
-//	}))
-func MiddlewareWith(config MiddlewareConfig) framework.Middleware {
-	if config.Header == "" {
-		config.Header = DefaultHeader
-	}
+//	}, customGenerator))
+func MiddlewareWith(config MiddlewareConfig, generate Generator) framework.Middleware {
+	config = config.withDefaults()
 
-	if config.Generate == nil {
-		config.Generate = generate
+	if generate == nil {
+		generate = defaultGenerator
 	}
 
 	return func(next framework.Handler) framework.Handler {
@@ -89,7 +88,7 @@ func MiddlewareWith(config MiddlewareConfig) framework.Middleware {
 			}
 
 			if id == "" {
-				id = generateSafeID(config.Generate)
+				id = generateSafeID(generate)
 			}
 
 			w.Header().Set(config.Header, id)
@@ -99,6 +98,14 @@ func MiddlewareWith(config MiddlewareConfig) framework.Middleware {
 			return next(w, r.WithContext(ctx))
 		}
 	}
+}
+
+func (config MiddlewareConfig) withDefaults() MiddlewareConfig {
+	if config.Header == "" {
+		config.Header = DefaultMiddlewareConfig.Header
+	}
+
+	return config
 }
 
 // From retrieves the correlation ID from the request
@@ -149,9 +156,9 @@ func extractTraceID(r *http.Request) string {
 	return traceID
 }
 
-// generate creates a new 16-byte random hex string
+// defaultGenerator creates a new 16-byte random hex string
 // (32 characters), matching the OpenTelemetry trace ID format.
-func generate() (string, error) {
+func defaultGenerator() (string, error) {
 	buf := make([]byte, 16)
 
 	_, err := rand.Read(buf)

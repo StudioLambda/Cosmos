@@ -12,7 +12,10 @@
 // Example
 //
 //	app.Use(middleware.Recover())
-//	app.Use(middleware.Logger(*slog.Default()))
-//	app.Use(middleware.SecureHeaders())
-//	app.Use(middleware.RateLimit())
+//	app.Use(middleware.Logger(slog.Default()))
+//	app.Use(middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig))
+//	app.Use(middleware.RateLimit(
+	//		contract.NewCache(cache.NewMemory(cache.MemoryConfig{Expiration: time.Second, Cleanup: time.Minute})),
+//		middleware.DefaultRateLimitConfig,
+//	))
 package middleware

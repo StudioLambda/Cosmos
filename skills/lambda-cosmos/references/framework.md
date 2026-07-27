@@ -100,7 +100,9 @@ app.Use(middleware.Logger(slog.Default()))
 app.Use(middleware.CSRF("https://example.com"))
 app.Use(middleware.CORS(middleware.CORSConfig{}))
 app.Use(middleware.SecureHeaders())
-app.Use(middleware.RateLimit())
+app.Use(middleware.RateLimit(*contract.NewCache(cache.NewMemory(time.Second, time.Minute))))
+
+// Rate limiting uses cache-backed fixed-window counters.
 app.Use(middleware.Provide("db", db))
 app.Use(middleware.HTTP(stdlibMiddleware))
 ```

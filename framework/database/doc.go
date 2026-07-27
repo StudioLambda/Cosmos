@@ -10,7 +10,7 @@
 //
 // Example
 //
-//	err := db.WithTransaction(ctx, func(tx contract.Database) error {
+//	err := db.WithTransaction(ctx, func(tx *contract.Database) error {
 //		_, err := tx.Exec(ctx, "INSERT INTO users(name) VALUES($1)", "alice")
 //		return err
 //	})

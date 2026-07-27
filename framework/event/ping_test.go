@@ -21,7 +21,7 @@ var (
 func TestMemoryBrokerPingSucceeds(t *testing.T) {
 	t.Parallel()
 
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		require.NoError(t, broker.Close())
@@ -35,7 +35,7 @@ func TestMemoryBrokerPingSucceeds(t *testing.T) {
 func TestMemoryBrokerPingAfterCloseReturnsError(t *testing.T) {
 	t.Parallel()
 
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	err := broker.Close()
 	require.NoError(t, err)
@@ -51,7 +51,7 @@ func TestMemoryBrokerPingCancelledContextReturnsError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		require.NoError(t, broker.Close())
@@ -68,7 +68,7 @@ func TestRedisBrokerPingCancelledContextReturnsError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	broker := event.NewRedisBroker(&event.RedisBrokerConfig{Addr: "localhost:6379"})
+	broker := event.NewRedisBroker(event.RedisBrokerConfig{Addr: "localhost:6379"})
 
 	t.Cleanup(func() {
 		require.NoError(t, broker.Close())

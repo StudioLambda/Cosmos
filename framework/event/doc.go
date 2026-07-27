@@ -11,7 +11,7 @@
 //
 // Example
 //
-//	bus := event.NewMemoryBroker()
+//	bus := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 //	defer bus.Close()
 //
 //	ev := contract.NewEvents(bus)

@@ -20,6 +20,12 @@ var ErrBodyTooLarge = errors.New("request body too large")
 // large request bodies that could exhaust server memory.
 const DefaultMaxBodySize int64 = 10 << 20 // 10 MB
 
+// BodyConfig configures the maximum request body size used by the
+// size-limited request helpers.
+type BodyConfig struct {
+	MaxSize int64
+}
+
 // Bytes reads the entire request body and returns it as a byte slice.
 // The request body is consumed after this call and cannot be read again.
 //

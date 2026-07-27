@@ -1,15 +1,22 @@
 package framework
 
 import (
+	"net"
 	"net/http"
+	"strconv"
 	"time"
 )
 
 // ServerConfig configures the HTTP server created by [NewServer].
 // All zero-valued fields default to secure values from [DefaultServerConfig].
 type ServerConfig struct {
-	// Addr is the TCP address to listen on (e.g. ":8080").
-	Addr string
+	// Host is the interface or host address to listen on.
+	// Defaults to 0.0.0.0.
+	Host string
+
+	// Port is the TCP port to listen on.
+	// Defaults to 8080.
+	Port int
 
 	// ReadHeaderTimeout limits the time allowed to read request
 	// headers. Protects against Slowloris attacks.
@@ -40,10 +47,11 @@ type ServerConfig struct {
 // Example:
 //
 //	config := framework.DefaultServerConfig()
-//	config.Addr = ":9090"
+//	config.Port = 9090
 func DefaultServerConfig() ServerConfig {
 	return ServerConfig{
-		Addr:              ":8080",
+		Host:              "0.0.0.0",
+		Port:              8080,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,
@@ -56,6 +64,14 @@ func DefaultServerConfig() ServerConfig {
 // replaced by the corresponding [DefaultServerConfig] fields.
 func (config ServerConfig) withDefaults() ServerConfig {
 	defaults := DefaultServerConfig()
+
+	if config.Host == "" {
+		config.Host = defaults.Host
+	}
+
+	if config.Port == 0 {
+		config.Port = defaults.Port
+	}
 
 	if config.ReadHeaderTimeout == 0 {
 		config.ReadHeaderTimeout = defaults.ReadHeaderTimeout
@@ -80,39 +96,19 @@ func (config ServerConfig) withDefaults() ServerConfig {
 	return config
 }
 
-// NewServer creates an [http.Server] with secure timeout defaults
-// using the given handler. It applies [DefaultServerConfig]
-// values, protecting against Slowloris and connection-exhaustion
-// attacks that are possible when using [http.ListenAndServe]
-// directly (which sets all timeouts to zero/infinite).
-//
-// Example:
-//
-//	app := framework.New()
-//	server := framework.NewServer(":8080", app)
-//	if err := server.ListenAndServe(); err != nil {
-//		return err
-//	}
-func NewServer(addr string, handler http.Handler) *http.Server {
-	config := DefaultServerConfig()
-	config.Addr = addr
-
-	return NewServerWith(config, handler)
-}
-
-// NewServerWith creates an [http.Server] with the provided
+// NewServer creates an [http.Server] with the provided
 // configuration and handler. Zero-valued timeout fields are replaced
 // with their secure defaults from [DefaultServerConfig].
 //
 // Example:
 //
-//	server := framework.NewServerWith(framework.ServerConfig{Addr: ":8443"}, app)
+//	server := framework.NewServer(framework.ServerConfig{Host: "0.0.0.0", Port: 8443}, app)
 //	_ = server
-func NewServerWith(config ServerConfig, handler http.Handler) *http.Server {
+func NewServer(config ServerConfig, handler http.Handler) *http.Server {
 	config = config.withDefaults()
 
 	return &http.Server{
-		Addr:              config.Addr,
+		Addr:              net.JoinHostPort(config.Host, strconv.Itoa(config.Port)),
 		Handler:           handler,
 		ReadHeaderTimeout: config.ReadHeaderTimeout,
 		ReadTimeout:       config.ReadTimeout,

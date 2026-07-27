@@ -21,16 +21,15 @@ type Argon2 struct {
 	config argon2.Config
 }
 
-// NewArgon2 creates an Argon2 hasher with the library's default
-// configuration (Argon2id, sensible memory/iteration defaults).
-func NewArgon2() *Argon2 {
-	return NewArgon2With(argon2.DefaultConfig())
+// DefaultArgon2Config returns the default Argon2 hasher configuration.
+func DefaultArgon2Config() Argon2Config {
+	return argon2.DefaultConfig()
 }
 
-// NewArgon2With creates an Argon2 hasher using the provided
+// NewArgon2 creates an Argon2 hasher using the provided
 // configuration, allowing full control over memory cost,
 // iteration count, and parallelism.
-func NewArgon2With(config Argon2Config) *Argon2 {
+func NewArgon2(config Argon2Config) *Argon2 {
 	return &Argon2{
 		config: config,
 	}

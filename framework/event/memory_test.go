@@ -19,7 +19,7 @@ func TestMemoryBrokerPublishAndSubscribe(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -60,7 +60,7 @@ func TestMemoryBrokerWildcardStar(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -93,7 +93,7 @@ func TestMemoryBrokerPublishDoesNotDeadlockWithSubscribeInHandler(t *testing.T) 
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -131,7 +131,7 @@ func TestMemoryBrokerWildcardHash(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -169,7 +169,7 @@ func TestMemoryBrokerExactMatch(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -201,7 +201,7 @@ func TestMemoryBrokerNoMatchDoesNotDeliver(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -229,7 +229,7 @@ func TestMemoryBrokerUnsubscribeStopsDelivery(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -260,7 +260,7 @@ func TestMemoryBrokerMultipleSubscribers(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -295,7 +295,7 @@ func TestMemoryBrokerPublishAfterCloseReturnsError(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	err := broker.Close()
 	require.NoError(t, err)
@@ -309,7 +309,7 @@ func TestMemoryBrokerSubscribeAfterCloseReturnsError(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	err := broker.Close()
 	require.NoError(t, err)
@@ -327,7 +327,7 @@ func TestMemoryBrokerHandlerPanicDoesNotCrashBroker(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -358,7 +358,7 @@ func TestMemoryBrokerContextCancellationStopsPublish(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -373,7 +373,7 @@ func TestMemoryBrokerPayloadUnmarshal(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -417,7 +417,7 @@ func TestMemoryBrokerPublishNilPayloadSucceeds(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -432,7 +432,7 @@ func TestMemoryBrokerCloseWaitsForInFlightDeliveries(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	var completed atomic.Bool
 
@@ -458,7 +458,7 @@ func TestMemoryBrokerCloseClearsHandlers(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	_, err := broker.Subscribe(
 		ctx,
@@ -480,7 +480,7 @@ func TestMemoryBrokerUnsubscribeOneDoesNotAffectOther(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -523,7 +523,7 @@ func TestMemoryBrokerPublishRejectsEmptyEvent(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -539,7 +539,7 @@ func TestMemoryBrokerPublishRejectsControlCharacters(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -555,7 +555,7 @@ func TestMemoryBrokerPublishRejectsTooLongEvent(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -573,7 +573,7 @@ func TestMemoryBrokerSubscribeRejectsEmptyEvent(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()
@@ -592,7 +592,7 @@ func TestMemoryBrokerValidationErrorsWrapErrInvalidEvent(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	broker := event.NewMemoryBroker()
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
 
 	t.Cleanup(func() {
 		_ = broker.Close()

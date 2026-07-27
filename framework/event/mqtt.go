@@ -101,6 +101,14 @@ type MQTTBrokerConfig struct {
 	KeepAlive uint16
 }
 
+// DefaultMQTTBrokerConfig returns the default MQTT broker configuration.
+func DefaultMQTTBrokerConfig() MQTTBrokerConfig {
+	return MQTTBrokerConfig{
+		QoS:       DefaultMQTTQoS,
+		KeepAlive: DefaultMQTTKeepAlive,
+	}
+}
+
 // DefaultMQTTQoS is the default quality of service level used
 // for MQTT publish and subscribe operations when not specified.
 const DefaultMQTTQoS = 1
@@ -157,25 +165,11 @@ func matchParts(pattern, topic []string) bool {
 	return false
 }
 
-// NewMQTTBroker creates a new MQTTBroker by connecting to the
-// MQTT broker at the given URL with default settings. The broker
-// uses clean sessions, QoS 1, and automatic reconnection. It must
-// be closed when no longer needed to release resources.
-//
-// The URL should be in the format:
-// mqtt://host:port or mqtts://host:port for TLS
-func NewMQTTBroker(url string) (*MQTTBroker, error) {
-	return NewMQTTBrokerWith(&MQTTBrokerConfig{
-		URLs: []string{url},
-		QoS:  DefaultMQTTQoS,
-	})
-}
-
-// NewMQTTBrokerWith creates a new MQTTBroker using the provided
+// NewMQTTBroker creates a new MQTTBroker using the provided
 // configuration for connection URLs, QoS level, and authentication.
 // Multiple URLs enable automatic failover between brokers. The
 // broker uses clean sessions and automatic reconnection.
-func NewMQTTBrokerWith(config *MQTTBrokerConfig) (*MQTTBroker, error) {
+func NewMQTTBroker(config MQTTBrokerConfig) (*MQTTBroker, error) {
 	qos := config.QoS
 	if qos == 0 && len(config.URLs) > 0 {
 		qos = DefaultMQTTQoS

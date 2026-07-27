@@ -19,13 +19,19 @@ import (
 // values before calling Put or use a backend with transport/at-rest
 // encryption.
 type CacheDriver struct {
-	cache  contract.Cache
+	cache  *contract.Cache
 	config CacheDriverConfig
 }
 
 // CacheDriverConfig holds configuration for the CacheDriver.
 type CacheDriverConfig struct {
 	Prefix string
+}
+
+// DefaultCacheDriverConfig holds the default session cache driver
+// configuration.
+var DefaultCacheDriverConfig = CacheDriverConfig{
+	Prefix: "cosmos:sessions",
 }
 
 // sessionData is the serializable representation of a session for
@@ -37,17 +43,13 @@ type sessionData struct {
 	Storage   map[string]any `json:"storage"`
 }
 
-// NewCacheDriver creates a CacheDriver with the default key prefix
-// "cosmos.sessions".
-func NewCacheDriver(cache contract.Cache) *CacheDriver {
-	return NewCacheDriverWith(cache, CacheDriverConfig{
-		Prefix: "cosmos.sessions",
-	})
-}
+// NewCacheDriver creates a CacheDriver with the given cache backend
+// and configuration.
+func NewCacheDriver(cache *contract.Cache, config CacheDriverConfig) *CacheDriver {
+	if config.Prefix == "" {
+		config.Prefix = DefaultCacheDriverConfig.Prefix
+	}
 
-// NewCacheDriverWith creates a CacheDriver with the given cache
-// backend and configuration.
-func NewCacheDriverWith(cache contract.Cache, config CacheDriverConfig) *CacheDriver {
 	return &CacheDriver{
 		cache:  cache,
 		config: config,
@@ -55,9 +57,9 @@ func NewCacheDriverWith(cache contract.Cache, config CacheDriverConfig) *CacheDr
 }
 
 // key builds the full cache key by joining the configured prefix
-// with the session ID.
+// with the session ID using ':' separators.
 func (driver *CacheDriver) key(id string) string {
-	return fmt.Sprintf("%s.%s", driver.config.Prefix, id)
+	return fmt.Sprintf("%s:%s", driver.config.Prefix, id)
 }
 
 // Get retrieves a session from the cache by its ID.

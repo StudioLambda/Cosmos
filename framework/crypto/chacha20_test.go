@@ -13,7 +13,7 @@ func TestChaCha20NewCreatesEncrypter(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	_, err := crypto.NewChaCha20(key)
+	_, err := crypto.NewChaCha20(crypto.ChaCha20Config{Key: key})
 
 	require.NoError(t, err)
 }
@@ -22,7 +22,7 @@ func TestChaCha20EncryptSucceeds(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewChaCha20(key)
+	encrypter, err := crypto.NewChaCha20(crypto.ChaCha20Config{Key: key})
 
 	require.NoError(t, err)
 
@@ -36,7 +36,7 @@ func TestChaCha20EncryptDecryptRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewChaCha20(key)
+	encrypter, err := crypto.NewChaCha20(crypto.ChaCha20Config{Key: key})
 
 	require.NoError(t, err)
 
@@ -54,7 +54,7 @@ func TestChaCha20EncryptDecryptRoundTrip(t *testing.T) {
 func TestChaCha20NewWithInvalidKeySize(t *testing.T) {
 	t.Parallel()
 
-	_, err := crypto.NewChaCha20([]byte("short"))
+	_, err := crypto.NewChaCha20(crypto.ChaCha20Config{Key: []byte("short")})
 
 	require.Error(t, err)
 }
@@ -63,7 +63,7 @@ func TestChaCha20DecryptWithShortCiphertext(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewChaCha20(key)
+	encrypter, err := crypto.NewChaCha20(crypto.ChaCha20Config{Key: key})
 
 	require.NoError(t, err)
 
@@ -76,7 +76,7 @@ func TestChaCha20DecryptWithCorruptedCiphertext(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewChaCha20(key)
+	encrypter, err := crypto.NewChaCha20(crypto.ChaCha20Config{Key: key})
 
 	require.NoError(t, err)
 
@@ -98,7 +98,7 @@ func TestChaCha20CloseZerosKeyMaterial(t *testing.T) {
 	key := make([]byte, 32)
 	copy(key, "12345678901234567890123456789012")
 
-	encrypter, err := crypto.NewChaCha20(key)
+	encrypter, err := crypto.NewChaCha20(crypto.ChaCha20Config{Key: key})
 
 	require.NoError(t, err)
 
@@ -120,7 +120,7 @@ func TestChaCha20AdditionalDataMustMatchForDecrypt(t *testing.T) {
 
 	key := []byte("12345678901234567890123456789012")
 
-	encrypter, err := crypto.NewChaCha20(key)
+	encrypter, err := crypto.NewChaCha20(crypto.ChaCha20Config{Key: key})
 	require.NoError(t, err)
 
 	encrypter.AdditionalData = []byte("context-v1")
@@ -130,7 +130,7 @@ func TestChaCha20AdditionalDataMustMatchForDecrypt(t *testing.T) {
 
 	require.NoError(t, err)
 
-	decrypter, err := crypto.NewChaCha20(key)
+	decrypter, err := crypto.NewChaCha20(crypto.ChaCha20Config{Key: key})
 	require.NoError(t, err)
 
 	decrypter.AdditionalData = []byte("context-v2")
@@ -144,7 +144,7 @@ func TestChaCha20AdditionalDataRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewChaCha20(key)
+	encrypter, err := crypto.NewChaCha20(crypto.ChaCha20Config{Key: key})
 
 	require.NoError(t, err)
 
@@ -165,7 +165,7 @@ func TestChaCha20EncryptProducesDifferentCiphertexts(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewChaCha20(key)
+	encrypter, err := crypto.NewChaCha20(crypto.ChaCha20Config{Key: key})
 
 	require.NoError(t, err)
 
@@ -184,7 +184,7 @@ func TestChaCha20DecryptEmptyInput(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewChaCha20(key)
+	encrypter, err := crypto.NewChaCha20(crypto.ChaCha20Config{Key: key})
 
 	require.NoError(t, err)
 
@@ -197,7 +197,7 @@ func TestChaCha20EncryptAfterCloseReturnsError(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewChaCha20(key)
+	encrypter, err := crypto.NewChaCha20(crypto.ChaCha20Config{Key: key})
 
 	require.NoError(t, err)
 
@@ -212,7 +212,7 @@ func TestChaCha20DecryptAfterCloseReturnsError(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewChaCha20(key)
+	encrypter, err := crypto.NewChaCha20(crypto.ChaCha20Config{Key: key})
 
 	require.NoError(t, err)
 

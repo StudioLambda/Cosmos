@@ -13,7 +13,7 @@ func TestAESNewCreatesEncrypter(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	_, err := crypto.NewAES(key)
+	_, err := crypto.NewAES(crypto.AESConfig{Key: key})
 
 	require.NoError(t, err)
 }
@@ -22,7 +22,7 @@ func TestAESEncryptSucceeds(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewAES(key)
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 
 	require.NoError(t, err)
 
@@ -36,7 +36,7 @@ func TestAESEncryptDecryptRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewAES(key)
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 
 	require.NoError(t, err)
 
@@ -54,7 +54,7 @@ func TestAESEncryptDecryptRoundTrip(t *testing.T) {
 func TestAESNewWithInvalidKeySize(t *testing.T) {
 	t.Parallel()
 
-	_, err := crypto.NewAES([]byte("short"))
+	_, err := crypto.NewAES(crypto.AESConfig{Key: []byte("short")})
 
 	require.Error(t, err)
 }
@@ -63,7 +63,7 @@ func TestAESNewWith16ByteKey(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("1234567890123456")
-	encrypter, err := crypto.NewAES(key)
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 
 	require.NoError(t, err)
 
@@ -82,7 +82,7 @@ func TestAESNewWith24ByteKey(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("123456789012345678901234")
-	encrypter, err := crypto.NewAES(key)
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 
 	require.NoError(t, err)
 
@@ -101,7 +101,7 @@ func TestAESDecryptWithShortCiphertext(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewAES(key)
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 
 	require.NoError(t, err)
 
@@ -114,7 +114,7 @@ func TestAESDecryptWithCorruptedCiphertext(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewAES(key)
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 
 	require.NoError(t, err)
 
@@ -136,7 +136,7 @@ func TestAESCloseZerosKeyMaterial(t *testing.T) {
 	key := make([]byte, 32)
 	copy(key, "12345678901234567890123456789012")
 
-	encrypter, err := crypto.NewAES(key)
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 
 	require.NoError(t, err)
 
@@ -158,7 +158,7 @@ func TestAESAdditionalDataMustMatchForDecrypt(t *testing.T) {
 
 	key := []byte("12345678901234567890123456789012")
 
-	encrypter, err := crypto.NewAES(key)
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 	require.NoError(t, err)
 
 	encrypter.AdditionalData = []byte("context-v1")
@@ -168,7 +168,7 @@ func TestAESAdditionalDataMustMatchForDecrypt(t *testing.T) {
 
 	require.NoError(t, err)
 
-	decrypter, err := crypto.NewAES(key)
+	decrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 	require.NoError(t, err)
 
 	decrypter.AdditionalData = []byte("context-v2")
@@ -182,7 +182,7 @@ func TestAESAdditionalDataRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewAES(key)
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 
 	require.NoError(t, err)
 
@@ -203,7 +203,7 @@ func TestAESEncryptProducesDifferentCiphertexts(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewAES(key)
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 
 	require.NoError(t, err)
 
@@ -222,7 +222,7 @@ func TestAESDecryptEmptyInput(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewAES(key)
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 
 	require.NoError(t, err)
 
@@ -235,7 +235,7 @@ func TestAESEncryptAfterCloseReturnsError(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewAES(key)
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 
 	require.NoError(t, err)
 
@@ -250,7 +250,7 @@ func TestAESDecryptAfterCloseReturnsError(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewAES(key)
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 
 	require.NoError(t, err)
 
@@ -265,7 +265,7 @@ func TestAESCloseNilsAEAD(t *testing.T) {
 	t.Parallel()
 
 	key := []byte("12345678901234567890123456789012")
-	encrypter, err := crypto.NewAES(key)
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
 
 	require.NoError(t, err)
 

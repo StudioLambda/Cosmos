@@ -2,12 +2,37 @@ package request
 
 import "net/http"
 
+// PaginationConfig configures offset-based pagination defaults.
+type PaginationConfig struct {
+	DefaultPage    int
+	DefaultPerPage int
+	MaxPerPage     int
+}
+
+// CursorPaginationConfig configures cursor-based pagination defaults.
+type CursorPaginationConfig struct {
+	DefaultPerPage int
+	MaxPerPage     int
+}
+
+// DefaultPaginationConfig holds the default offset pagination settings.
+var DefaultPaginationConfig = PaginationConfig{
+	DefaultPage:    1,
+	DefaultPerPage: 25,
+	MaxPerPage:     100,
+}
+
+// DefaultCursorPaginationConfig holds the default cursor pagination settings.
+var DefaultCursorPaginationConfig = CursorPaginationConfig{
+	DefaultPerPage: 25,
+	MaxPerPage:     100,
+}
+
 // Pagination extracts the page number and per-page count from the
-// request query parameters "page" and "per_page". It applies sensible
-// defaults: page 1, 25 items per page, and a maximum of 100 items
-// per page. Use [PaginationWith] for custom defaults and limits.
-func Pagination(r *http.Request) (page, perPage int) {
-	return PaginationWith(r, 1, 25, 100)
+// request query parameters "page" and "per_page" using the provided
+// configuration.
+func Pagination(r *http.Request, config PaginationConfig) (page, perPage int) {
+	return PaginationWith(r, config.DefaultPage, config.DefaultPerPage, config.MaxPerPage)
 }
 
 // PaginationWith extracts the page number and per-page count from the
@@ -22,11 +47,10 @@ func PaginationWith(r *http.Request, defaultPage, defaultPerPage, maxPerPage int
 }
 
 // CursorPagination extracts the cursor string and per-page count from
-// the request query parameters "cursor" and "per_page". It applies
-// sensible defaults: 25 items per page and a maximum of 100 items per
-// page. Use [CursorPaginationWith] for custom defaults and limits.
-func CursorPagination(r *http.Request) (cursor string, perPage int) {
-	return CursorPaginationWith(r, 25, 100)
+// the request query parameters "cursor" and "per_page" using the
+// provided configuration.
+func CursorPagination(r *http.Request, config CursorPaginationConfig) (cursor string, perPage int) {
+	return CursorPaginationWith(r, config.DefaultPerPage, config.MaxPerPage)
 }
 
 // CursorPaginationWith extracts the cursor string and per-page count

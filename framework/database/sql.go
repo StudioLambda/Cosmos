@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
+	"time"
 
 	"github.com/studiolambda/cosmos/contract"
 
@@ -38,15 +39,41 @@ type queryxContext interface {
 	QueryxContext(ctx context.Context, query string, args ...any) (*sqlx.Rows, error)
 }
 
+// SQLConfig configures the SQL database driver and connection pool.
+type SQLConfig struct {
+	// Driver is the SQL driver name.
+	Driver string
+
+	// DSN is the data source name used to connect.
+	DSN string
+
+	// MaxOpenConns sets the maximum number of open connections.
+	MaxOpenConns int
+
+	// MaxIdleConns sets the maximum number of idle connections.
+	MaxIdleConns int
+
+	// ConnMaxLifetime sets the maximum time a connection may be reused.
+	ConnMaxLifetime time.Duration
+
+	// ConnMaxIdleTime sets the maximum idle time for a connection.
+	ConnMaxIdleTime time.Duration
+}
+
+// DefaultSQLConfig returns the default SQL database configuration.
+func DefaultSQLConfig() SQLConfig {
+	return SQLConfig{}
+}
+
 // Close is a no-op on transaction wrappers. Transactions are managed
 // by [SQL.WithTransaction] which handles commit and rollback.
 func (tx *sqlTx) Close() error {
 	return nil
 }
 
-// NewSQL connects to the database using the given driver name and
-// DSN, returning a ready-to-use SQL instance or an error if the
-// connection cannot be established.
+// NewSQL connects to the database using the given configuration,
+// returning a ready-to-use SQL instance or an error if the connection
+// cannot be established.
 //
 // WARNING: No default query timeout is applied. Long-running or
 // runaway queries will block indefinitely unless the caller
@@ -60,14 +87,33 @@ func (tx *sqlTx) Close() error {
 //	    raw.SetMaxIdleConns(5)
 //	    raw.SetConnMaxLifetime(5 * time.Minute)
 //	})
-func NewSQL(driver string, dsn string) (*SQL, error) {
-	db, err := sqlx.Connect(driver, dsn)
+func NewSQL(config SQLConfig) (*SQL, error) {
+	db, err := sqlx.Connect(config.Driver, config.DSN)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return NewSQLFrom(db), nil
+	database := NewSQLFrom(db)
+	database.Configure(func(raw *sql.DB) {
+		if config.MaxOpenConns > 0 {
+			raw.SetMaxOpenConns(config.MaxOpenConns)
+		}
+
+		if config.MaxIdleConns > 0 {
+			raw.SetMaxIdleConns(config.MaxIdleConns)
+		}
+
+		if config.ConnMaxLifetime > 0 {
+			raw.SetConnMaxLifetime(config.ConnMaxLifetime)
+		}
+
+		if config.ConnMaxIdleTime > 0 {
+			raw.SetConnMaxIdleTime(config.ConnMaxIdleTime)
+		}
+	})
+
+	return database, nil
 }
 
 // NewSQLFrom wraps an existing sqlx.DB connection in a SQL instance.

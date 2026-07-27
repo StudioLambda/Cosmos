@@ -9,7 +9,7 @@
 //
 // Example
 //
-//	driver := cache.NewMemory(5*time.Minute, 10*time.Minute)
+//	driver := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
 //	store := contract.NewCache(driver)
 //	_ = store.Put(ctx, "health", "ok", time.Minute)
 package cache

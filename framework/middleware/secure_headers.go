@@ -56,18 +56,10 @@ var DefaultSecureHeadersConfig = SecureHeadersConfig{
 	StrictTransportSecurity: "max-age=63072000; includeSubDomains",
 }
 
-// SecureHeaders returns middleware that sets standard HTTP
-// security response headers using [DefaultSecureHeadersConfig].
-// This protects against MIME sniffing, clickjacking, referrer
-// leakage, and protocol downgrade attacks.
-func SecureHeaders() framework.Middleware {
-	return SecureHeadersWith(DefaultSecureHeadersConfig)
-}
-
-// SecureHeadersWith returns middleware that sets HTTP security
-// response headers using the provided configuration. Headers with
-// empty values are skipped.
-func SecureHeadersWith(config SecureHeadersConfig) framework.Middleware {
+// SecureHeaders returns middleware that sets HTTP security response
+// headers using the provided configuration. Headers with empty values
+// are skipped.
+func SecureHeaders(config SecureHeadersConfig) framework.Middleware {
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
 			if config.ContentTypeOptions != "" {

@@ -148,7 +148,7 @@ Available in `framework/middleware`:
 - `CSRF(origins...)` / `CSRFWith(csrf, problem)` — cross-origin protection
 - `CORS(CORSConfig)` — configurable CORS headers
 - `SecureHeaders()` / `SecureHeadersWith(opts)` — security headers (HSTS, CSP, X-Frame-Options)
-- `RateLimit()` / `RateLimitWith(opts)` — per-key token bucket (default 15 req/s, burst 30, idle eviction after 5m)
+- `RateLimit(cache)` / `RateLimitWith(cache, config)` — per-key fixed-window rate limiting backed by cache
 - `Provide(key, value)` / `ProvideWith(fn)` — context injection
 - `HTTP(func(http.Handler) http.Handler)` — stdlib middleware adapter
 
@@ -186,7 +186,7 @@ Session middleware in `framework/session`:
 - Use `framework.NewServer()` instead of `http.ListenAndServe` (timeout defaults)
 - Use `middleware.CSRF()` for state-changing endpoints
 - Use `middleware.SecureHeaders()` for all applications
-- Use `middleware.RateLimit()` to prevent abuse
+- Use `middleware.RateLimit(cache)` to prevent abuse
 - Use `middleware.CORS()` for cross-origin APIs
 - Use `request.LimitedJSON` / `LimitedBytes` instead of unlimited variants
 - Use `response.SafeRedirect` instead of `response.Redirect` for user-supplied URLs

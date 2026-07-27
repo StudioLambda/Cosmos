@@ -16,9 +16,9 @@ var (
 	ErrCacheUnsupportedOperation = errors.New("cache unsupported operation")
 )
 
-// CacheDriver defines the minimal contract that cache backends must
-// implement. Drivers operate on raw bytes, leaving serialization to
-// the [Cache] wrapper. A zero TTL means the entry should never expire.
+// CacheDriver defines the contract that cache backends must implement.
+// Drivers operate on raw bytes, leaving serialization to the [Cache]
+// wrapper. A zero TTL means the entry should never expire.
 type CacheDriver interface {
 	// Get retrieves the raw bytes for the given key.
 	// Returns [ErrCacheKeyNotFound] when the key is missing or expired.
@@ -35,15 +35,10 @@ type CacheDriver interface {
 	// Has returns true if the key exists and is not expired.
 	Has(ctx context.Context, key string) (bool, error)
 
-	// Ping verifies that the connection is still alive.
-	Ping(ctx context.Context) error
-}
+	// Add stores raw bytes for the given key with a TTL only when the key
+	// does not already exist. Returns true when the value was stored.
+	Add(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error)
 
-// CacheCounter is an optional interface that cache drivers may
-// implement to support atomic increment and decrement operations.
-// When the driver does not implement this interface, the [Cache]
-// wrapper returns [ErrCacheUnsupportedOperation].
-type CacheCounter interface {
 	// Increment atomically increases the integer value at key by
 	// the given delta. Returns the new value.
 	Increment(ctx context.Context, key string, delta int64) (int64, error)
@@ -51,6 +46,12 @@ type CacheCounter interface {
 	// Decrement atomically decreases the integer value at key by
 	// the given delta. Returns the new value.
 	Decrement(ctx context.Context, key string, delta int64) (int64, error)
+
+	// TTL returns the remaining lifetime for key.
+	TTL(ctx context.Context, key string) (time.Duration, error)
+
+	// Ping verifies that the connection is still alive.
+	Ping(ctx context.Context) error
 }
 
 // Cache provides a type-safe caching layer over a [CacheDriver].
@@ -143,6 +144,17 @@ func (cache *Cache) Delete(ctx context.Context, key string) error {
 	return cache.driver.Delete(ctx, key)
 }
 
+// Add stores the value for the given key only when the key does not
+// already exist. The value is JSON-encoded before storage.
+func (cache *Cache) Add[T any](ctx context.Context, key string, value T, ttl time.Duration) (bool, error) {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return false, err
+	}
+
+	return cache.driver.Add(ctx, key, raw, ttl)
+}
+
 // Has returns true if the key exists in the cache and is not expired.
 //
 // Example:
@@ -204,8 +216,7 @@ func (cache *Cache) Forever[T any](ctx context.Context, key string, value T) err
 }
 
 // Increment atomically increases the integer value at key by the
-// given delta. Returns [ErrCacheUnsupportedOperation] if the driver
-// does not implement [CacheCounter].
+// given delta. Returns the new value.
 //
 // Example:
 //
@@ -217,18 +228,11 @@ func (cache *Cache) Forever[T any](ctx context.Context, key string, value T) err
 //	}
 //	_ = count
 func (cache *Cache) Increment(ctx context.Context, key string, delta int64) (int64, error) {
-	counter, ok := cache.driver.(CacheCounter)
-
-	if !ok {
-		return 0, ErrCacheUnsupportedOperation
-	}
-
-	return counter.Increment(ctx, key, delta)
+	return cache.driver.Increment(ctx, key, delta)
 }
 
 // Decrement atomically decreases the integer value at key by the
-// given delta. Returns [ErrCacheUnsupportedOperation] if the driver
-// does not implement [CacheCounter].
+// given delta. Returns the new value.
 //
 // Example:
 //
@@ -240,13 +244,12 @@ func (cache *Cache) Increment(ctx context.Context, key string, delta int64) (int
 //	}
 //	_ = count
 func (cache *Cache) Decrement(ctx context.Context, key string, delta int64) (int64, error) {
-	counter, ok := cache.driver.(CacheCounter)
+	return cache.driver.Decrement(ctx, key, delta)
+}
 
-	if !ok {
-		return 0, ErrCacheUnsupportedOperation
-	}
-
-	return counter.Decrement(ctx, key, delta)
+// TTL returns the remaining lifetime for key.
+func (cache *Cache) TTL(ctx context.Context, key string) (time.Duration, error) {
+	return cache.driver.TTL(ctx, key)
 }
 
 // Remember retrieves the cached value for the given key, decoding it

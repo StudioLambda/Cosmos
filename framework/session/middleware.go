@@ -27,8 +27,9 @@ type MiddlewareConfig struct {
 	// Secure marks the cookie for HTTPS-only transmission.
 	Secure bool
 
-	// SameSite controls cross-site cookie behaviour.
-	SameSite http.SameSite
+	// SameSite controls cross-site cookie behaviour. Supported values
+	// are "lax", "strict", "none", and "default".
+	SameSite string
 
 	// Partitioned enables the CHIPS partitioned cookie attribute.
 	Partitioned bool
@@ -46,12 +47,36 @@ type MiddlewareConfig struct {
 	// an active session is automatically extended by a full TTL.
 	ExpirationDelta time.Duration
 
+}
+
+// MiddlewareRuntime holds runtime-only session middleware settings.
+type MiddlewareRuntime struct {
 	// Key is the context key under which the session is stored.
 	Key any
 
 	// ErrorHandler is an optional callback invoked when internal
 	// session operations fail. When nil, errors are silently discarded.
 	ErrorHandler func(error)
+}
+
+// DefaultMiddlewareConfig holds the default session middleware
+// configuration.
+var DefaultMiddlewareConfig = MiddlewareConfig{
+	Name:            DefaultCookie,
+	Path:            "/",
+	Domain:          "",
+	Secure:          true,
+	SameSite:        "lax",
+	Partitioned:     false,
+	TTL:             DefaultTTL,
+	MaxLifetime:     DefaultMaxLifetime,
+	ExpirationDelta: DefaultExpirationDelta,
+}
+
+// DefaultMiddlewareRuntime holds the default runtime settings for the
+// session middleware.
+var DefaultMiddlewareRuntime = MiddlewareRuntime{
+	Key: contract.SessionKey,
 }
 
 const (
@@ -125,8 +150,8 @@ func (config MiddlewareConfig) withDefaults() MiddlewareConfig {
 		config.Path = "/"
 	}
 
-	if config.SameSite == 0 {
-		config.SameSite = http.SameSiteLaxMode
+	if config.SameSite == "" {
+		config.SameSite = DefaultMiddlewareConfig.SameSite
 	}
 
 	if config.TTL == 0 {
@@ -141,24 +166,51 @@ func (config MiddlewareConfig) withDefaults() MiddlewareConfig {
 		config.MaxLifetime = DefaultMaxLifetime
 	}
 
-	if config.Key == nil {
-		config.Key = contract.SessionKey
-	}
-
 	return config
 }
 
-// reportError invokes the configured error handler if set.
-func reportError(config MiddlewareConfig, err error) {
-	if err != nil && config.ErrorHandler != nil {
-		config.ErrorHandler(err)
+func (runtime MiddlewareRuntime) withDefaults() MiddlewareRuntime {
+	if runtime.Key == nil {
+		runtime.Key = DefaultMiddlewareRuntime.Key
+	}
+
+	return runtime
+}
+
+func sameSiteMode(value string) http.SameSite {
+	switch value {
+	case "default":
+		return http.SameSiteDefaultMode
+	case "none":
+		return http.SameSiteNoneMode
+	case "strict":
+		return http.SameSiteStrictMode
+	case "lax", "":
+		return http.SameSiteLaxMode
+	default:
+		panic("session middleware: invalid SameSite value")
 	}
 }
 
+// reportError invokes the configured error handler if set.
+func reportError(runtime MiddlewareRuntime, err error) {
+	if err != nil && runtime.ErrorHandler != nil {
+		runtime.ErrorHandler(err)
+	}
+}
+
+// Middleware returns a session middleware configured with the given
+// driver and configuration.
+func Middleware(driver contract.SessionDriver, config MiddlewareConfig) framework.Middleware {
+	return MiddlewareWith(driver, config, MiddlewareRuntime{})
+}
+
 // MiddlewareWith returns a session middleware configured with the
-// given driver and configuration.
-func MiddlewareWith(driver contract.SessionDriver, config MiddlewareConfig) framework.Middleware {
+// given driver, configuration, and runtime options.
+func MiddlewareWith(driver contract.SessionDriver, config MiddlewareConfig, runtime MiddlewareRuntime) framework.Middleware {
 	config = config.withDefaults()
+	runtime = runtime.withDefaults()
+	sameSite := sameSiteMode(config.SameSite)
 
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
@@ -177,7 +229,7 @@ func MiddlewareWith(driver contract.SessionDriver, config MiddlewareConfig) fram
 
 					if age >= config.MaxLifetime {
 						reportError(
-							config,
+							runtime,
 							session.Regenerate(),
 						)
 						session.Extend(time.Now().Add(config.TTL))
@@ -185,7 +237,7 @@ func MiddlewareWith(driver contract.SessionDriver, config MiddlewareConfig) fram
 				}
 
 				if session.HasExpired() {
-					reportError(config, session.Regenerate())
+					reportError(runtime, session.Regenerate())
 					session.Extend(time.Now().Add(config.TTL))
 				}
 
@@ -195,7 +247,7 @@ func MiddlewareWith(driver contract.SessionDriver, config MiddlewareConfig) fram
 
 				if session.HasRegenerated() {
 					reportError(
-						config,
+						runtime,
 						driver.Delete(
 							saveCtx,
 							session.OriginalSessionID(),
@@ -207,7 +259,7 @@ func MiddlewareWith(driver contract.SessionDriver, config MiddlewareConfig) fram
 					ttl := time.Until(session.ExpiresAt())
 
 					if err := driver.Save(saveCtx, session, ttl); err != nil {
-						reportError(config, err)
+						reportError(runtime, err)
 
 						return
 					}
@@ -221,32 +273,15 @@ func MiddlewareWith(driver contract.SessionDriver, config MiddlewareConfig) fram
 						MaxAge:      int(ttl.Seconds()),
 						Secure:      config.Secure,
 						HttpOnly:    true,
-						SameSite:    config.SameSite,
+						SameSite:    sameSite,
 						Partitioned: config.Partitioned,
 					})
 				}
 			})
 
-			ctx := context.WithValue(r.Context(), config.Key, session)
+			ctx := context.WithValue(r.Context(), runtime.Key, session)
 
 			return next(w, r.WithContext(ctx))
 		}
 	}
-}
-
-// Middleware returns a session middleware using the given driver and
-// sensible defaults.
-func Middleware(driver contract.SessionDriver) framework.Middleware {
-	return MiddlewareWith(driver, MiddlewareConfig{
-		Name:            DefaultCookie,
-		Path:            "/",
-		Domain:          "",
-		Secure:          true,
-		SameSite:        http.SameSiteLaxMode,
-		Partitioned:     false,
-		TTL:             DefaultTTL,
-		MaxLifetime:     DefaultMaxLifetime,
-		ExpirationDelta: DefaultExpirationDelta,
-		Key:             contract.SessionKey,
-	})
 }

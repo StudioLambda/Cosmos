@@ -14,7 +14,7 @@ func TestPaginationReturnsDefaults(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
-	page, perPage := request.Pagination(r)
+	page, perPage := request.Pagination(r, request.DefaultPaginationConfig)
 
 	require.Equal(t, 1, page)
 	require.Equal(t, 25, perPage)
@@ -25,7 +25,7 @@ func TestPaginationParsesQueryParams(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?page=3&per_page=50", nil)
 
-	page, perPage := request.Pagination(r)
+	page, perPage := request.Pagination(r, request.DefaultPaginationConfig)
 
 	require.Equal(t, 3, page)
 	require.Equal(t, 50, perPage)
@@ -36,7 +36,7 @@ func TestPaginationClampsPerPageToMax(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?per_page=999", nil)
 
-	_, perPage := request.Pagination(r)
+	_, perPage := request.Pagination(r, request.DefaultPaginationConfig)
 
 	require.Equal(t, 100, perPage)
 }
@@ -46,7 +46,7 @@ func TestPaginationClampsPageBelowOne(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?page=0", nil)
 
-	page, _ := request.Pagination(r)
+	page, _ := request.Pagination(r, request.DefaultPaginationConfig)
 
 	require.Equal(t, 1, page)
 }
@@ -56,7 +56,7 @@ func TestPaginationClampsNegativePage(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?page=-5", nil)
 
-	page, _ := request.Pagination(r)
+	page, _ := request.Pagination(r, request.DefaultPaginationConfig)
 
 	require.Equal(t, 1, page)
 }
@@ -66,7 +66,7 @@ func TestPaginationClampsPerPageBelowOne(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?per_page=0", nil)
 
-	_, perPage := request.Pagination(r)
+	_, perPage := request.Pagination(r, request.DefaultPaginationConfig)
 
 	require.Equal(t, 1, perPage)
 }
@@ -97,7 +97,7 @@ func TestPaginationIgnoresInvalidPage(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?page=abc", nil)
 
-	page, _ := request.Pagination(r)
+	page, _ := request.Pagination(r, request.DefaultPaginationConfig)
 
 	require.Equal(t, 1, page)
 }
@@ -107,7 +107,7 @@ func TestPaginationIgnoresInvalidPerPage(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?per_page=abc", nil)
 
-	_, perPage := request.Pagination(r)
+	_, perPage := request.Pagination(r, request.DefaultPaginationConfig)
 
 	require.Equal(t, 25, perPage)
 }
@@ -117,7 +117,7 @@ func TestCursorPaginationReturnsDefaults(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
-	cursor, perPage := request.CursorPagination(r)
+	cursor, perPage := request.CursorPagination(r, request.DefaultCursorPaginationConfig)
 
 	require.Empty(t, cursor)
 	require.Equal(t, 25, perPage)
@@ -128,7 +128,7 @@ func TestCursorPaginationParsesCursor(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?cursor=abc123&per_page=50", nil)
 
-	cursor, perPage := request.CursorPagination(r)
+	cursor, perPage := request.CursorPagination(r, request.DefaultCursorPaginationConfig)
 
 	require.Equal(t, "abc123", cursor)
 	require.Equal(t, 50, perPage)
@@ -139,7 +139,7 @@ func TestCursorPaginationClampsPerPageToMax(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?per_page=999", nil)
 
-	_, perPage := request.CursorPagination(r)
+	_, perPage := request.CursorPagination(r, request.DefaultCursorPaginationConfig)
 
 	require.Equal(t, 100, perPage)
 }
@@ -149,7 +149,7 @@ func TestCursorPaginationClampsPerPageBelowOne(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?per_page=0", nil)
 
-	_, perPage := request.CursorPagination(r)
+	_, perPage := request.CursorPagination(r, request.DefaultCursorPaginationConfig)
 
 	require.Equal(t, 1, perPage)
 }
@@ -179,7 +179,7 @@ func TestCursorPaginationIgnoresInvalidPerPage(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?per_page=abc", nil)
 
-	_, perPage := request.CursorPagination(r)
+	_, perPage := request.CursorPagination(r, request.DefaultCursorPaginationConfig)
 
 	require.Equal(t, 25, perPage)
 }
@@ -189,7 +189,7 @@ func TestCursorPaginationNegativePerPage(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/?per_page=-5", nil)
 
-	_, perPage := request.CursorPagination(r)
+	_, perPage := request.CursorPagination(r, request.DefaultCursorPaginationConfig)
 
 	require.Equal(t, 1, perPage)
 }
