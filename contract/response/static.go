@@ -214,14 +214,14 @@ func HTMLTemplate(w http.ResponseWriter, status int, tmpl htmltemplate.Template,
 //		return err
 //	}
 func JSON[T any](w http.ResponseWriter, status int, data T) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
 	encoded, err := json.Marshal(data)
 
 	if err != nil {
 		return err
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
 
 	_, err = w.Write(append(encoded, '\n'))
 
@@ -247,10 +247,18 @@ func JSON[T any](w http.ResponseWriter, status int, data T) error {
 //		return err
 //	}
 func XML(w http.ResponseWriter, status int, data any) error {
+	encoded, err := xml.Marshal(data)
+
+	if err != nil {
+		return err
+	}
+
 	w.Header().Set("Content-Type", "application/xml")
 	w.WriteHeader(status)
 
-	return xml.NewEncoder(w).Encode(data)
+	_, err = w.Write(append(encoded, '\n'))
+
+	return err
 }
 
 // Redirect sends an HTTP redirect response to the specified URL with the given status code.
