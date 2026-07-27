@@ -75,7 +75,7 @@ If original writer supports `http.Flusher`, wrapped value preserves flush suppor
 
 ```go
 app := framework.New()
-server := framework.NewServer(":8080", app)
+server := framework.NewServer(framework.ServerConfig{}, app)
 if err := server.ListenAndServe(); err != nil {
 	return err
 }
@@ -85,8 +85,8 @@ Custom options:
 
 ```go
 config := framework.DefaultServerConfig()
-opts.Addr = ":8443"
-server := framework.NewServerWith(opts, app)
+config.Port = 8443
+server := framework.NewServer(config, app)
 _ = server
 ```
 
@@ -96,11 +96,11 @@ _ = server
 
 ```go
 app.Use(middleware.Recover())
-app.Use(middleware.Logger(slog.Default()))
-app.Use(middleware.CSRF("https://example.com"))
+app.Use(middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(slog.Default()))))
+app.Use(middleware.CSRF(middleware.CSRFConfig{TrustedOrigins: []string{"https://example.com"}}))
 app.Use(middleware.CORS(middleware.CORSConfig{}))
-app.Use(middleware.SecureHeaders())
-app.Use(middleware.RateLimit(*contract.NewCache(cache.NewMemory(time.Second, time.Minute))))
+app.Use(middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig))
+app.Use(middleware.RateLimit(contract.NewCache(cache.NewMemory(cache.MemoryConfig{})), middleware.RateLimitConfig{}))
 
 // Rate limiting uses cache-backed fixed-window counters.
 app.Use(middleware.Provide("db", db))

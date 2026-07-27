@@ -61,7 +61,7 @@ func MyMiddleware() framework.Middleware {
 Secure server (always use instead of http.ListenAndServe):
 
 ```go
-server := framework.NewServer(":8080", app) // has timeout defaults
+server := framework.NewServer(framework.ServerConfig{}, app) // has timeout defaults
 server.ListenAndServe()
 ```
 
@@ -147,7 +147,7 @@ Available in `framework/middleware`:
 - `Logger(slog.Logger)` — structured request logging (fires AfterResponse)
 - `CSRF(origins...)` / `CSRFWith(csrf, problem)` — cross-origin protection
 - `CORS(CORSConfig)` — configurable CORS headers
-- `SecureHeaders()` / `SecureHeadersWith(opts)` — security headers (HSTS, CSP, X-Frame-Options)
+- `SecureHeaders(config)` — security headers (HSTS, CSP, X-Frame-Options)
 - `RateLimit(cache)` / `RateLimitWith(cache, config)` — per-key fixed-window rate limiting backed by cache
 - `Provide(key, value)` / `ProvideWith(fn)` — context injection
 - `HTTP(func(http.Handler) http.Handler)` — stdlib middleware adapter
@@ -185,7 +185,7 @@ Session middleware in `framework/session`:
 
 - Use `framework.NewServer()` instead of `http.ListenAndServe` (timeout defaults)
 - Use `middleware.CSRF()` for state-changing endpoints
-- Use `middleware.SecureHeaders()` for all applications
+- Use `middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig)` for all applications
 - Use `middleware.RateLimit(cache)` to prevent abuse
 - Use `middleware.CORS()` for cross-origin APIs
 - Use `request.LimitedJSON` / `LimitedBytes` instead of unlimited variants

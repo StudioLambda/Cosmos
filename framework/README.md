@@ -59,14 +59,14 @@ func main() {
     app := framework.New()
 
     // Add middleware
-    app.Use(middleware.Logger(slog.Default()))
+    app.Use(middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(slog.Default()))))
     app.Use(middleware.Recover())
 
     // Define routes
     app.Get("/users/{id}", getUser)
 
     // Start server
-    http.ListenAndServe(":8080", app)
+    framework.NewServer(framework.ServerConfig{}, app).ListenAndServe()
 }
 ```
 
@@ -145,7 +145,7 @@ Logs HTTP requests with structured logging:
 ```go
 import "log/slog"
 
-logger := slog.Default()
+logger := contract.NewLogger(frameworklogger.NewSlogFrom(slog.Default()))
 app.Use(middleware.Logger(logger))
 ```
 
@@ -162,7 +162,7 @@ app.Use(middleware.Recover())
 Validates Origin and Sec-Fetch-Site headers:
 
 ```go
-app.Use(middleware.CSRF("https://example.com", "https://app.example.com"))
+app.Use(middleware.CSRF(middleware.CSRFConfig{TrustedOrigins: []string{"https://example.com", "https://app.example.com"}}))
 ```
 
 Returns 403 Forbidden if request is from untrusted origin.

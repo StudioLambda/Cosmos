@@ -36,7 +36,7 @@ Handlers return errors for centralized handling. Always check errors. Use sync.M
 Application:
 ```go
 app := framework.New()
-app.Use(middleware.Logger(slog.Default()))
+app.Use(middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(slog.Default()))))
 app.Use(middleware.Recover())
 app.Get("/users/{id}", handler)
 ```

@@ -25,7 +25,7 @@ go get github.com/studiolambda/cosmos/framework
 ```go
 app := framework.New()
 app.Use(middleware.Recover())
-app.Use(middleware.Logger(slog.Default()))
+app.Use(middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(slog.Default()))))
 
 app.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) error {
 	id, err := request.ParamInt(r, "id")
@@ -44,7 +44,7 @@ app.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) error {
 	return response.JSON(w, http.StatusOK, user)
 })
 
-server := framework.NewServer(":8080", app)
+server := framework.NewServer(framework.ServerConfig{}, app)
 _ = server.ListenAndServe()
 ```
 
@@ -171,11 +171,11 @@ return response.SSE(w, r, eventChan)
 
 ```go
 middleware.Recover()
-middleware.Logger(slog.Default())
-middleware.CSRF("https://example.com")
+middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(slog.Default())))
+middleware.CSRF(middleware.CSRFConfig{TrustedOrigins: []string{"https://example.com"}})
 middleware.CORS(middleware.CORSConfig{})
-middleware.SecureHeaders()
-middleware.RateLimit(*contract.NewCache(cache.NewMemory(time.Second, time.Minute)))
+middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig)
+middleware.RateLimit(contract.NewCache(cache.NewMemory(cache.MemoryConfig{})), middleware.RateLimitConfig{})
 
 // Uses cache-backed fixed-window counters. Provide a custom cache
 // with middleware.RateLimitWith when you need cross-pod limits.
