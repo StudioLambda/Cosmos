@@ -8,6 +8,8 @@ import (
 	"errors"
 	"io"
 	"runtime"
+	"slices"
+	"sync"
 
 	"github.com/studiolambda/cosmos/contract"
 )
@@ -19,6 +21,8 @@ import (
 // nonces. The nonce is generated randomly for each Encrypt call
 // and prepended to the ciphertext.
 type AES struct {
+	mutex sync.RWMutex
+
 	// key is the raw AES key material (16, 24, or 32 bytes).
 	key []byte
 
@@ -71,7 +75,7 @@ var ErrMismatchedAESNonceSize = errors.New("mismatched nonce size")
 // Encrypt and Decrypt avoid repeated setup overhead.
 
 func NewAES(config AESConfig) (*AES, error) {
-	key := config.Key
+	key := slices.Clone(config.Key)
 
 	if len(key) != 16 && len(key) != 24 && len(key) != 32 {
 		return nil, aes.KeySizeError(len(key))
@@ -96,6 +100,9 @@ func NewAES(config AESConfig) (*AES, error) {
 // nonce. The returned slice contains the nonce followed by the
 // ciphertext and authentication tag.
 func (encrypter *AES) Encrypt(value []byte) ([]byte, error) {
+	encrypter.mutex.RLock()
+	defer encrypter.mutex.RUnlock()
+
 	if encrypter.gcm == nil {
 		return nil, contract.ErrEncrypterClosed
 	}
@@ -115,6 +122,9 @@ func (encrypter *AES) Encrypt(value []byte) ([]byte, error) {
 // prepended. Returns ErrMismatchedAESNonceSize if the input is
 // too short to contain a valid nonce.
 func (encrypter *AES) Decrypt(value []byte) ([]byte, error) {
+	encrypter.mutex.RLock()
+	defer encrypter.mutex.RUnlock()
+
 	if encrypter.gcm == nil {
 		return nil, contract.ErrEncrypterClosed
 	}
@@ -144,6 +154,9 @@ func (encrypter *AES) Decrypt(value []byte) ([]byte, error) {
 // collector to reclaim the cipher state. After Close, any calls to
 // [AES.Encrypt] or [AES.Decrypt] return [contract.ErrEncrypterClosed].
 func (encrypter *AES) Close() error {
+	encrypter.mutex.Lock()
+	defer encrypter.mutex.Unlock()
+
 	clear(encrypter.key)
 	encrypter.gcm = nil
 	runtime.KeepAlive(&encrypter.key)

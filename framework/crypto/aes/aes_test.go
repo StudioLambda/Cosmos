@@ -18,6 +18,17 @@ func TestAESNewCreatesEncrypter(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestAESCloseDoesNotClearCopiedCallerKey(t *testing.T) {
+	t.Parallel()
+
+	key := []byte("12345678901234567890123456789012")
+	encrypter, err := crypto.NewAES(crypto.AESConfig{Key: key})
+	require.NoError(t, err)
+
+	require.NoError(t, encrypter.Close())
+	require.Equal(t, []byte("12345678901234567890123456789012"), key)
+}
+
 func TestAESEncryptSucceeds(t *testing.T) {
 	t.Parallel()
 
@@ -130,7 +141,7 @@ func TestAESDecryptWithCorruptedCiphertext(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestAESCloseZerosKeyMaterial(t *testing.T) {
+func TestAESCloseDoesNotClearCallerKeyMaterial(t *testing.T) {
 	t.Parallel()
 
 	key := make([]byte, 32)
@@ -142,15 +153,7 @@ func TestAESCloseZerosKeyMaterial(t *testing.T) {
 
 	encrypter.Close()
 
-	allZero := true
-	for _, b := range key {
-		if b != 0 {
-			allZero = false
-			break
-		}
-	}
-
-	require.True(t, allZero)
+	require.Equal(t, []byte("12345678901234567890123456789012"), key)
 }
 
 func TestAESAdditionalDataMustMatchForDecrypt(t *testing.T) {

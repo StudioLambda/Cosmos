@@ -92,7 +92,7 @@ func TestChaCha20DecryptWithCorruptedCiphertext(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestChaCha20CloseZerosKeyMaterial(t *testing.T) {
+func TestChaCha20CloseDoesNotClearCallerKeyMaterial(t *testing.T) {
 	t.Parallel()
 
 	key := make([]byte, 32)
@@ -104,15 +104,7 @@ func TestChaCha20CloseZerosKeyMaterial(t *testing.T) {
 
 	encrypter.Close()
 
-	allZero := true
-	for _, b := range key {
-		if b != 0 {
-			allZero = false
-			break
-		}
-	}
-
-	require.True(t, allZero)
+	require.Equal(t, []byte("12345678901234567890123456789012"), key)
 }
 
 func TestChaCha20AdditionalDataMustMatchForDecrypt(t *testing.T) {

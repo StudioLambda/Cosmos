@@ -7,6 +7,8 @@ import (
 	"errors"
 	"io"
 	"runtime"
+	"slices"
+	"sync"
 
 	"github.com/studiolambda/cosmos/contract"
 
@@ -20,6 +22,8 @@ import (
 // for concurrent use with different nonces. The nonce is generated
 // randomly for each Encrypt call and prepended to the ciphertext.
 type ChaCha20 struct {
+	mutex sync.RWMutex
+
 	// key is the raw key material, retained so that Close
 	// can zero it from memory.
 	key []byte
@@ -63,7 +67,7 @@ var ErrMismatchedChaCha20NonceSize = errors.New("mismatched nonce size")
 
 // The configured key must be exactly 32 bytes.
 func NewChaCha20(config ChaCha20Config) (*ChaCha20, error) {
-	key := config.Key
+	key := slices.Clone(config.Key)
 
 	aead, err := chacha20poly1305.New(key)
 
@@ -78,6 +82,9 @@ func NewChaCha20(config ChaCha20Config) (*ChaCha20, error) {
 // random nonce. The returned slice contains the nonce followed by
 // the ciphertext and authentication tag.
 func (encrypter *ChaCha20) Encrypt(value []byte) ([]byte, error) {
+	encrypter.mutex.RLock()
+	defer encrypter.mutex.RUnlock()
+
 	if encrypter.aead == nil {
 		return nil, contract.ErrEncrypterClosed
 	}
@@ -95,6 +102,9 @@ func (encrypter *ChaCha20) Encrypt(value []byte) ([]byte, error) {
 // prepended. Returns ErrMismatchedChaCha20NonceSize if the input is
 // too short to contain a valid nonce.
 func (encrypter *ChaCha20) Decrypt(value []byte) ([]byte, error) {
+	encrypter.mutex.RLock()
+	defer encrypter.mutex.RUnlock()
+
 	if encrypter.aead == nil {
 		return nil, contract.ErrEncrypterClosed
 	}
@@ -122,6 +132,9 @@ func (encrypter *ChaCha20) Decrypt(value []byte) ([]byte, error) {
 // collector to reclaim the cipher state. After Close, any calls to
 // [ChaCha20.Encrypt] or [ChaCha20.Decrypt] return [contract.ErrEncrypterClosed].
 func (encrypter *ChaCha20) Close() error {
+	encrypter.mutex.Lock()
+	defer encrypter.mutex.Unlock()
+
 	clear(encrypter.key)
 	encrypter.aead = nil
 	runtime.KeepAlive(&encrypter.key)
