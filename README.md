@@ -14,7 +14,8 @@ Cosmos follows these core principles:
 
 ## Modules
 
-This monorepo contains six independently publishable Go modules:
+This monorepo contains five independently publishable Go modules and an
+`application` quickstart:
 
 ### router
 
@@ -46,47 +47,25 @@ A pure Go implementation of RFC 9457 (Problem Details for HTTP APIs) that works 
 
 ### contract
 
-A collection of common service interfaces (Cache, Database, Session, Crypto, Hash, Events, Hooks) with zero dependencies. Designed for dependency injection and testing with included mock implementations.
+A collection of common service interfaces (Cache, Database, Session, Crypto, Hash, Events, Hooks). Designed for dependency injection and testing with included mock implementations.
 
 **Module:** `github.com/studiolambda/cosmos/contract`
 
 **Key Features:**
 
-- Zero dependencies for maximum portability
+- Small foundational dependency set (`collection` and `problem`)
 - Request helpers with typed integer parsing (`ParamInt`, `QueryInt`)
-- Size-limited body parsing (`LimitedJSON`, `StrictJSON`)
+- Size-limited body parsing (`LimitedJSON`, `StrictLimitedJSON`)
 - Safe redirect validation
 - Response helpers (JSON, HTML, XML, SSE, streaming)
 - Hooks system for middleware lifecycle events
 - Mock implementations via mockery
 
-### container
+### collection
 
-A lightweight dependency injection container for registering typed resolvers, eager singletons, and lazy singletons. It integrates with `context.Context` and `*http.Request` so applications can attach a container to request-scoped work without coupling to a specific framework.
+Generic collection helpers for slices and maps, used by the contract module.
 
-**Module:** `github.com/studiolambda/cosmos/container`
-
-**Key Features:**
-
-- Generic typed resolution via `Resolve[T]`
-- Eager and lazy singleton registration
-- Context and request integration helpers
-- Zero external dependencies
-- Minimal API surface for composition roots
-
-### lifecycle
-
-A standalone lifecycle coordinator for long-lived services. It aggregates health checks, tracks critical dependencies, and shuts resources down in reverse registration order using structural interfaces or explicit callback functions.
-
-**Module:** `github.com/studiolambda/cosmos/lifecycle`
-
-**Key Features:**
-
-- Zero external dependencies in production code
-- Automatic `Ping(context.Context) error` health checks
-- Automatic `Shutdown(context.Context) error` and `Close() error` cleanup
-- Explicit overrides for custom health and shutdown logic
-- Readiness reporting for critical services
+**Module:** `github.com/studiolambda/cosmos/collection`
 
 ### framework
 
@@ -118,8 +97,7 @@ go get github.com/studiolambda/cosmos/framework
 go get github.com/studiolambda/cosmos/router
 go get github.com/studiolambda/cosmos/problem
 go get github.com/studiolambda/cosmos/contract
-go get github.com/studiolambda/cosmos/container
-go get github.com/studiolambda/cosmos/lifecycle
+go get github.com/studiolambda/cosmos/collection
 ```
 
 Requires **Go 1.27** or later.
@@ -132,11 +110,12 @@ Requires **Go 1.27** or later.
 package main
 
 import (
-    "log/slog"
     "net/http"
 
+	"github.com/studiolambda/cosmos/contract"
     "github.com/studiolambda/cosmos/contract/response"
     "github.com/studiolambda/cosmos/framework"
+	frameworklogger "github.com/studiolambda/cosmos/framework/logger/slog"
     "github.com/studiolambda/cosmos/framework/middleware"
 )
 
@@ -154,13 +133,15 @@ func main() {
     app := framework.New()
 
     app.Use(middleware.Recover())
-    app.Use(middleware.Logger(slog.Default()))
-    app.Use(middleware.SecureHeaders())
+    app.Use(middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(nil))))
+    app.Use(middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig))
 
     app.Get("/users/{id}", getUser)
 
-    server := framework.NewServer(":8080", app)
-    server.ListenAndServe()
+    server := framework.NewServer(framework.ServerConfig{}, app)
+    if err := server.ListenAndServe(); err != nil {
+        panic(err)
+    }
 }
 ```
 
