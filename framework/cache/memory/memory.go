@@ -25,8 +25,8 @@ type Memory struct {
 
 // MemoryConfig configures the in-memory cache.
 type MemoryConfig struct {
-	// Expiration is the default expiration used for items stored with
-	// a zero TTL.
+	// Expiration is retained for compatibility with the underlying cache.
+	// Cosmos operations always use their explicit TTL; zero means no expiry.
 	Expiration time.Duration
 
 	// Cleanup is the interval used to purge expired items.
@@ -45,8 +45,8 @@ func ConfigFrom(configuration *contract.Configuration, prefix string) MemoryConf
 }
 
 // NewMemory creates a Memory cache with the given configuration.
-// Items without an explicit TTL use the default expiration, and
-// expired items are purged at the cleanup interval.
+// Zero TTL entries never expire, consistent with [contract.CacheDriver].
+// Expired entries are purged at the cleanup interval.
 func NewMemory(config MemoryConfig) *Memory {
 	return &Memory{
 		store: cache.New(config.Expiration, config.Cleanup),
@@ -73,8 +73,12 @@ func (memory *Memory) Get(_ context.Context, key string) ([]byte, error) {
 }
 
 // Put stores raw bytes in the in-memory cache with the given TTL.
-// A zero TTL uses the default expiration configured at creation.
+// A zero TTL stores the entry without expiration.
 func (memory *Memory) Put(_ context.Context, key string, value []byte, ttl time.Duration) error {
+	if ttl == 0 {
+		ttl = cache.NoExpiration
+	}
+
 	memory.store.Set(key, value, ttl)
 
 	return nil
@@ -102,6 +106,10 @@ func (memory *Memory) Add(_ context.Context, key string, value []byte, ttl time.
 
 	if _, found := memory.store.Get(key); found {
 		return false, nil
+	}
+
+	if ttl == 0 {
+		ttl = cache.NoExpiration
 	}
 
 	memory.store.Set(key, value, ttl)

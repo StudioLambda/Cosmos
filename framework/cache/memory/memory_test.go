@@ -188,14 +188,32 @@ func TestMemoryDecrementReturnsErrorForMissingKey(t *testing.T) {
 	require.ErrorIs(t, err, contract.ErrCacheKeyNotFound)
 }
 
-func TestMemoryPutZeroTTLUsesDefault(t *testing.T) {
+func TestMemoryPutZeroTTLDoesNotExpire(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mem := cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: time.Nanosecond, Cleanup: time.Minute})
 
 	err := mem.Put(ctx, "key", []byte("value"), 0)
 	require.NoError(t, err)
+	time.Sleep(time.Millisecond)
+
+	val, err := mem.Get(ctx, "key")
+
+	require.NoError(t, err)
+	require.Equal(t, []byte("value"), val)
+}
+
+func TestMemoryAddZeroTTLDoesNotExpire(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	mem := cache.NewMemory(cache.MemoryConfig{Expiration: time.Nanosecond, Cleanup: time.Minute})
+
+	added, err := mem.Add(ctx, "key", []byte("value"), 0)
+	require.NoError(t, err)
+	require.True(t, added)
+	time.Sleep(time.Millisecond)
 
 	val, err := mem.Get(ctx, "key")
 
