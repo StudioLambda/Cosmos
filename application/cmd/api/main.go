@@ -38,6 +38,23 @@ func run() error {
 		return err
 	}
 
+	database, err := bootstrap.NewDatabase(configuration)
+	if err != nil {
+		return err
+	}
+	defer database.Close()
+
+	events := bootstrap.NewEvents(configuration)
+	defer events.Close()
+
+	crypto, err := bootstrap.NewCrypto()
+	if err != nil {
+		return err
+	}
+	defer crypto.Close()
+
+	_ = bootstrap.NewHasher(configuration)
+
 	router := bootstrap.NewHTTPRouter(configuration, logger)
 	server := bootstrap.NewHTTPServer(configuration, router)
 
