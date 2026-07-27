@@ -24,6 +24,15 @@ var ErrRateLimited = problem.Problem{
 	Status: http.StatusTooManyRequests,
 }
 
+// RateLimitConfigFrom returns a RateLimitConfig read from configuration below prefix.
+func RateLimitConfigFrom(configuration *contract.Configuration, prefix string) RateLimitConfig {
+	return RateLimitConfig{
+		Name:   configuration.GetOr(prefix+".name", ""),
+		Limit:  configuration.GetOr(prefix+".limit", 0),
+		Window: configuration.GetOr(prefix+".window", time.Duration(0)),
+	}
+}
+
 // RateLimitConfig configures the rate limiter middleware.
 type RateLimitConfig struct {
 	// Name identifies the logical policy and becomes part of the cache key.

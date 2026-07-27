@@ -1,0 +1,12 @@
+# Authenticated encryption implementation configuration.
+#
+# Known implementations: crypto/aes and crypto/chacha20. The quickstart uses
+# AES-GCM. Change application composition to use ChaCha20-Poly1305.
+crypto:
+  aes:
+    # Required: 16, 24, or 32 raw bytes for AES-128, AES-192, or AES-256.
+    key: "12345678901234567890123456789012"
+
+  chacha20:
+    # Required: exactly 32 raw bytes for ChaCha20-Poly1305.
+    key: "12345678901234567890123456789012"

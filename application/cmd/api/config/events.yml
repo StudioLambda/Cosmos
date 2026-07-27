@@ -1,0 +1,47 @@
+# Event implementation configuration.
+#
+# Known implementations: event/memory, event/amqp, event/mqtt, event/nats, and
+# event/redis. The quickstart uses event/memory. Remote broker credentials belong
+# in environment-specific files or a secret manager, not this example.
+event:
+  memory:
+    # Maximum concurrent asynchronous handler deliveries.
+    max_concurrent_deliveries: 1024
+
+  amqp:
+    # Use amqps:// in production.
+    url: amqp://guest:guest@localhost:5672/
+    # Default: cosmos:events.
+    exchange: cosmos:events
+
+  mqtt:
+    # Use mqtts:// URLs in production.
+    urls: [mqtt://localhost:1883]
+    # QoS 0, 1, or 2. Default: 1.
+    qos: 1
+    username: ""
+    password: ""
+    # Keep-alive interval in seconds. Default: 30.
+    keep_alive: 30
+
+  nats:
+    urls: [nats://127.0.0.1:4222]
+    name: ""
+    # -1 permits unlimited reconnect attempts.
+    max_reconnects: -1
+    reconnect_wait: 2s
+    timeout: 0s
+    username: ""
+    password: ""
+    token: ""
+    nkey_seed: ""
+    credentials_file: ""
+    root_cas: []
+
+  redis:
+    # Defaults: tcp and localhost:6379.
+    network: tcp
+    addr: localhost:6379
+    username: ""
+    password: ""
+    db: 0

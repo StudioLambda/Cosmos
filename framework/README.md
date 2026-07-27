@@ -184,7 +184,8 @@ app.Get("/hello", middleware.HTTP(standardHandler))
 Injects dependencies into request context:
 
 ```go
-db := database.NewSQL(...)
+driver, err := postgres.New(postgres.Config{DSN: "..."})
+db := contract.NewDatabase(driver)
 app.Use(middleware.Provide(dbKey, db))
 
 // Access in handler
@@ -198,15 +199,15 @@ Sessions are thread-safe and track changes automatically:
 ```go
 import (
     "github.com/studiolambda/cosmos/framework/session"
-    "github.com/studiolambda/cosmos/framework/cache"
+    "github.com/studiolambda/cosmos/framework/cache/memory"
 )
 
 // Create cache-backed session driver
-cacheImpl := cache.NewMemory(5*time.Minute, 10*time.Minute)
+cacheImpl := memory.NewMemory(memory.MemoryConfig{Expiration: 5*time.Minute, Cleanup: 10*time.Minute})
 driver := session.NewCache(cacheImpl, 24*time.Hour)
 
 // Add session middleware
-app.Use(session.Middleware(driver, "session_id"))
+app.Use(middleware.Session(driver, middleware.DefaultSessionConfig))
 
 // Use in handlers
 func handler(w http.ResponseWriter, r *http.Request) error {
@@ -234,12 +235,9 @@ func handler(w http.ResponseWriter, r *http.Request) error {
 In-memory cache using go-cache:
 
 ```go
-import "github.com/studiolambda/cosmos/framework/cache"
+import "github.com/studiolambda/cosmos/framework/cache/memory"
 
-cache := cache.NewMemory(
-    5*time.Minute,  // default expiration
-    10*time.Minute, // cleanup interval
-)
+cache := memory.NewMemory(memory.MemoryConfig{Expiration: 5*time.Minute, Cleanup: 10*time.Minute})
 
 // Basic operations
 cache.Put(ctx, "key", "value", 1*time.Hour)
@@ -258,7 +256,7 @@ Redis-backed cache:
 
 ```go
 import (
-    "github.com/studiolambda/cosmos/framework/cache"
+    "github.com/studiolambda/cosmos/framework/cache/redis"
     "github.com/redis/go-redis/v9"
 )
 
@@ -266,7 +264,7 @@ client := redis.NewClient(&redis.Options{
     Addr: "localhost:6379",
 })
 
-cache := cache.NewRedis(client)
+cache := redis.NewRedisFrom(client)
 
 // Same interface as memory cache
 cache.Put(ctx, "key", "value", 1*time.Hour)
@@ -281,10 +279,10 @@ Event brokers provide publish/subscribe messaging for decoupled communication be
 Pure in-memory pub/sub with zero dependencies, ideal for testing and local development:
 
 ```go
-import "github.com/studiolambda/cosmos/framework/event"
+import "github.com/studiolambda/cosmos/framework/event/memory"
 
 // Create broker (no configuration needed!)
-broker := event.NewMemoryBroker()
+broker := memory.NewMemoryBroker(memory.DefaultMemoryBrokerConfig)
 defer broker.Close()
 
 // Publish events
@@ -640,11 +638,11 @@ unsubscribe := broker.Subscribe(ctx, "events", handler)
 ### AES-GCM Encryption
 
 ```go
-import "github.com/studiolambda/cosmos/framework/crypto"
+import "github.com/studiolambda/cosmos/framework/crypto/aes"
 
 // Key must be 16, 24, or 32 bytes (AES-128/192/256)
 key := []byte("your-32-byte-key-here-padding!!")
-aes := crypto.NewAES(key)
+aes, err := aes.NewAES(aes.AESConfig{Key: key})
 
 // Encrypt
 plaintext := []byte("secret message")
@@ -657,11 +655,11 @@ plaintext, err := aes.Decrypt(ctx, ciphertext)
 ### ChaCha20-Poly1305 Encryption
 
 ```go
-import "github.com/studiolambda/cosmos/framework/crypto"
+import "github.com/studiolambda/cosmos/framework/crypto/chacha20"
 
 // Key must be 32 bytes
 key := []byte("your-32-byte-key-here-padding!!")
-chacha := crypto.NewChaCha20(key)
+chacha, err := chacha20.NewChaCha20(chacha20.ChaCha20Config{Key: key})
 
 ciphertext, err := chacha.Encrypt(ctx, plaintext)
 plaintext, err := chacha.Decrypt(ctx, ciphertext)
@@ -674,9 +672,9 @@ plaintext, err := chacha.Decrypt(ctx, ciphertext)
 Recommended for new applications (memory-hard):
 
 ```go
-import "github.com/studiolambda/cosmos/framework/hash"
+import "github.com/studiolambda/cosmos/framework/hash/argon2"
 
-hasher := hash.NewArgon2()
+hasher := argon2.NewArgon2(argon2.DefaultArgon2Config())
 
 // Hash password
 password := []byte("user-password")
@@ -694,9 +692,9 @@ if err != nil {
 Compatible with existing systems:
 
 ```go
-import "github.com/studiolambda/cosmos/framework/hash"
+import "github.com/studiolambda/cosmos/framework/hash/bcrypt"
 
-hasher := hash.NewBcrypt(10) // cost factor
+hasher := bcrypt.NewBcrypt(bcrypt.BcryptConfig{Cost: 12})
 
 hashed, err := hasher.Hash(ctx, password)
 err := hasher.Verify(ctx, password, hashed)
@@ -707,9 +705,10 @@ err := hasher.Verify(ctx, password, hashed)
 SQL database wrapper built on sqlx:
 
 ```go
-import "github.com/studiolambda/cosmos/framework/database"
+import "github.com/studiolambda/cosmos/framework/database/postgres"
 
-db := database.NewSQL("postgres", "connection-string")
+driver, err := postgres.New(postgres.Config{DSN: "connection-string"})
+db := contract.NewDatabase(driver)
 
 // Single row query
 var user User

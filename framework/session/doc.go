@@ -1,12 +1,7 @@
-// Package session provides session middleware and drivers for framework apps.
+// Package session provides session drivers for framework apps.
 //
 // It bridges HTTP cookies to contract.Session values and persists session data
 // through a configurable driver (for example, cache-backed storage).
-//
-// # Lifecycle
-//
-// Middleware loads the session at request start, injects it into request
-// context, and writes updates at response completion when state changes.
 //
 // Example
 //
@@ -14,7 +9,7 @@
 //		contract.NewCache(cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})),
 //		session.DefaultCacheDriverConfig,
 //	)
-//	app.Use(session.Middleware(driver, session.DefaultMiddlewareConfig))
+//	app.Use(middleware.Session(driver, middleware.DefaultSessionConfig))
 //
 //	app.Post("/login", func(w http.ResponseWriter, r *http.Request) error {
 //		sess := request.MustSession(r)

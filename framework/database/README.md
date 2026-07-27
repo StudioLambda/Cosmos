@@ -1,14 +1,13 @@
 # framework/database
 
-SQL database adapter implementing `contract.Database`.
+SQL database drivers implementing `contract.DatabaseDriver`.
 
 ## What this package provides
 
-- Query and exec helpers with positional and named parameters.
-- Transaction helper with nested-transaction protection.
-- Connection pool configuration hook.
+- `database/postgres` uses pure-Go pgx.
+- `database/mysql` uses go-sql-driver/mysql.
+- `database/sqlite` uses pure-Go modernc.org/sqlite.
 
 ## When to use it
 
-Use this package when you want a contract-compatible DB abstraction over `sqlx`
-with safer defaults for statement lifecycle and transaction boundaries.
+Import one concrete driver package and wrap it with `contract.NewDatabase`.

@@ -1,20 +1,18 @@
 package bootstrap
 
 import (
-	"github.com/knadh/koanf/parsers/yaml"
-	"github.com/knadh/koanf/providers/rawbytes"
-	"github.com/knadh/koanf/v2"
-	"github.com/samber/do/v2"
+	"io/fs"
+
+	"github.com/studiolambda/cosmos/contract"
+	"github.com/studiolambda/cosmos/framework/configuration/koanf"
 )
 
-func NewConfig(i do.Injector) (*koanf.Koanf, error) {
-	files := do.MustInvokeNamed[[]byte](i, "configuration")
-
-	k := koanf.New(".")
-
-	if err := k.Load(rawbytes.Provider(files), yaml.Parser()); err != nil {
+// NewConfig creates a configuration service from an embedded filesystem.
+func NewConfig(configurationFS fs.FS) (*contract.Configuration, error) {
+	config, err := koanf.New(koanf.Config{Filesystem: configurationFS})
+	if err != nil {
 		return nil, err
 	}
 
-	return k, nil
+	return contract.NewConfiguration(config), nil
 }

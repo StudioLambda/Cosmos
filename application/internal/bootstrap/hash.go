@@ -1,29 +1,13 @@
 package bootstrap
 
 import (
-	"fmt"
-
-	"github.com/knadh/koanf/v2"
-	"github.com/samber/do/v2"
 	"github.com/studiolambda/cosmos/contract"
-	"github.com/studiolambda/cosmos/framework/hash"
+	"github.com/studiolambda/cosmos/framework/hash/argon2"
 )
 
-func NewHasher(i do.Injector) (contract.Hasher, error) {
-	k := do.MustInvoke[*koanf.Koanf](i)
+// NewHasher creates an Argon2id hasher from hash.argon2 configuration.
+func NewHasher(configuration *contract.Configuration) contract.Hasher {
+	config := argon2.ConfigFrom(configuration, "hash.argon2")
 
-	driver := k.String("hash.driver")
-
-	switch driver {
-	case "bcrypt":
-		config := do.MustInvoke[hash.BcryptConfig](i)
-
-		return hash.NewBcrypt(config), nil
-	case "argon2":
-		config := do.MustInvoke[hash.Argon2Config](i)
-
-		return hash.NewArgon2(config), nil
-	}
-
-	return nil, fmt.Errorf("unknown hash driver %q", driver)
+	return argon2.NewArgon2(config)
 }

@@ -4,8 +4,8 @@ Concrete cache backends implementing `contract.CacheDriver`.
 
 ## Implementations
 
-- `Memory`: in-process cache backed by `go-cache`.
-- `Redis`: Redis-backed cache driver.
+- `cache/memory`: in-process cache backed by `go-cache`.
+- `cache/redis`: Redis-backed cache driver.
 
 ## When to use it
 

@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/studiolambda/cosmos/contract"
 )
 
 // ServerConfig configures the HTTP server created by [NewServer].
@@ -38,6 +40,19 @@ type ServerConfig struct {
 	// MaxHeaderBytes limits the maximum size of request headers.
 	// Defaults to 1 MB (Go's default).
 	MaxHeaderBytes int
+}
+
+// ServerConfigFrom returns a ServerConfig read from configuration below prefix.
+func ServerConfigFrom(configuration *contract.Configuration, prefix string) ServerConfig {
+	return ServerConfig{
+		Host:              configuration.GetOr(prefix+".host", ""),
+		Port:              configuration.GetOr(prefix+".port", 0),
+		ReadHeaderTimeout: configuration.GetOr(prefix+".read_header_timeout", time.Duration(0)),
+		ReadTimeout:       configuration.GetOr(prefix+".read_timeout", time.Duration(0)),
+		WriteTimeout:      configuration.GetOr(prefix+".write_timeout", time.Duration(0)),
+		IdleTimeout:       configuration.GetOr(prefix+".idle_timeout", time.Duration(0)),
+		MaxHeaderBytes:    configuration.GetOr(prefix+".max_header_bytes", 0),
+	}
 }
 
 // DefaultServerConfig returns the default server configuration with secure

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework"
-	"github.com/studiolambda/cosmos/framework/cache"
+	cache "github.com/studiolambda/cosmos/framework/cache/memory"
 	"github.com/studiolambda/cosmos/framework/middleware"
 	"github.com/studiolambda/cosmos/problem"
 )
@@ -24,7 +24,7 @@ func TestRateLimitAllowsRequestsWithinLimit(t *testing.T) {
 		Limit:  2,
 		Window: time.Minute,
 	}, func(*http.Request) (string, bool) {
-			return "caller-a", true
+		return "caller-a", true
 	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 
@@ -49,7 +49,7 @@ func TestRateLimitRejectsRequestsBeyondLimit(t *testing.T) {
 		Limit:  1,
 		Window: time.Minute,
 	}, func(*http.Request) (string, bool) {
-			return "caller-a", true
+		return "caller-a", true
 	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 
@@ -75,9 +75,9 @@ func TestRateLimitUsesIndependentBucketsPerKey(t *testing.T) {
 		Limit:  1,
 		Window: time.Minute,
 	}, func(*http.Request) (string, bool) {
-			key := keys[index]
-			index++
-			return key, true
+		key := keys[index]
+		index++
+		return key, true
 	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 
@@ -100,7 +100,7 @@ func TestRateLimitSkipsRequestWhenKeyResolutionFails(t *testing.T) {
 		Limit:  1,
 		Window: time.Minute,
 	}, func(*http.Request) (string, bool) {
-			return "", false
+		return "", false
 	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 
@@ -126,7 +126,7 @@ func TestRateLimitUsesCustomErrorResponse(t *testing.T) {
 		Window:        time.Minute,
 		ErrorResponse: customErr,
 	}, func(*http.Request) (string, bool) {
-			return "caller-a", true
+		return "caller-a", true
 	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 
@@ -146,7 +146,7 @@ func TestRateLimitPropagatesCacheErrors(t *testing.T) {
 		Limit:  1,
 		Window: time.Minute,
 	}, func(*http.Request) (string, bool) {
-			return "caller-a", true
+		return "caller-a", true
 	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusOK)
 

@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework"
 )
 
@@ -44,6 +45,20 @@ type SecureHeadersConfig struct {
 	// which restricts browser feature access (camera, mic, etc.).
 	// Leave empty to omit.
 	PermissionsPolicy string
+}
+
+// SecureHeadersConfigFrom returns a SecureHeadersConfig read from configuration
+// below prefix.
+func SecureHeadersConfigFrom(configuration *contract.Configuration, prefix string) SecureHeadersConfig {
+	return SecureHeadersConfig{
+		ContentTypeOptions:      configuration.GetOr(prefix+".content_type_options", ""),
+		FrameOptions:            configuration.GetOr(prefix+".frame_options", ""),
+		ReferrerPolicy:          configuration.GetOr(prefix+".referrer_policy", ""),
+		XSSProtection:           configuration.GetOr(prefix+".xss_protection", ""),
+		StrictTransportSecurity: configuration.GetOr(prefix+".strict_transport_security", ""),
+		ContentSecurityPolicy:   configuration.GetOr(prefix+".content_security_policy", ""),
+		PermissionsPolicy:       configuration.GetOr(prefix+".permissions_policy", ""),
+	}
 }
 
 // DefaultSecureHeadersConfig holds safe default values for

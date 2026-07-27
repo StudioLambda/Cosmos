@@ -2,10 +2,9 @@ package main
 
 import (
 	"context"
-	_ "embed"
+	"embed"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,45 +12,64 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/samber/do/v2"
 	"github.com/studiolambda/cosmos/application/internal/bootstrap"
-	"github.com/studiolambda/cosmos/application/internal/config"
 )
 
-//go:embed config.yml
-var configuration []byte
+//go:embed config/*.yml
+var configurationFS embed.FS
 
 func main() {
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	i := do.New(config.Package, bootstrap.Package)
-	do.ProvideNamedValue(i, "configuration", configuration)
+	configuration, err := bootstrap.NewConfig(configurationFS)
+	if err != nil {
+		return err
+	}
 
-	logger := do.MustInvoke[*slog.Logger](i)
-	server := do.MustInvoke[*http.Server](i)
+	logger, err := bootstrap.NewLogger(configuration)
+	if err != nil {
+		return err
+	}
+
+	cache, err := bootstrap.NewCache(configuration)
+	if err != nil {
+		return err
+	}
+
+	router := bootstrap.NewHTTPRouter(configuration, logger, cache)
+	server := bootstrap.NewHTTPServer(configuration, router)
 
 	wg := sync.WaitGroup{}
 
 	wg.Go(func() {
-		logger.InfoContext(ctx, "started http server", "addr", "http://"+server.Addr)
+		logger.Driver().InfoContext(ctx, "started http server", "addr", "http://"+server.Addr)
 
 		if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-			logger.ErrorContext(ctx, "failed to listen http server", "err", err)
+			logger.Driver().ErrorContext(ctx, "failed to listen http server", "err", err)
 		}
 	})
 
 	<-ctx.Done()
 
 	fmt.Fprint(os.Stdout, "\r")
-	logger.InfoContext(ctx, "shutting down...")
+	logger.Driver().InfoContext(ctx, "shutting down...")
 
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		logger.ErrorContext(ctx, "failed to stop http server", "err", err)
+		logger.Driver().ErrorContext(ctx, "failed to stop http server", "err", err)
 	}
 
-	logger.InfoContext(ctx, "shutdown complete")
+	logger.Driver().InfoContext(ctx, "shutdown complete")
+
+	return nil
 }

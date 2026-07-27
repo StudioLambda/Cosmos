@@ -1,0 +1,313 @@
+// Package nats provides a NATS [contract.EventDriver].
+package nats
+
+import (
+	"context"
+	"crypto/tls"
+
+	"fmt"
+	"log/slog"
+	"strings"
+	"time"
+
+	"github.com/studiolambda/cosmos/contract"
+	core "github.com/studiolambda/cosmos/framework/event/internal/event"
+
+	"github.com/nats-io/nats.go"
+)
+
+const (
+	// DefaultNATSURL is the default connection URL for NATS server.
+	// It points to a local NATS server running on the standard port.
+	DefaultNATSURL = nats.DefaultURL
+
+	// DefaultNATSMaxReconnects is the default maximum number of reconnect
+	// attempts.
+	// A value of -1 allows unlimited reconnection attempts.
+	DefaultNATSMaxReconnects = -1
+
+	// DefaultNATSReconnectWait is the default time to wait between reconnect
+	// attempts.
+	// This provides a reasonable backoff when the NATS server is temporarily
+	// unavailable.
+	DefaultNATSReconnectWait = 2 * time.Second
+)
+
+// NATSBroker implements the EventBroker interface using NATS messaging
+// system.
+// It provides a lightweight, high-performance event broker with built-in
+// fan-out support and wildcard subscriptions.
+// NATS handles message routing natively, making this implementation simpler
+// than brokers that require manual handler tracking.
+//
+// Wildcard patterns: '*' matches a single dot-separated token (NATS native).
+// '#' is translated to NATS '>' which matches one or more tokens and must
+// be the last token.
+type NATSBroker struct {
+	// conn is the underlying NATS connection.
+	// It handles all communication with the NATS server including publishing,
+	// subscribing, and maintaining the connection lifecycle.
+	conn *nats.Conn
+}
+
+// NATSBrokerConfig configures a NATS broker connection.
+// It provides comprehensive control over connection behavior,
+// authentication, and reliability features.
+// All fields are optional; sensible defaults are applied when
+// using NewNATSBrokerWith.
+//
+// WARNING: Credential fields (Username, Password, Token,
+// NKeySeed) are stored as plain strings in memory for the
+// lifetime of this struct. Callers should:
+//  1. Always use TLS (set TLSConfig) to protect credentials
+//     in transit.
+//  2. Load credentials from environment variables or a secret
+//     manager rather than hard-coding them.
+//  3. Prefer short-lived credentials or NKey/JWT auth via
+//     CredentialsFile where supported.
+type NATSBrokerConfig struct {
+	// URLs is a list of NATS server URLs to connect to.
+	// Multiple URLs enable automatic failover in clustered deployments.
+	// If empty, defaults to DefaultNATSURL.
+	URLs []string
+
+	// Name identifies this client connection in NATS server logs and
+	// monitoring.
+	// Useful for debugging and tracing connection issues.
+	Name string
+
+	// MaxReconnects is the maximum number of reconnection attempts.
+	// Use -1 for unlimited reconnects (default), 0 to disable reconnection.
+	MaxReconnects int
+
+	// ReconnectWait is the time to wait between reconnection attempts.
+	// Defaults to DefaultNATSReconnectWait (2 seconds).
+	ReconnectWait time.Duration
+
+	// Timeout is the connection timeout for initial connection and
+	// operations.
+	// If zero, NATS uses its default timeout.
+	Timeout time.Duration
+
+	// Username is the username for basic authentication.
+	// Used in combination with Password when the NATS server requires auth.
+	Username string
+
+	// Password is the password for basic authentication.
+	// Used in combination with Username when the NATS server requires auth.
+	Password string
+
+	// Token is a bearer token for token-based authentication.
+	// Alternative to username/password authentication.
+	Token string
+
+	// NKeySeed is the seed for NKey authentication.
+	// NKey provides cryptographic authentication without transmitting secrets.
+	NKeySeed string
+
+	// CredentialsFile is the path to a credentials file containing JWT and
+	// NKey.
+	// This is the recommended authentication method for production
+	// deployments.
+	CredentialsFile string
+
+	// RootCAs is a list of paths to root CA certificate files.
+	// Used to verify the NATS server's certificate when using TLS.
+	RootCAs []string
+}
+
+// NATSBrokerRuntime holds runtime-only NATS broker settings.
+type NATSBrokerRuntime struct {
+	// TLSConfig enables TLS encryption for the NATS connection.
+	TLSConfig *tls.Config
+}
+
+// DefaultNATSBrokerConfig returns the default NATS broker configuration.
+func DefaultNATSBrokerConfig() NATSBrokerConfig {
+	return NATSBrokerConfig{
+		URLs:          []string{DefaultNATSURL},
+		MaxReconnects: DefaultNATSMaxReconnects,
+		ReconnectWait: DefaultNATSReconnectWait,
+	}
+}
+
+// NewNATSBroker creates a new NATS broker with custom configuration.
+// It applies sensible defaults for any unspecified configuration fields.
+func NewNATSBroker(config NATSBrokerConfig) (*NATSBroker, error) {
+	return NewNATSBrokerWith(config, NATSBrokerRuntime{})
+}
+
+// NewNATSBrokerWith creates a new NATS broker with custom configuration
+// and runtime options. Returns an error if connection to the NATS server fails.
+func NewNATSBrokerWith(config NATSBrokerConfig, runtime NATSBrokerRuntime) (*NATSBroker, error) {
+	var opts []nats.Option
+
+	if config.Name != "" {
+		opts = append(opts, nats.Name(config.Name))
+	}
+
+	maxReconnects := DefaultNATSMaxReconnects
+
+	if config.MaxReconnects != 0 {
+		maxReconnects = config.MaxReconnects
+	}
+
+	opts = append(opts, nats.MaxReconnects(maxReconnects))
+
+	reconnectWait := DefaultNATSReconnectWait
+
+	if config.ReconnectWait != 0 {
+		reconnectWait = config.ReconnectWait
+	}
+
+	opts = append(opts, nats.ReconnectWait(reconnectWait))
+
+	if config.Timeout != 0 {
+		opts = append(opts, nats.Timeout(config.Timeout))
+	}
+
+	if config.Username != "" && config.Password != "" {
+		opts = append(opts, nats.UserInfo(config.Username, config.Password))
+	}
+
+	if config.Token != "" {
+		opts = append(opts, nats.Token(config.Token))
+	}
+
+	if config.NKeySeed != "" {
+		opt, err := nats.NkeyOptionFromSeed(config.NKeySeed)
+
+		if err != nil {
+			return nil, err
+		}
+
+		opts = append(opts, opt)
+	}
+
+	if config.CredentialsFile != "" {
+		opts = append(opts, nats.UserCredentials(config.CredentialsFile))
+	}
+
+	if runtime.TLSConfig != nil {
+		opts = append(opts, nats.Secure(runtime.TLSConfig))
+	}
+
+	if len(config.RootCAs) > 0 {
+		opts = append(opts, nats.RootCAs(config.RootCAs...))
+	}
+
+	urls := config.URLs
+
+	if len(urls) == 0 {
+		urls = []string{DefaultNATSURL}
+	}
+
+	conn, err := nats.Connect(strings.Join(urls, ","), opts...)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return NewNATSBrokerFrom(conn), nil
+}
+
+// NewNATSBrokerFrom creates a new NATS broker from an existing connection.
+// This is useful when you need full control over connection creation or want
+// to share a connection across multiple components.
+// The broker takes ownership of the connection and will close it when Close
+// is called.
+func NewNATSBrokerFrom(conn *nats.Conn) *NATSBroker {
+	return &NATSBroker{
+		conn: conn,
+	}
+}
+
+// Publish sends raw payload bytes to all subscribers of the named event.
+func (broker *NATSBroker) Publish(
+	ctx context.Context,
+	event string,
+	payload []byte,
+) error {
+	if err := core.Validate(event); err != nil {
+		return err
+	}
+
+	return broker.conn.Publish(event, payload)
+}
+
+// Subscribe registers a handler for events matching the given pattern.
+// The event pattern supports NATS wildcards:
+//   - "*" matches a single token (e.g., "users.*.created")
+//   - ">" matches multiple tokens (e.g., "users.>")
+//
+// The "#" wildcard from other brokers is automatically converted to ">".
+// Multiple subscribers to the same subject all receive messages (fan-out).
+//
+// Returns an unsubscribe function that removes this specific handler.
+// The context is used only for the subscription setup, not for the handler
+// lifecycle.
+func (broker *NATSBroker) Subscribe(
+	ctx context.Context,
+	event string,
+	handler contract.EventHandler,
+) (contract.EventUnsubscribeFunc, error) {
+	if err := core.Validate(event); err != nil {
+		return nil, err
+	}
+
+	subject := convertSubject(event)
+
+	sub, err := broker.conn.Subscribe(subject, func(msg *nats.Msg) {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("panic in nats event handler", "subject", subject, "panic", fmt.Sprint(r))
+			}
+		}()
+
+		handler(msg.Data)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return func() error {
+		return sub.Unsubscribe()
+	}, nil
+}
+
+// Ping verifies that the NATS connection is still alive.
+func (broker *NATSBroker) Ping(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, nats.DefaultTimeout)
+		defer cancel()
+	}
+
+	return broker.conn.FlushWithContext(ctx)
+}
+
+// Close gracefully shuts down the NATS connection.
+// It drains all pending messages before closing, ensuring no messages are
+// lost.
+// After Close is called, the broker cannot be reused.
+func (broker *NATSBroker) Close() error {
+	if err := broker.conn.Drain(); err != nil {
+		return err
+	}
+
+	broker.conn.Close()
+
+	return nil
+}
+
+// convertSubject converts event patterns to NATS subject format.
+// It replaces the multi-level wildcard "#" with NATS's ">" wildcard.
+// Single-level wildcards "*" are already compatible with NATS.
+func convertSubject(event string) string {
+	return strings.ReplaceAll(event, "#", ">")
+}

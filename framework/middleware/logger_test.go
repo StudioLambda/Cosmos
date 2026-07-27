@@ -8,8 +8,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework"
 	"github.com/studiolambda/cosmos/framework/correlation"
+	frameworklogger "github.com/studiolambda/cosmos/framework/logger/slog"
 	"github.com/studiolambda/cosmos/framework/middleware"
 
 	"github.com/stretchr/testify/require"
@@ -39,7 +41,7 @@ func TestLoggerLogsOnHandlerError(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
 
-	handler := middleware.Logger(logger)(framework.Handler(func(
+	handler := middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(logger)))(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -61,7 +63,7 @@ func TestLoggerLogsOn5xxStatus(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
 
-	handler := middleware.Logger(logger)(framework.Handler(func(
+	handler := middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(logger)))(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -84,7 +86,7 @@ func TestLoggerDoesNotLogOnSuccess(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
 
-	handler := middleware.Logger(logger)(framework.Handler(func(
+	handler := middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(logger)))(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -105,7 +107,7 @@ func TestLoggerDoesNotLogOn4xxStatus(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
 
-	handler := middleware.Logger(logger)(framework.Handler(func(
+	handler := middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(logger)))(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -126,7 +128,7 @@ func TestLoggerIncludesPathInLog(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
 
-	handler := middleware.Logger(logger)(framework.Handler(func(
+	handler := middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(logger)))(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -150,7 +152,7 @@ func TestLoggerLogsPathWithoutQueryString(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
 
-	handler := middleware.Logger(logger)(framework.Handler(func(
+	handler := middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(logger)))(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -175,8 +177,8 @@ func TestLoggerIncludesCorrelationID(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(correlation.Handler(slog.NewTextHandler(&buf, nil)))
 
-	handler := correlation.Middleware(correlation.DefaultMiddlewareConfig)(
-		middleware.Logger(logger)(framework.Handler(func(
+	handler := middleware.Correlation(middleware.DefaultCorrelationConfig)(
+		middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(logger)))(framework.Handler(func(
 			w http.ResponseWriter,
 			r *http.Request,
 		) error {
@@ -199,7 +201,7 @@ func TestLoggerOmitsCorrelationIDWhenMissing(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
 
-	handler := middleware.Logger(logger)(framework.Handler(func(
+	handler := middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(logger)))(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {

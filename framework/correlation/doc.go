@@ -1,16 +1,10 @@
-// Package correlation provides correlation ID middleware and logging helpers.
+// Package correlation provides correlation ID logging helpers.
 //
 // It establishes a request-scoped correlation identifier, stores it in
-// context, and exposes helpers to retrieve or inject that value into logs.
-//
-// # Ordering
-//
-// Correlation middleware should run near the start of the middleware chain so
-// subsequent middleware and handlers can include IDs in logs and errors.
+// context and exposes a slog handler decorator that injects that value into
+// logs. Use [middleware.Correlation] to establish the correlation ID.
 //
 // Example
 //
-//	app.Use(correlation.Middleware(correlation.DefaultMiddlewareConfig))
 //	logger := slog.New(correlation.Handler(slog.NewJSONHandler(os.Stdout, nil)))
-//	app.Use(middleware.Logger(*logger))
 package correlation

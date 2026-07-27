@@ -1,0 +1,30 @@
+# SQL database implementation configuration.
+#
+# Known implementations: database/postgres, database/mysql, and database/sqlite.
+# The quickstart uses pure-Go SQLite. Change application composition to select a
+# different driver; there is intentionally no runtime driver selector.
+database:
+  postgres:
+    # pgx DSN, for example: postgres://user:password@localhost:5432/app?sslmode=require
+    dsn: ""
+    max_open_conns: 0
+    max_idle_conns: 0
+    conn_max_lifetime: 0s
+    conn_max_idle_time: 0s
+
+  mysql:
+    # go-sql-driver/mysql DSN, for example: user:password@tcp(localhost:3306)/app?parseTime=true
+    dsn: ""
+    max_open_conns: 0
+    max_idle_conns: 0
+    conn_max_lifetime: 0s
+    conn_max_idle_time: 0s
+
+  sqlite:
+    # modernc.org/sqlite DSN. This quickstart creates a local file database.
+    dsn: file:cosmos.db?cache=shared&_fk=1
+    # Zero-valued pool settings use database/sql defaults.
+    max_open_conns: 0
+    max_idle_conns: 0
+    conn_max_lifetime: 0s
+    conn_max_idle_time: 0s

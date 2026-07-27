@@ -4,16 +4,15 @@ Event bus adapters implementing `contract.EventBus`.
 
 ## Implementations
 
-- Memory (in-process)
-- Redis
-- NATS
-- AMQP
-- MQTT
+- `event/memory` (in-process)
+- `event/redis`
+- `event/nats`
+- `event/amqp`
+- `event/mqtt`
 
 ## Topic matching
 
-The package includes wildcard topic matching helpers used by memory and broker
-adapters (`*` for one segment, `#` for many).
+Each implementation owns its transport-specific topic matching behavior.
 
 ## When to use it
 

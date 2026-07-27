@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework"
 )
 
@@ -42,6 +43,18 @@ type CORSConfig struct {
 	// may be cached by the browser. A zero value omits the
 	// Access-Control-Max-Age header entirely.
 	MaxAge int
+}
+
+// CORSConfigFrom returns a CORSConfig read from configuration below prefix.
+func CORSConfigFrom(configuration *contract.Configuration, prefix string) CORSConfig {
+	return CORSConfig{
+		AllowedOrigins:   configuration.GetOr(prefix+".allowed_origins", []string(nil)),
+		AllowedMethods:   configuration.GetOr(prefix+".allowed_methods", []string(nil)),
+		AllowedHeaders:   configuration.GetOr(prefix+".allowed_headers", []string(nil)),
+		ExposedHeaders:   configuration.GetOr(prefix+".exposed_headers", []string(nil)),
+		AllowCredentials: configuration.GetOr(prefix+".allow_credentials", false),
+		MaxAge:           configuration.GetOr(prefix+".max_age", 0),
+	}
 }
 
 // DefaultCORSConfig provides sensible CORS defaults that allow

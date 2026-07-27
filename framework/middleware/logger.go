@@ -1,9 +1,9 @@
 package middleware
 
 import (
-	"log/slog"
 	"net/http"
 
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/contract/request"
 	"github.com/studiolambda/cosmos/framework"
 )
@@ -34,19 +34,19 @@ import (
 //   - The response has a 5xx server error status code
 //
 // Security note: request URLs are included in log output.
-// Because this middleware uses slog (structured logging), values
+// Because this middleware uses structured logging, values
 // are emitted as discrete key-value pairs rather than
 // interpolated into a message string, which mitigates classic
 // log injection attacks. However, callers that forward logs to
 // systems that render plain text should remain aware that
 // attacker-controlled URLs may appear in log entries.
 //
-// The middleware uses structured logging with slog for consistent
+// The middleware uses structured logging for consistent
 // log formatting and includes request context for distributed
 // tracing compatibility.
 //
 // Parameters:
-//   - logger: The slog.Logger instance to use for logging.
+//   - logger: The [contract.Logger] instance to use for logging.
 //     If nil, a discard logger is used to prevent panics while
 //     maintaining functionality.
 //
@@ -55,13 +55,11 @@ import (
 //
 // Example usage:
 //
-//	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-//	app.Use(middleware.Logger(logger))
-func Logger(logger *slog.Logger) framework.Middleware {
-	// Make sure we always have a valid logger, even if
-	// this means just discarding the content itself.
+//	log := contract.NewLogger(frameworklogger.NewSlogFrom(slog.Default()))
+//	app.Use(middleware.Logger(log))
+func Logger(logger *contract.Logger) framework.Middleware {
 	if logger == nil {
-		logger = slog.New(slog.DiscardHandler)
+		logger = contract.NewLogger(nil)
 	}
 
 	return func(next framework.Handler) framework.Handler {
@@ -75,7 +73,7 @@ func Logger(logger *slog.Logger) framework.Middleware {
 
 			hooks.AfterResponse(func(err error) {
 				if err != nil || (status >= 500 && status < 600) {
-					logger.ErrorContext(
+					logger.Driver().ErrorContext(
 						r.Context(),
 						"request failed",
 						"method", r.Method,

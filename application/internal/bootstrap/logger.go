@@ -1,11 +1,18 @@
 package bootstrap
 
 import (
-	"log/slog"
-
-	"github.com/samber/do/v2"
+	"github.com/studiolambda/cosmos/contract"
+	"github.com/studiolambda/cosmos/framework/logger/slog"
 )
 
-func NewLogger(do do.Injector) (*slog.Logger, error) {
-	return slog.Default(), nil
+// NewLogger creates a slog logger from observability.logger configuration.
+func NewLogger(configuration *contract.Configuration) (*contract.Logger, error) {
+	config := slog.ConfigFrom(configuration, "observability.logger")
+
+	driver, err := slog.New(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return contract.NewLogger(driver), nil
 }

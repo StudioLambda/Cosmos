@@ -4,8 +4,8 @@ Authenticated encryption adapters implementing `contract.Encrypter`.
 
 ## Implementations
 
-- AES-GCM (`NewAES`)
-- ChaCha20-Poly1305 (`NewChaCha20`)
+- `crypto/aes`: AES-GCM.
+- `crypto/chacha20`: ChaCha20-Poly1305.
 
 ## Security notes
 

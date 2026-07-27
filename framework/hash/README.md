@@ -4,8 +4,8 @@ Password hashing implementations for Cosmos contracts.
 
 ## Implementations
 
-- Argon2 (default recommendation)
-- Bcrypt (compatibility-oriented)
+- `hash/argon2` (default recommendation)
+- `hash/bcrypt` (compatibility-oriented)
 
 ## Security notes
 

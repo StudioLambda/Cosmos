@@ -5,7 +5,7 @@
 Framework module: complete HTTP framework with error-returning handlers, middleware, sessions, caching, crypto, hashing, database. Built on router, problem, and contract modules.
 
 Module: github.com/studiolambda/cosmos/framework
-Dependencies: router v0.4.0, problem v0.4.0, contract v0.10.0, sqlx, go-redis, go-cache, golang.org/x/crypto, golang.org/x/time, argon2, nats, amqp091, paho.golang (MQTT), sqlite3
+Dependencies: router v0.4.0, problem v0.4.0, contract v0.10.0, sqlx, pgx, go-sql-driver/mysql, modernc.org/sqlite, go-redis, go-cache, golang.org/x/crypto, golang.org/x/time, argon2, nats, amqp091, paho.golang (MQTT)
 
 ## Setup Commands
 
@@ -66,7 +66,7 @@ func MyMiddleware() framework.Middleware {
 Sessions:
 ```go
 driver := session.NewCache(cache, 24*time.Hour)
-app.Use(session.Middleware(driver, "session_id"))
+app.Use(middleware.Session(driver, middleware.DefaultSessionConfig))
 
 sess := request.Session(r)
 sess.Put("user_id", 123)
@@ -75,26 +75,27 @@ sess.Regenerate()
 
 Cache:
 ```go
-cache := cache.NewMemory(5*time.Minute, 10*time.Minute)
+cache := memory.NewMemory(memory.MemoryConfig{Expiration: 5*time.Minute, Cleanup: 10*time.Minute})
 cache.Remember(ctx, key, ttl, compute)
 ```
 
 Crypto:
 ```go
-aes := crypto.NewAES(key) // 16, 24, or 32 bytes
+aes := aes.NewAES(aes.AESConfig{Key: key}) // 16, 24, or 32 bytes
 ciphertext, err := aes.Encrypt(ctx, plaintext)
 ```
 
 Hash:
 ```go
-hasher := hash.NewArgon2()
+hasher := argon2.NewArgon2(argon2.DefaultArgon2Config())
 hashed, err := hasher.Hash(ctx, password)
 err := hasher.Verify(ctx, password, hashed)
 ```
 
 Database:
 ```go
-db := database.NewSQL("postgres", connString)
+driver, err := postgres.New(postgres.Config{DSN: connString})
+db := contract.NewDatabase(driver)
 err := db.Find(ctx, query, &user, id)
 db.WithTransaction(ctx, func(tx contract.Database) error {
     return tx.Exec(ctx, query, args...)

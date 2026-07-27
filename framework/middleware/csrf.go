@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework"
 	"github.com/studiolambda/cosmos/problem"
 )
@@ -14,6 +15,13 @@ var ErrCSRFBlocked = problem.Problem{
 	Title:  "Cross-Origin Request Blocked",
 	Detail: "The request was rejected because its origin or fetch context did not meet security requirements.",
 	Status: http.StatusForbidden,
+}
+
+// CSRFConfigFrom returns a CSRFConfig read from configuration below prefix.
+func CSRFConfigFrom(configuration *contract.Configuration, prefix string) CSRFConfig {
+	return CSRFConfig{
+		TrustedOrigins: configuration.GetOr(prefix+".trusted_origins", []string(nil)),
+	}
 }
 
 // CSRFConfig configures CSRF protection for trusted cross-origin requests.
