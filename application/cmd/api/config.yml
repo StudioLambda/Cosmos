@@ -1,0 +1,255 @@
+# Cosmos application configuration.
+#
+# This file includes:
+# - all keys currently read from application/internal/config
+# - additional keys required by application/internal/bootstrap driver selection
+#
+# Values below use real defaults taken from framework and application code
+# wherever the codebase defines them explicitly.
+
+http:
+  server:
+    # Host or interface the HTTP server listens on.
+    # Default: framework.DefaultServerConfig().Host
+    host: 0.0.0.0
+
+    # TCP port the HTTP server listens on.
+    # Default: framework.DefaultServerConfig().Port
+    port: 8080
+
+    # Protects against Slowloris attacks.
+    # Default: framework.DefaultServerConfig().ReadHeaderTimeout
+    read_header_timeout: 10s
+
+    # Maximum time to read the full request, including body.
+    # Default: framework.DefaultServerConfig().ReadTimeout
+    read_timeout: 30s
+
+    # Maximum time allowed to write the response.
+    # Default: framework.DefaultServerConfig().WriteTimeout
+    write_timeout: 60s
+
+    # Maximum keep-alive idle time.
+    # Default: framework.DefaultServerConfig().IdleTimeout
+    idle_timeout: 120s
+
+    # Maximum size of request headers in bytes.
+    # Default: framework.DefaultServerConfig().MaxHeaderBytes
+    max_header_bytes: 1048576
+
+  cors:
+    # Allowed origins for cross-origin requests.
+    # Default: middleware.DefaultCORSConfig.AllowedOrigins
+    allowed_origins:
+      - "*"
+
+    # Allowed HTTP methods for cross-origin requests.
+    # Default: middleware.DefaultCORSConfig.AllowedMethods
+    allowed_methods:
+      - GET
+      - POST
+      - HEAD
+
+    # Allowed request headers for cross-origin requests.
+    # Default: middleware.DefaultCORSConfig.AllowedHeaders
+    allowed_headers:
+      - Accept
+      - Content-Type
+
+    # Response headers exposed to browsers.
+    # Default: middleware.DefaultCORSConfig.ExposedHeaders
+    exposed_headers: []
+
+    # Whether credentials are allowed in cross-origin requests.
+    # Default: middleware.DefaultCORSConfig.AllowCredentials
+    allow_credentials: false
+
+    # Preflight cache duration in seconds.
+    # Default: middleware.DefaultCORSConfig.MaxAge
+    max_age: 300
+
+  csrf:
+    # Trusted origins allowed for cross-origin state-changing requests.
+    # Default: middleware.DefaultCSRFConfig.TrustedOrigins
+    trusted_origins: []
+
+  secure_headers:
+    # X-Content-Type-Options value.
+    # Default: middleware.DefaultSecureHeadersConfig.ContentTypeOptions
+    content_type_options: nosniff
+
+    # X-Frame-Options value.
+    # Default: middleware.DefaultSecureHeadersConfig.FrameOptions
+    frame_options: DENY
+
+    # Referrer-Policy value.
+    # Default: middleware.DefaultSecureHeadersConfig.ReferrerPolicy
+    referrer_policy: strict-origin-when-cross-origin
+
+    # X-XSS-Protection value.
+    # Default: middleware.DefaultSecureHeadersConfig.XSSProtection
+    xss_protection: "0"
+
+    # Strict-Transport-Security value.
+    # Default: middleware.DefaultSecureHeadersConfig.StrictTransportSecurity
+    strict_transport_security: max-age=63072000; includeSubDomains
+
+    # Content-Security-Policy is application-specific and disabled by default.
+    # Default: empty
+    content_security_policy: ""
+
+    # Permissions-Policy is application-specific and disabled by default.
+    # Default: empty
+    permissions_policy: ""
+
+  rate_limit:
+    # Default: middleware.DefaultRateLimitConfig.Name
+    name: default
+
+    # Default: middleware.DefaultRateLimitConfig.Limit
+    limit: 15
+
+    # Default: middleware.DefaultRateLimitConfig.Window
+    window: 1s
+
+cache:
+  # Driver selected by application/internal/bootstrap/cache.go.
+  # Supported values: memory, redis.
+  # No application default is defined in bootstrap; this file selects memory.
+  driver: memory
+
+  memory:
+    # Default expiration for entries stored with a zero TTL.
+    # Default: framework/cache.DefaultMemoryConfig.Expiration (zero = no expiry)
+    expiration: 0s
+
+    # Interval for purging expired entries.
+    # Default: framework/cache.DefaultMemoryConfig.Cleanup (zero = library default behavior)
+    cleanup: 0s
+
+  redis:
+    # Minimal Redis cache client configuration.
+    # Default network and address come from framework/cache.DefaultRedisConfig.
+    network: tcp
+    addr: localhost:6379
+    username: ""
+    password: ""
+    db: 0
+
+crypto:
+  # Driver selected by application/internal/bootstrap/crypto.go.
+  # Supported values: aes, chacha20.
+  # No application default is defined in bootstrap; this file selects aes.
+  driver: aes
+
+  aes:
+    # AES key material as raw bytes/string content loaded by koanf.
+    # Must be 16, 24, or 32 bytes. No framework default exists.
+    key: "12345678901234567890123456789012"
+
+  chacha20:
+    # ChaCha20-Poly1305 key material.
+    # Must be exactly 32 bytes. No framework default exists.
+    key: "12345678901234567890123456789012"
+
+database:
+  # SQL driver name used by framework/database.NewSQL.
+  # No framework default exists.
+  driver: sqlite3
+
+  # Driver-specific DSN / connection string. No framework default exists.
+  dsn: file:cosmos.db?cache=shared&_fk=1
+
+  # Connection pool settings.
+  # Default in framework SQLConfig: zero values, meaning use sql.DB defaults.
+  max_open_conns: 0
+  max_idle_conns: 0
+  conn_max_lifetime: 0s
+  conn_max_idle_time: 0s
+
+hash:
+  # Driver selected by application/internal/bootstrap/hash.go.
+  # Supported values: bcrypt, argon2.
+  # No application default is defined in bootstrap; this file selects argon2.
+  driver: argon2
+
+  bcrypt:
+    # Default: hash.DefaultBcryptConfig.Cost
+    cost: 12
+
+  argon2:
+    # Defaults below come from hash.DefaultArgon2Config().
+    # If the upstream argon2 library changes its defaults, these values should be updated.
+    hash_length: 32
+    salt_length: 16
+    time_cost: 3
+    memory_cost: 65536
+    parallelism: 24
+    mode: 2
+    version: 19
+
+observability:
+  correlation:
+    # Default: correlation.DefaultMiddlewareConfig.Header
+    header: X-Correlation-ID
+
+event:
+  # Driver selected by application/internal/bootstrap/event.go.
+  # Supported values: memory, amqp, mqtt, nats, redis.
+  # No application default is defined in bootstrap; this file selects memory.
+  driver: memory
+
+  memory:
+    # Default: event.DefaultMemoryBrokerConfig.MaxConcurrentDeliveries
+    max_concurrent_deliveries: 1024
+
+  amqp:
+    # Broker connection URL. No framework default exists.
+    url: amqp://guest:guest@localhost:5672/
+
+    # Default: event.DefaultAMQPBrokerConfig().Exchange
+    exchange: cosmos:events
+
+  mqtt:
+    # Broker URLs.
+    urls:
+      - mqtt://localhost:1883
+
+    # Default: event.DefaultMQTTBrokerConfig().QoS
+    qos: 1
+
+    username: ""
+    password: ""
+
+    # Default: event.DefaultMQTTBrokerConfig().KeepAlive
+    keep_alive: 30
+
+  nats:
+    # Default: event.DefaultNATSBrokerConfig().URLs
+    urls:
+      - nats://127.0.0.1:4222
+
+    name: ""
+
+    # Default: event.DefaultNATSBrokerConfig().MaxReconnects
+    max_reconnects: -1
+
+    # Default: event.DefaultNATSBrokerConfig().ReconnectWait
+    reconnect_wait: 2s
+
+    timeout: 0s
+    username: ""
+    password: ""
+    token: ""
+    nkey_seed: ""
+    credentials_file: ""
+    root_cas: []
+
+  redis:
+    # Minimal Redis pub/sub client configuration.
+    # Default network and address come from framework/event.DefaultRedisBrokerConfig.
+    network: tcp
+    addr: localhost:6379
+    username: ""
+    password: ""
+    db: 0
