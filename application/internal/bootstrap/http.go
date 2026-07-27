@@ -17,12 +17,11 @@ func NewHTTPServer(configuration *contract.Configuration, router *framework.Rout
 }
 
 // NewHTTPRouter creates an HTTP router with configured middleware.
-func NewHTTPRouter(configuration *contract.Configuration, logger *contract.Logger, cache *contract.Cache) *framework.Router {
+func NewHTTPRouter(configuration *contract.Configuration, logger *contract.Logger) *framework.Router {
 	router := framework.New()
 	cors := middleware.CORSConfigFrom(configuration, "http.cors")
 	csrf := middleware.CSRFConfigFrom(configuration, "http.csrf")
 	secureHeaders := middleware.SecureHeadersConfigFrom(configuration, "http.secure_headers")
-	rateLimit := middleware.RateLimitConfigFrom(configuration, "http.rate_limit")
 	correlation := middleware.CorrelationConfigFrom(configuration, "observability.correlation")
 
 	router.Use(middleware.Logger(logger))
@@ -31,7 +30,9 @@ func NewHTTPRouter(configuration *contract.Configuration, logger *contract.Logge
 	router.Use(middleware.SecureHeaders(secureHeaders))
 	router.Use(middleware.CORS(cors))
 	router.Use(middleware.CSRF(csrf))
-	router.Use(middleware.RateLimit(cache, rateLimit))
+	// Do not install IP rate limiting in the quickstart: most deployments sit
+	// behind a proxy, where RemoteAddr identifies the proxy rather than a user.
+	// Applications should use RateLimitWith with a trusted-proxy-aware key.
 
 	handler.
 		NewHelloWorld().

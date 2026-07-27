@@ -39,12 +39,7 @@ func run() error {
 		return err
 	}
 
-	cache, err := bootstrap.NewCache(configuration)
-	if err != nil {
-		return err
-	}
-
-	router := bootstrap.NewHTTPRouter(configuration, logger, cache)
+	router := bootstrap.NewHTTPRouter(configuration, logger)
 	server := bootstrap.NewHTTPServer(configuration, router)
 
 	wg := sync.WaitGroup{}

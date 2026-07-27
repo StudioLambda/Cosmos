@@ -39,8 +39,6 @@ http:
     content_security_policy: ""
     permissions_policy: ""
 
-  rate_limit:
-    # Fixed-window policy. The selected cache backend stores counters.
-    name: default
-    limit: 15
-    window: 1s
+  # Rate limiting is intentionally not enabled by the quickstart. Configure
+  # middleware.RateLimitWith with an identity resolver that understands your
+  # trusted reverse-proxy topology.
