@@ -45,16 +45,14 @@ type CORSConfig struct {
 	MaxAge int
 }
 
-// CORSConfigFrom returns a CORSConfig read from configuration below prefix.
-func CORSConfigFrom(configuration *contract.Configuration, prefix string) CORSConfig {
-	return CORSConfig{
-		AllowedOrigins:   configuration.GetOr(prefix+".allowed_origins", []string(nil)),
-		AllowedMethods:   configuration.GetOr(prefix+".allowed_methods", []string(nil)),
-		AllowedHeaders:   configuration.GetOr(prefix+".allowed_headers", []string(nil)),
-		ExposedHeaders:   configuration.GetOr(prefix+".exposed_headers", []string(nil)),
-		AllowCredentials: configuration.GetOr(prefix+".allow_credentials", false),
-		MaxAge:           configuration.GetOr(prefix+".max_age", 0),
-	}
+// FromConfiguration populates the CORS configuration from configuration.
+func (config *CORSConfig) FromConfiguration(configuration *contract.Configuration) {
+	config.AllowedOrigins = configuration.GetOr("allowed_origins", []string(nil))
+	config.AllowedMethods = configuration.GetOr("allowed_methods", []string(nil))
+	config.AllowedHeaders = configuration.GetOr("allowed_headers", []string(nil))
+	config.ExposedHeaders = configuration.GetOr("exposed_headers", []string(nil))
+	config.AllowCredentials = configuration.GetOr("allow_credentials", false)
+	config.MaxAge = configuration.GetOr("max_age", 0)
 }
 
 // DefaultCORSConfig provides sensible CORS defaults that allow

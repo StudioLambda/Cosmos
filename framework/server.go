@@ -43,17 +43,15 @@ type ServerConfig struct {
 	MaxHeaderBytes int
 }
 
-// ServerConfigFrom returns a ServerConfig read from configuration below prefix.
-func ServerConfigFrom(configuration *contract.Configuration, prefix string) ServerConfig {
-	return ServerConfig{
-		Host:              configuration.GetOr(prefix+".host", ""),
-		Port:              configuration.GetOr(prefix+".port", 0),
-		ReadHeaderTimeout: configuration.GetOr(prefix+".read_header_timeout", time.Duration(0)),
-		ReadTimeout:       configuration.GetOr(prefix+".read_timeout", time.Duration(0)),
-		WriteTimeout:      configuration.GetOr(prefix+".write_timeout", time.Duration(0)),
-		IdleTimeout:       configuration.GetOr(prefix+".idle_timeout", time.Duration(0)),
-		MaxHeaderBytes:    configuration.GetOr(prefix+".max_header_bytes", 0),
-	}
+// FromConfiguration populates the server configuration from configuration.
+func (config *ServerConfig) FromConfiguration(configuration *contract.Configuration) {
+	config.Host = configuration.GetOr("host", "")
+	config.Port = configuration.GetOr("port", 0)
+	config.ReadHeaderTimeout = configuration.GetOr("read_header_timeout", time.Duration(0))
+	config.ReadTimeout = configuration.GetOr("read_timeout", time.Duration(0))
+	config.WriteTimeout = configuration.GetOr("write_timeout", time.Duration(0))
+	config.IdleTimeout = configuration.GetOr("idle_timeout", time.Duration(0))
+	config.MaxHeaderBytes = configuration.GetOr("max_header_bytes", 0)
 }
 
 // DefaultServerConfig returns the default server configuration with secure

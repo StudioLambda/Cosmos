@@ -19,15 +19,13 @@ type Config struct {
 	ConnMaxIdleTime time.Duration
 }
 
-// ConfigFrom returns a Config read from configuration below prefix.
-func ConfigFrom(configuration *contract.Configuration, prefix string) Config {
-	return Config{
-		DSN:             configuration.GetOr(prefix+".dsn", ""),
-		MaxOpenConns:    configuration.GetOr(prefix+".max_open_conns", 0),
-		MaxIdleConns:    configuration.GetOr(prefix+".max_idle_conns", 0),
-		ConnMaxLifetime: configuration.GetOr(prefix+".conn_max_lifetime", time.Duration(0)),
-		ConnMaxIdleTime: configuration.GetOr(prefix+".conn_max_idle_time", time.Duration(0)),
-	}
+// FromConfiguration populates the SQLite configuration from configuration.
+func (config *Config) FromConfiguration(configuration *contract.Configuration) {
+	config.DSN = configuration.GetOr("dsn", "")
+	config.MaxOpenConns = configuration.GetOr("max_open_conns", 0)
+	config.MaxIdleConns = configuration.GetOr("max_idle_conns", 0)
+	config.ConnMaxLifetime = configuration.GetOr("conn_max_lifetime", time.Duration(0))
+	config.ConnMaxIdleTime = configuration.GetOr("conn_max_idle_time", time.Duration(0))
 }
 
 // New connects to SQLite and returns a contract-compatible database driver.

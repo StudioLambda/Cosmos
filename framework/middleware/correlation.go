@@ -30,14 +30,6 @@ type CorrelationConfig struct {
 	Header string
 }
 
-// CorrelationConfigFrom returns a CorrelationConfig read from configuration
-// below prefix.
-func CorrelationConfigFrom(configuration *contract.Configuration, prefix string) CorrelationConfig {
-	return CorrelationConfig{
-		Header: configuration.GetOr(prefix+".header", ""),
-	}
-}
-
 // DefaultCorrelationConfig holds the default correlation middleware
 // configuration.
 var DefaultCorrelationConfig = CorrelationConfig{
@@ -105,6 +97,10 @@ func CorrelationWith(config CorrelationConfig, generate Generator) framework.Mid
 			return next(w, r.WithContext(ctx))
 		}
 	}
+}
+
+func (config *CorrelationConfig) FromConfiguration(configuration *contract.Configuration) {
+	config.Header = configuration.GetOr("header", DefaultCorrelationConfig.Header)
 }
 
 func (config CorrelationConfig) withDefaults() CorrelationConfig {

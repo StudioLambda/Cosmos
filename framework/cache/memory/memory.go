@@ -36,12 +36,10 @@ type MemoryConfig struct {
 // DefaultMemoryConfig holds the default in-memory cache configuration.
 var DefaultMemoryConfig = MemoryConfig{}
 
-// ConfigFrom returns a Config read from configuration below prefix.
-func ConfigFrom(configuration *contract.Configuration, prefix string) MemoryConfig {
-	return MemoryConfig{
-		Expiration: configuration.GetOr(prefix+".expiration", time.Duration(0)),
-		Cleanup:    configuration.GetOr(prefix+".cleanup", time.Duration(0)),
-	}
+// FromConfiguration populates the memory-cache configuration from configuration.
+func (config *MemoryConfig) FromConfiguration(configuration *contract.Configuration) {
+	config.Expiration = configuration.GetOr("expiration", time.Duration(0))
+	config.Cleanup = configuration.GetOr("cleanup", time.Duration(0))
 }
 
 // NewMemory creates a Memory cache with the given configuration.

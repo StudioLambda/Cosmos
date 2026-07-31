@@ -33,11 +33,9 @@ var DefaultMemoryBrokerConfig = MemoryBrokerConfig{
 	MaxConcurrentDeliveries: DefaultMaxConcurrentDeliveries,
 }
 
-// ConfigFrom returns a Config read from configuration below prefix.
-func ConfigFrom(configuration *contract.Configuration, prefix string) MemoryBrokerConfig {
-	return MemoryBrokerConfig{
-		MaxConcurrentDeliveries: configuration.GetOr(prefix+".max_concurrent_deliveries", 0),
-	}
+// FromConfiguration populates the memory-broker configuration from configuration.
+func (config *MemoryBrokerConfig) FromConfiguration(configuration *contract.Configuration) {
+	config.MaxConcurrentDeliveries = configuration.GetOr("max_concurrent_deliveries", 0)
 }
 
 // MemoryBroker implements [contract.EventDriver] using only in-memory

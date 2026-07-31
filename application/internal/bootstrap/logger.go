@@ -7,7 +7,7 @@ import (
 
 // NewLogger creates a slog logger from observability.logger configuration.
 func NewLogger(configuration *contract.Configuration) (*contract.Logger, error) {
-	config := slog.ConfigFrom(configuration, "observability.logger")
+	config := configuration.From[slog.Config]("observability.logger")
 
 	driver, err := slog.New(config)
 	if err != nil {

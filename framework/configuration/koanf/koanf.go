@@ -2,27 +2,17 @@
 package koanf
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
-	"path"
-	"strings"
 	"time"
 
-	"github.com/knadh/koanf/parsers/yaml"
-	fsprovider "github.com/knadh/koanf/providers/fs"
+	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/v2"
 	"github.com/studiolambda/cosmos/contract"
+	frameworkconfiguration "github.com/studiolambda/cosmos/framework/configuration"
 )
 
 // Config configures a Koanf-backed [contract.ConfigurationDriver].
 type Config struct {
-	// Filesystem provides the configuration files. It is required by [New].
-	Filesystem fs.FS
-
-	// Directory contains YAML configuration files. Defaults to config.
-	Directory string
-
 	// Delimiter is the nested key delimiter used when creating an internal Koanf
 	// instance. Defaults to ".".
 	Delimiter string
@@ -34,17 +24,12 @@ type Config struct {
 
 // DefaultConfig holds the default Koanf configuration.
 var DefaultConfig = Config{
-	Directory:  "config",
 	Delimiter:  ".",
 	TimeLayout: time.RFC3339,
 }
 
 func (config Config) withDefaults() Config {
 	defaults := DefaultConfig
-
-	if config.Directory == "" {
-		config.Directory = defaults.Directory
-	}
 
 	if config.TimeLayout == "" {
 		config.TimeLayout = defaults.TimeLayout
@@ -63,18 +48,18 @@ type Koanf struct {
 	config Config
 }
 
-// New creates a Koanf-backed configuration driver and loads regular YAML files
-// from the configured directory in lexical filename order.
-func New(config Config) (*Koanf, error) {
+// New creates a Koanf-backed configuration driver from providers.
+func New(providers ...frameworkconfiguration.Provider) (*Koanf, error) {
+	return NewWith(DefaultConfig, providers...)
+}
+
+// NewWith creates a Koanf-backed configuration driver from providers using config.
+func NewWith(config Config, providers ...frameworkconfiguration.Provider) (*Koanf, error) {
 	config = config.withDefaults()
 
-	if config.Filesystem == nil {
-		return nil, errors.New("configuration filesystem cannot be nil")
-	}
-
-	entries, err := fs.ReadDir(config.Filesystem, config.Directory)
+	values, err := frameworkconfiguration.Resolve(providers...)
 	if err != nil {
-		return nil, fmt.Errorf("read configuration directory %q: %w", config.Directory, err)
+		return nil, fmt.Errorf("resolve configuration: %w", err)
 	}
 
 	driver := &Koanf{
@@ -82,16 +67,8 @@ func New(config Config) (*Koanf, error) {
 		config: config,
 	}
 
-	for _, entry := range entries {
-		if entry.IsDir() || !isYAML(entry.Name()) {
-			continue
-		}
-
-		filename := path.Join(config.Directory, entry.Name())
-
-		if err := driver.koanf.Load(fsprovider.Provider(config.Filesystem, filename), yaml.Parser()); err != nil {
-			return nil, fmt.Errorf("load configuration %q: %w", filename, err)
-		}
+	if err := driver.koanf.Load(confmap.Provider(values, config.Delimiter), nil); err != nil {
+		return nil, fmt.Errorf("load configuration: %w", err)
 	}
 
 	return driver, nil
@@ -106,10 +83,8 @@ func NewKoanfFrom(instance *koanf.Koanf) *Koanf {
 	}
 }
 
-func isYAML(filename string) bool {
-	extension := strings.ToLower(path.Ext(filename))
-
-	return extension == ".yaml" || extension == ".yml"
+func (configuration *Koanf) Delimiter() string {
+	return configuration.koanf.Delim()
 }
 
 // Instance returns the underlying [koanf.Koanf] instance.

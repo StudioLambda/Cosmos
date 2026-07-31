@@ -51,11 +51,9 @@ type AESConfig struct {
 	Key []byte
 }
 
-// ConfigFrom returns a Config read from configuration below prefix.
-func ConfigFrom(configuration *contract.Configuration, prefix string) AESConfig {
-	return AESConfig{
-		Key: configuration.GetOr(prefix+".key", []byte(nil)),
-	}
+// FromConfiguration populates the AES configuration from configuration.
+func (config *AESConfig) FromConfiguration(configuration *contract.Configuration) {
+	config.Key = configuration.GetOr("key", []byte(nil))
 }
 
 // ErrMismatchedAESNonceSize is returned when the ciphertext provided

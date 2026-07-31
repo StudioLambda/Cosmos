@@ -41,22 +41,26 @@ func (configurationDriver) Has(string) bool {
 	return true
 }
 
+func (configurationDriver) Delimiter() string {
+	return "."
+}
+
 func TestConfigFromMapsStdoutOutput(t *testing.T) {
 	t.Parallel()
 
 	configuration := contract.NewConfiguration(configurationDriver{output: "stdout"})
-	config := logger.ConfigFrom(configuration, "logger")
+	config := configuration.From[logger.Config]("logger")
 
-	require.Same(t, os.Stdout, config.Output)
+	require.Same(t, os.Stdout, config.Output.(*os.File))
 }
 
 func TestConfigFromMapsStderrOutput(t *testing.T) {
 	t.Parallel()
 
 	configuration := contract.NewConfiguration(configurationDriver{output: "stderr"})
-	config := logger.ConfigFrom(configuration, "logger")
+	config := configuration.From[logger.Config]("logger")
 
-	require.Same(t, os.Stderr, config.Output)
+	require.Same(t, os.Stderr, config.Output.(*os.File))
 }
 
 func (handler *slogContextHandler) Enabled(context.Context, slog.Level) bool {

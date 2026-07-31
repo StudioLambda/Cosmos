@@ -2,6 +2,23 @@ package contract
 
 import "context"
 
+// LogLevel identifies a structured logging severity.
+type LogLevel string
+
+const (
+	// LogLevelDebug identifies debug-level records.
+	LogLevelDebug LogLevel = "debug"
+
+	// LogLevelInfo identifies informational records.
+	LogLevelInfo LogLevel = "info"
+
+	// LogLevelWarn identifies warning-level records.
+	LogLevelWarn LogLevel = "warn"
+
+	// LogLevelError identifies error-level records.
+	LogLevelError LogLevel = "error"
+)
+
 // LoggerDriver defines the contract implemented by structured logging backends.
 // Arguments use alternating string key and value pairs.
 type LoggerDriver interface {
@@ -44,27 +61,77 @@ func (logger *Logger) Driver() LoggerDriver {
 
 // Debug logs a debug-level message with a background context and attributes.
 func (logger *Logger) Debug(message string, args ...any) {
-	logger.driver.DebugContext(context.Background(), message, args...)
+	logger.DebugContext(context.Background(), message, args...)
+}
+
+// DebugContext logs a debug-level message with the given context and attributes.
+func (logger *Logger) DebugContext(ctx context.Context, message string, args ...any) {
+	logger.driver.DebugContext(ctx, message, args...)
 }
 
 // Info logs an info-level message with a background context and attributes.
 func (logger *Logger) Info(message string, args ...any) {
-	logger.driver.InfoContext(context.Background(), message, args...)
+	logger.InfoContext(context.Background(), message, args...)
+}
+
+// InfoContext logs an info-level message with the given context and attributes.
+func (logger *Logger) InfoContext(ctx context.Context, message string, args ...any) {
+	logger.driver.InfoContext(ctx, message, args...)
 }
 
 // Warn logs a warning-level message with a background context and attributes.
 func (logger *Logger) Warn(message string, args ...any) {
-	logger.driver.WarnContext(context.Background(), message, args...)
+	logger.WarnContext(context.Background(), message, args...)
+}
+
+// WarnContext logs a warning-level message with the given context and attributes.
+func (logger *Logger) WarnContext(ctx context.Context, message string, args ...any) {
+	logger.driver.WarnContext(ctx, message, args...)
 }
 
 // Error logs an error-level message with a background context and attributes.
 func (logger *Logger) Error(message string, args ...any) {
-	logger.driver.ErrorContext(context.Background(), message, args...)
+	logger.ErrorContext(context.Background(), message, args...)
+}
+
+// ErrorContext logs an error-level message with the given context and attributes.
+func (logger *Logger) ErrorContext(ctx context.Context, message string, args ...any) {
+	logger.driver.ErrorContext(ctx, message, args...)
+}
+
+// Log logs a message at level with a background context and attributes.
+func (logger *Logger) Log(level LogLevel, message string, args ...any) {
+	logger.LogContext(context.Background(), level, message, args...)
+}
+
+// LogContext logs a message at level with the given context and attributes.
+// Unknown levels are logged as errors to avoid silently dropping records.
+func (logger *Logger) LogContext(ctx context.Context, level LogLevel, message string, args ...any) {
+	switch level {
+	case LogLevelDebug:
+		logger.DebugContext(ctx, message, args...)
+	case LogLevelInfo:
+		logger.InfoContext(ctx, message, args...)
+	case LogLevelWarn:
+		logger.WarnContext(ctx, message, args...)
+	default:
+		logger.ErrorContext(ctx, message, args...)
+	}
 }
 
 // With returns a derived [Logger] with the given persistent attributes.
 func (logger *Logger) With(args ...any) *Logger {
 	return NewLogger(logger.driver.With(args...))
+}
+
+// WithError returns a derived [Logger] with err as a persistent "err" attribute.
+func (logger *Logger) WithError(err error) *Logger {
+	return logger.With("err", err)
+}
+
+// Named returns a derived [Logger] with name as a persistent "component" attribute.
+func (logger *Logger) Named(name string) *Logger {
+	return logger.With("component", name)
 }
 
 // discardLogger silently discards every log record.

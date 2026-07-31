@@ -17,11 +17,9 @@ var ErrCSRFBlocked = problem.Problem{
 	Status: http.StatusForbidden,
 }
 
-// CSRFConfigFrom returns a CSRFConfig read from configuration below prefix.
-func CSRFConfigFrom(configuration *contract.Configuration, prefix string) CSRFConfig {
-	return CSRFConfig{
-		TrustedOrigins: configuration.GetOr(prefix+".trusted_origins", []string(nil)),
-	}
+// FromConfiguration populates the CSRF configuration from configuration.
+func (config *CSRFConfig) FromConfiguration(configuration *contract.Configuration) {
+	config.TrustedOrigins = configuration.GetOr("trusted_origins", []string(nil))
 }
 
 // CSRFConfig configures CSRF protection for trusted cross-origin requests.

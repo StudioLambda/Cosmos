@@ -47,18 +47,15 @@ type SecureHeadersConfig struct {
 	PermissionsPolicy string
 }
 
-// SecureHeadersConfigFrom returns a SecureHeadersConfig read from configuration
-// below prefix.
-func SecureHeadersConfigFrom(configuration *contract.Configuration, prefix string) SecureHeadersConfig {
-	return SecureHeadersConfig{
-		ContentTypeOptions:      configuration.GetOr(prefix+".content_type_options", ""),
-		FrameOptions:            configuration.GetOr(prefix+".frame_options", ""),
-		ReferrerPolicy:          configuration.GetOr(prefix+".referrer_policy", ""),
-		XSSProtection:           configuration.GetOr(prefix+".xss_protection", ""),
-		StrictTransportSecurity: configuration.GetOr(prefix+".strict_transport_security", ""),
-		ContentSecurityPolicy:   configuration.GetOr(prefix+".content_security_policy", ""),
-		PermissionsPolicy:       configuration.GetOr(prefix+".permissions_policy", ""),
-	}
+// FromConfiguration populates the secure-header configuration from configuration.
+func (config *SecureHeadersConfig) FromConfiguration(configuration *contract.Configuration) {
+	config.ContentTypeOptions = configuration.GetOr("content_type_options", "")
+	config.FrameOptions = configuration.GetOr("frame_options", "")
+	config.ReferrerPolicy = configuration.GetOr("referrer_policy", "")
+	config.XSSProtection = configuration.GetOr("xss_protection", "")
+	config.StrictTransportSecurity = configuration.GetOr("strict_transport_security", "")
+	config.ContentSecurityPolicy = configuration.GetOr("content_security_policy", "")
+	config.PermissionsPolicy = configuration.GetOr("permissions_policy", "")
 }
 
 // DefaultSecureHeadersConfig holds safe default values for

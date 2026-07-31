@@ -187,8 +187,8 @@ func (lazyMapping LazyMap[K, V]) Except(keys ...K) LazyMap[K, V] {
 	})
 }
 
-// LazyMapValues transforms values using f and returns a new [LazyMap] with the same keys.
-func LazyMapValues[K comparable, V, W any](lazyMapping LazyMap[K, V], f func(K, V) W) LazyMap[K, W] {
+// MapValues transforms values using f and returns a new [LazyMap] with the same keys.
+func (lazyMapping LazyMap[K, V]) MapValues[W any](f func(K, V) W) LazyMap[K, W] {
 	return NewLazyMap(func(yield func(K, W) bool) {
 		for k, v := range lazyMapping {
 			if !yield(k, f(k, v)) {
@@ -198,9 +198,9 @@ func LazyMapValues[K comparable, V, W any](lazyMapping LazyMap[K, V], f func(K, 
 	})
 }
 
-// LazyMapKeys transforms keys using f and returns a new [LazyMap] with the same values.
+// MapKeys transforms keys using f and returns a new [LazyMap] with the same values.
 // When multiple keys map to the same new key, the last one encountered wins upon materialisation.
-func LazyMapKeys[K comparable, J comparable, V any](lazyMapping LazyMap[K, V], f func(K, V) J) LazyMap[J, V] {
+func (lazyMapping LazyMap[K, V]) MapKeys[J comparable](f func(K, V) J) LazyMap[J, V] {
 	return NewLazyMap(func(yield func(J, V) bool) {
 		for k, v := range lazyMapping {
 			if !yield(f(k, v), v) {

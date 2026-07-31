@@ -69,13 +69,9 @@ func (mapping Map[K, V]) Get(key K) (V, bool) {
 
 // HasAny reports whether any of the given keys exists in the map.
 func (mapping Map[K, V]) HasAny(keys ...K) bool {
-	for _, key := range keys {
-		if mapping.Has(key) {
-			return true
-		}
-	}
-
-	return false
+	return slices.ContainsFunc(keys, func(key K) bool {
+		return mapping.Has(key)
+	})
 }
 
 // Len returns the number of entries in the map.
@@ -174,7 +170,7 @@ func (mapping Map[K, V]) Except(keys ...K) Map[K, V] {
 }
 
 // MapValues transforms values using f and returns a new [Map] with the same keys.
-func MapValues[K comparable, V, W any](mapping Map[K, V], f func(K, V) W) Map[K, W] {
+func (mapping Map[K, V]) MapValues[W any](f func(K, V) W) Map[K, W] {
 	result := make(map[K]W, len(mapping))
 
 	for k, v := range mapping {
@@ -186,7 +182,7 @@ func MapValues[K comparable, V, W any](mapping Map[K, V], f func(K, V) W) Map[K,
 
 // MapKeys transforms keys using f and returns a new [Map] with the same values.
 // When multiple keys map to the same new key, the last one encountered wins.
-func MapKeys[K comparable, J comparable, V any](mapping Map[K, V], f func(K, V) J) Map[J, V] {
+func (mapping Map[K, V]) MapKeys[J comparable](f func(K, V) J) Map[J, V] {
 	result := make(map[J]V, len(mapping))
 
 	for k, v := range mapping {

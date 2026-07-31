@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/studiolambda/cosmos/application/internal/bootstrap"
+	"github.com/studiolambda/cosmos/framework/configuration"
 )
 
 //go:embed config/*.yml
@@ -28,7 +29,14 @@ func run() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	configuration, err := bootstrap.NewConfig(configurationFS)
+	if err := bootstrap.LoadEnv(".env"); err != nil {
+		return fmt.Errorf("load .env: %w", err)
+	}
+
+	configuration, err := bootstrap.NewConfig(
+		configuration.Filesystem(configurationFS),
+		configuration.Environment("COSMOS"),
+	)
 	if err != nil {
 		return err
 	}
@@ -47,7 +55,7 @@ func run() error {
 	events := bootstrap.NewEvents(configuration)
 	defer events.Close()
 
-	crypto, err := bootstrap.NewCrypto()
+	crypto, err := bootstrap.NewCrypto(configuration)
 	if err != nil {
 		return err
 	}
@@ -61,7 +69,7 @@ func run() error {
 	serverErrors := make(chan error, 1)
 
 	go func() {
-		logger.Driver().InfoContext(ctx, "started http server", "addr", "http://"+server.Addr)
+		logger.InfoContext(ctx, "started http server", "addr", "http://"+server.Addr)
 
 		if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 			serverErrors <- err
@@ -75,16 +83,16 @@ func run() error {
 	}
 
 	fmt.Fprint(os.Stdout, "\r")
-	logger.Driver().InfoContext(ctx, "shutting down...")
+	logger.InfoContext(ctx, "shutting down...")
 
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		logger.Driver().ErrorContext(ctx, "failed to stop http server", "err", err)
+		logger.ErrorContext(ctx, "failed to stop http server", "err", err)
 	}
 
-	logger.Driver().InfoContext(ctx, "shutdown complete")
+	logger.InfoContext(ctx, "shutdown complete")
 
 	return nil
 }

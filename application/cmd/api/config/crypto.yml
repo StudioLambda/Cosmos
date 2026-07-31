@@ -1,8 +1,0 @@
-# Authenticated encryption implementation configuration.
-#
-# Known implementations: crypto/aes and crypto/chacha20. The quickstart uses
-# AES-GCM. Change application composition to use ChaCha20-Poly1305.
-crypto:
-  aes:
-    # Required: set COSMOS_CRYPTO_AES_KEY to a 16, 24, or 32-byte secret.
-    # It is intentionally not embedded in the application or configuration.

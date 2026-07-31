@@ -73,7 +73,7 @@ func Logger(logger *contract.Logger) framework.Middleware {
 
 			hooks.AfterResponse(func(err error) {
 				if err != nil || (status >= 500 && status < 600) {
-					logger.Driver().ErrorContext(
+					logger.ErrorContext(
 						r.Context(),
 						"request failed",
 						"method", r.Method,

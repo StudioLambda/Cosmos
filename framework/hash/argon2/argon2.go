@@ -7,10 +7,10 @@ import (
 	"github.com/studiolambda/cosmos/framework/hash/internal/secure"
 )
 
-// Argon2Config is an alias for argon2.Config, exposing the full set
+// Argon2Config mirrors argon2.Config, exposing the full set
 // of tuning parameters (memory, iterations, parallelism) without
 // requiring a direct import of the argon2 package.
-type Argon2Config = argon2.Config
+type Argon2Config argon2.Config
 
 // Argon2 implements contract.Hasher using the Argon2id algorithm.
 // It is the recommended hasher for password storage due to its
@@ -26,20 +26,18 @@ type Argon2 struct {
 
 // DefaultArgon2Config returns the default Argon2 hasher configuration.
 func DefaultArgon2Config() Argon2Config {
-	return argon2.DefaultConfig()
+	return Argon2Config(argon2.DefaultConfig())
 }
 
-// ConfigFrom returns a Config read from configuration below prefix.
-func ConfigFrom(configuration *contract.Configuration, prefix string) Argon2Config {
-	return Argon2Config{
-		HashLength:  uint32(configuration.GetOr(prefix+".hash_length", 0)),
-		SaltLength:  uint32(configuration.GetOr(prefix+".salt_length", 0)),
-		TimeCost:    uint32(configuration.GetOr(prefix+".time_cost", 0)),
-		MemoryCost:  uint32(configuration.GetOr(prefix+".memory_cost", 0)),
-		Parallelism: uint8(configuration.GetOr(prefix+".parallelism", 0)),
-		Mode:        argon2.Mode(configuration.GetOr(prefix+".mode", 0)),
-		Version:     argon2.Version(configuration.GetOr(prefix+".version", 0)),
-	}
+// FromConfiguration populates the Argon2 configuration from configuration.
+func (config *Argon2Config) FromConfiguration(configuration *contract.Configuration) {
+	config.HashLength = uint32(configuration.GetOr("hash_length", 0))
+	config.SaltLength = uint32(configuration.GetOr("salt_length", 0))
+	config.TimeCost = uint32(configuration.GetOr("time_cost", 0))
+	config.MemoryCost = uint32(configuration.GetOr("memory_cost", 0))
+	config.Parallelism = uint8(configuration.GetOr("parallelism", 0))
+	config.Mode = argon2.Mode(configuration.GetOr("mode", 0))
+	config.Version = argon2.Version(configuration.GetOr("version", 0))
 }
 
 // NewArgon2 creates an Argon2 hasher using the provided
@@ -47,7 +45,7 @@ func ConfigFrom(configuration *contract.Configuration, prefix string) Argon2Conf
 // iteration count, and parallelism.
 func NewArgon2(config Argon2Config) *Argon2 {
 	return &Argon2{
-		config: config,
+		config: argon2.Config(config),
 	}
 }
 

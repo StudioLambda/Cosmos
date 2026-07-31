@@ -14,6 +14,7 @@ func TestConfigurationGetReturnsDecodedValue(t *testing.T) {
 	t.Parallel()
 
 	driver := contractmock.NewConfigurationDriverMock(t)
+	driver.On("Delimiter").Return(".")
 	driver.On("Unmarshal", "http.port", mock.Anything).Run(func(args mock.Arguments) {
 		*args.Get(1).(*int) = 8080
 	}).Return(nil)
@@ -29,6 +30,7 @@ func TestConfigurationGetReturnsDriverError(t *testing.T) {
 	t.Parallel()
 
 	driver := contractmock.NewConfigurationDriverMock(t)
+	driver.On("Delimiter").Return(".")
 	driver.On("Unmarshal", "http.port", mock.Anything).Return(errors.New("boom"))
 	configuration := contract.NewConfiguration(driver)
 
@@ -41,6 +43,7 @@ func TestConfigurationGetOrReturnsFallbackOnError(t *testing.T) {
 	t.Parallel()
 
 	driver := contractmock.NewConfigurationDriverMock(t)
+	driver.On("Delimiter").Return(".")
 	driver.On("Unmarshal", "http.port", mock.Anything).Return(contract.ErrConfigurationKeyNotFound)
 	configuration := contract.NewConfiguration(driver)
 
@@ -55,6 +58,7 @@ func TestConfigurationHasReportsPresence(t *testing.T) {
 	driver := contractmock.NewConfigurationDriverMock(t)
 	driver.On("Has", "app.name").Return(true)
 	driver.On("Has", "app.port").Return(false)
+	driver.On("Delimiter").Return(".")
 	configuration := contract.NewConfiguration(driver)
 
 	require.True(t, configuration.Has("app.name"))

@@ -32,8 +32,8 @@ type Config struct {
 	// Format accepts json, text, or colored. The default is json.
 	Format string
 
-	// Output receives log records. A nil value defaults to os.Stderr. ConfigFrom
-	// supports the stdout and stderr output values.
+	// Output receives log records. A nil value defaults to os.Stderr.
+	// FromConfiguration supports the stdout and stderr output values.
 	Output io.Writer
 }
 
@@ -46,15 +46,11 @@ func DefaultConfig() Config {
 	}
 }
 
-// ConfigFrom returns a Config read from configuration below prefix.
-func ConfigFrom(configuration *contract.Configuration, prefix string) Config {
-	output := configuration.GetOr(prefix+".output", "")
-
-	return Config{
-		Level:  configuration.GetOr(prefix+".level", ""),
-		Format: configuration.GetOr(prefix+".format", ""),
-		Output: outputFrom(output),
-	}
+// FromConfiguration populates the slog configuration from configuration.
+func (config *Config) FromConfiguration(configuration *contract.Configuration) {
+	config.Level = configuration.GetOr("level", "")
+	config.Format = configuration.GetOr("format", "")
+	config.Output = outputFrom(configuration.GetOr("output", ""))
 }
 
 func outputFrom(value string) io.Writer {

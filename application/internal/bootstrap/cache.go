@@ -7,7 +7,7 @@ import (
 
 // NewCache creates an in-memory cache from cache.memory configuration.
 func NewCache(configuration *contract.Configuration) (*contract.Cache, error) {
-	config := memory.ConfigFrom(configuration, "cache.memory")
+	config := configuration.From[memory.MemoryConfig]("cache.memory")
 	driver := memory.NewMemory(config)
 
 	return contract.NewCache(driver), nil

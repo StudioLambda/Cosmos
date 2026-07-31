@@ -7,7 +7,7 @@ import (
 
 // NewDatabase creates a SQLite database from database.sqlite configuration.
 func NewDatabase(configuration *contract.Configuration) (*contract.Database, error) {
-	config := sqlite.ConfigFrom(configuration, "database.sqlite")
+	config := configuration.From[sqlite.Config]("database.sqlite")
 
 	driver, err := sqlite.New(config)
 	if err != nil {

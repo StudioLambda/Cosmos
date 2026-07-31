@@ -8,6 +8,7 @@ import (
 	"github.com/knadh/koanf/v2"
 	"github.com/stretchr/testify/require"
 	"github.com/studiolambda/cosmos/contract"
+	"github.com/studiolambda/cosmos/framework/configuration"
 	frameworkconfiguration "github.com/studiolambda/cosmos/framework/configuration/koanf"
 )
 
@@ -64,12 +65,11 @@ func TestKoanfUnmarshalDecodesTimeWithDefaultLayout(t *testing.T) {
 func TestKoanfUnmarshalDecodesTimeWithCustomLayout(t *testing.T) {
 	t.Parallel()
 
-	driver, err := frameworkconfiguration.New(frameworkconfiguration.Config{
-		Filesystem: fstest.MapFS{
-			"config/app.yml": &fstest.MapFile{Data: []byte("http:\n  server:\n    started_at: \"2026-07-27\"\n")},
-		},
+	driver, err := frameworkconfiguration.NewWith(frameworkconfiguration.Config{
 		TimeLayout: time.DateOnly,
-	})
+	}, configuration.Filesystem(fstest.MapFS{
+		"config/app.yml": &fstest.MapFile{Data: []byte("http:\n  server:\n    started_at: \"2026-07-27\"\n")},
+	}))
 	require.NoError(t, err)
 
 	var startedAt time.Time
@@ -136,11 +136,9 @@ func TestContractConfigurationGetOrUsesFallbackWithKoanfDriver(t *testing.T) {
 func newKoanfDriver(t *testing.T) *frameworkconfiguration.Koanf {
 	t.Helper()
 
-	driver, err := frameworkconfiguration.New(frameworkconfiguration.Config{
-		Filesystem: fstest.MapFS{
-			"config/app.yml": &fstest.MapFile{Data: []byte("http:\n  server:\n    host: 0.0.0.0\n    port: 8080\n    read_timeout: 30s\n    started_at: \"2026-07-27T10:30:00Z\"\n")},
-		},
-	})
+	driver, err := frameworkconfiguration.New(configuration.Filesystem(fstest.MapFS{
+		"config/app.yml": &fstest.MapFile{Data: []byte("http:\n  server:\n    host: 0.0.0.0\n    port: 8080\n    read_timeout: 30s\n    started_at: \"2026-07-27T10:30:00Z\"\n")},
+	}))
 	require.NoError(t, err)
 
 	return driver

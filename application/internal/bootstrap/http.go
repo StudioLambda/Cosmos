@@ -11,7 +11,7 @@ import (
 
 // NewHTTPServer creates an HTTP server from http.server configuration.
 func NewHTTPServer(configuration *contract.Configuration, router *framework.Router) *http.Server {
-	config := framework.ServerConfigFrom(configuration, "http.server")
+	config := configuration.From[framework.ServerConfig]("http.server")
 
 	return framework.NewServer(config, router)
 }
@@ -19,20 +19,19 @@ func NewHTTPServer(configuration *contract.Configuration, router *framework.Rout
 // NewHTTPRouter creates an HTTP router with configured middleware.
 func NewHTTPRouter(configuration *contract.Configuration, logger *contract.Logger) *framework.Router {
 	router := framework.New()
-	cors := middleware.CORSConfigFrom(configuration, "http.cors")
-	csrf := middleware.CSRFConfigFrom(configuration, "http.csrf")
-	secureHeaders := middleware.SecureHeadersConfigFrom(configuration, "http.secure_headers")
-	correlation := middleware.CorrelationConfigFrom(configuration, "observability.correlation")
+	cors := configuration.From[middleware.CORSConfig]("http.cors")
+	csrf := configuration.From[middleware.CSRFConfig]("http.csrf")
+	secureHeaders := configuration.From[middleware.SecureHeadersConfig]("http.secure_headers")
+	correlation := configuration.From[middleware.CorrelationConfig]("observability.correlation")
 
-	router.Use(middleware.Logger(logger))
-	router.Use(middleware.Recover())
-	router.Use(middleware.Correlation(correlation))
-	router.Use(middleware.SecureHeaders(secureHeaders))
-	router.Use(middleware.CORS(cors))
-	router.Use(middleware.CSRF(csrf))
-	// Do not install IP rate limiting in the quickstart: most deployments sit
-	// behind a proxy, where RemoteAddr identifies the proxy rather than a user.
-	// Applications should use RateLimitWith with a trusted-proxy-aware key.
+	router.Use(
+		middleware.Logger(logger),
+		middleware.Recover(),
+		middleware.Correlation(correlation),
+		middleware.SecureHeaders(secureHeaders),
+		middleware.CORS(cors),
+		middleware.CSRF(csrf),
+	)
 
 	handler.
 		NewHelloWorld().

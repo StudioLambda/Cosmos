@@ -7,7 +7,7 @@ import (
 
 // NewEvents creates an in-memory event bus from event.memory configuration.
 func NewEvents(configuration *contract.Configuration) *contract.Events {
-	config := memory.ConfigFrom(configuration, "event.memory")
+	config := configuration.From[memory.MemoryBrokerConfig]("event.memory")
 	driver := memory.NewMemoryBroker(config)
 
 	return contract.NewEvents(driver)
