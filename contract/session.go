@@ -72,16 +72,14 @@ var ErrSessionInvalidValueType = errors.New("session invalid value type")
 
 // generateSessionID generates a cryptographically random session
 // ID using crypto/rand and base64url encoding (43 characters).
-func generateSessionID() (string, error) {
-	b := make([]byte, sessionIDLength)
+func generateSessionID() string {
+	value := make([]byte, sessionIDLength)
 
-	_, err := rand.Read(b)
+	// crypto/rand.Read always fills value or terminates the process when the
+	// operating system cannot provide cryptographically secure randomness.
+	_, _ = rand.Read(value)
 
-	if err != nil {
-		return "", err
-	}
-
-	return base64.RawURLEncoding.EncodeToString(b), nil
+	return base64.RawURLEncoding.EncodeToString(value)
 }
 
 // NewSession creates a new session with the specified expiration
@@ -97,11 +95,7 @@ func generateSessionID() (string, error) {
 //	}
 //	_ = session
 func NewSession(expiresAt time.Time, storage map[string]any) (*Session, error) {
-	id, err := generateSessionID()
-
-	if err != nil {
-		return nil, err
-	}
+	id := generateSessionID()
 
 	return &Session{
 		originalID: id,
@@ -207,9 +201,7 @@ func (session *Session) Get[T any](key string) (res T, err error) {
 // Example:
 //
 //	session.Put("user_id", 42)
-//	if err := session.Regenerate(); err != nil {
-//		return err
-//	}
+//	session.Regenerate()
 func (session *Session) Put[T any](key string, value T) {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
@@ -247,15 +239,9 @@ func (session *Session) Extend(expiresAt time.Time) {
 //
 // Example:
 //
-//	if err := session.Regenerate(); err != nil {
-//		return err
-//	}
-func (session *Session) Regenerate() error {
-	id, err := generateSessionID()
-
-	if err != nil {
-		return err
-	}
+//	session.Regenerate()
+func (session *Session) Regenerate() {
+	id := generateSessionID()
 
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
@@ -263,7 +249,6 @@ func (session *Session) Regenerate() error {
 	session.id = id
 	session.changed = true
 
-	return nil
 }
 
 // Clear removes all data from the session while maintaining the

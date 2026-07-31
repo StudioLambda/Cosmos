@@ -1,7 +1,6 @@
 package middleware_test
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -182,8 +181,8 @@ func TestMiddlewareRejectsUnsafeHeaderAndGenerates(t *testing.T) {
 
 	var captured string
 
-	handler := correlation.CorrelationWith(correlation.CorrelationConfig{}, func() (string, error) {
-		return "generated-safe-id", nil
+	handler := correlation.CorrelationWith(correlation.CorrelationConfig{}, func() string {
+		return "generated-safe-id"
 	})(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
@@ -207,8 +206,8 @@ func TestMiddlewareRejectsOverlongHeaderAndGenerates(t *testing.T) {
 
 	var captured string
 
-	handler := correlation.CorrelationWith(correlation.CorrelationConfig{}, func() (string, error) {
-		return "generated-safe-id", nil
+	handler := correlation.CorrelationWith(correlation.CorrelationConfig{}, func() string {
+		return "generated-safe-id"
 	})(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
@@ -232,8 +231,8 @@ func TestMiddlewareWithCustomGenerator(t *testing.T) {
 
 	var captured string
 
-	handler := correlation.CorrelationWith(correlation.CorrelationConfig{}, func() (string, error) {
-		return "custom-generated", nil
+	handler := correlation.CorrelationWith(correlation.CorrelationConfig{}, func() string {
+		return "custom-generated"
 	})(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
@@ -250,33 +249,11 @@ func TestMiddlewareWithCustomGenerator(t *testing.T) {
 	require.Equal(t, "custom-generated", captured)
 }
 
-func TestMiddlewareGeneratorErrorFallsBackAndContinues(t *testing.T) {
-	t.Parallel()
-
-	handler := correlation.CorrelationWith(correlation.CorrelationConfig{}, func() (string, error) {
-		return "", errors.New("generator failed")
-	})(framework.Handler(func(
-		w http.ResponseWriter,
-		r *http.Request,
-	) error {
-		w.WriteHeader(http.StatusOK)
-
-		return nil
-	}))
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	res := handler.Record(req)
-	id := res.Header.Get("X-Correlation-ID")
-
-	require.Equal(t, http.StatusOK, res.StatusCode)
-	require.Len(t, id, 32)
-}
-
 func TestMiddlewareInvalidGeneratedIDFallsBackAndContinues(t *testing.T) {
 	t.Parallel()
 
-	handler := correlation.CorrelationWith(correlation.CorrelationConfig{}, func() (string, error) {
-		return "bad\nvalue", nil
+	handler := correlation.CorrelationWith(correlation.CorrelationConfig{}, func() string {
+		return "bad\nvalue"
 	})(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,

@@ -411,7 +411,9 @@ func TestMiddlewareRegenerateDeletesOldSession(t *testing.T) {
 			sess, ok := request.Session(r)
 			require.True(t, ok)
 
-			return sess.Regenerate()
+			sess.Regenerate()
+
+			return nil
 		},
 	)
 

@@ -10,8 +10,10 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/config v1.32.13
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.41.4
+	github.com/coreos/go-oidc/v3 v3.20.0
 	github.com/eclipse/paho.golang v0.23.0
 	github.com/go-sql-driver/mysql v1.8.1
+	github.com/googleapis/gax-go/v2 v2.23.0
 	github.com/hashicorp/vault/api v1.23.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jmoiron/sqlx v1.4.0
@@ -31,6 +33,7 @@ require (
 	github.com/studiolambda/cosmos/router v0.4.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.53.0
+	golang.org/x/oauth2 v0.36.0
 	google.golang.org/grpc v1.82.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.54.0
@@ -72,7 +75,6 @@ require (
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.17 // indirect
-	github.com/googleapis/gax-go/v2 v2.23.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -120,7 +122,6 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/net v0.56.0 // indirect
-	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect

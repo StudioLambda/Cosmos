@@ -21,7 +21,7 @@ const DefaultHeader = "X-Correlation-ID"
 // Generator is a function that generates a new
 // correlation ID. It should return a unique string suitable
 // for distributed tracing.
-type Generator = func() (string, error)
+type Generator = func() string
 
 // CorrelationConfig configures the correlation ID middleware.
 type CorrelationConfig struct {
@@ -152,16 +152,12 @@ func extractTraceID(r *http.Request) string {
 
 // defaultGenerator creates a new 16-byte random hex string
 // (32 characters), matching the OpenTelemetry trace ID format.
-func defaultGenerator() (string, error) {
+func defaultGenerator() string {
 	buf := make([]byte, 16)
 
-	_, err := rand.Read(buf)
+	_, _ = rand.Read(buf)
 
-	if err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(buf), nil
+	return hex.EncodeToString(buf)
 }
 
 var fallbackSequence atomic.Uint64
@@ -170,12 +166,8 @@ var fallbackSequence atomic.Uint64
 // generator. If generation fails or produces an unsafe ID, it falls back to a
 // deterministic-safe ID derived from current time and an atomic sequence.
 func generateSafeID(generator Generator) string {
-	if generated, err := generator(); err == nil {
-		generated = strings.TrimSpace(generated)
-
-		if isSafeCorrelationID(generated) {
-			return generated
-		}
+	if generated := strings.TrimSpace(generator()); isSafeCorrelationID(generated) {
+		return generated
 	}
 
 	buf := make([]byte, 16)

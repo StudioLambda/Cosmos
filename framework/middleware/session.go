@@ -248,16 +248,13 @@ func SessionWith(driver contract.SessionDriver, config SessionConfig, runtime Se
 					age := time.Since(session.CreatedAt())
 
 					if age >= config.MaxLifetime {
-						reportError(
-							runtime,
-							session.Regenerate(),
-						)
+						session.Regenerate()
 						session.Extend(time.Now().Add(config.TTL))
 					}
 				}
 
 				if session.HasExpired() {
-					reportError(runtime, session.Regenerate())
+					session.Regenerate()
 					session.Extend(time.Now().Add(config.TTL))
 				}
 

@@ -14,6 +14,7 @@
 //	app.Post("/login", func(w http.ResponseWriter, r *http.Request) error {
 //		sess := request.MustSession(r)
 //		sess.Put("user_id", 42)
-//		return sess.Regenerate()
+//		sess.Regenerate()
+//		return nil
 //	})
 package session

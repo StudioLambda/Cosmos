@@ -333,9 +333,7 @@ func TestSessionRegenerateChangesSessionID(t *testing.T) {
 
 	originalID := sess.SessionID()
 
-	err = sess.Regenerate()
-
-	require.NoError(t, err)
+	sess.Regenerate()
 	require.NotEqual(t, originalID, sess.SessionID())
 }
 
@@ -351,9 +349,7 @@ func TestSessionRegeneratePreservesOriginalID(t *testing.T) {
 
 	originalID := sess.OriginalSessionID()
 
-	err = sess.Regenerate()
-
-	require.NoError(t, err)
+	sess.Regenerate()
 	require.Equal(t, originalID, sess.OriginalSessionID())
 }
 
@@ -369,9 +365,7 @@ func TestSessionRegenerateMarksAsChanged(t *testing.T) {
 
 	sess.MarkAsUnchanged()
 
-	err = sess.Regenerate()
-
-	require.NoError(t, err)
+	sess.Regenerate()
 	require.True(t, sess.HasChanged())
 }
 
@@ -446,9 +440,7 @@ func TestSessionHasRegeneratedAfterRegenerate(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, sess.HasRegenerated())
 
-	err = sess.Regenerate()
-
-	require.NoError(t, err)
+	sess.Regenerate()
 	require.True(t, sess.HasRegenerated())
 }
 
@@ -478,9 +470,7 @@ func TestSessionRegenerateGeneratesValidID(t *testing.T) {
 
 	require.NoError(t, err)
 
-	err = sess.Regenerate()
-
-	require.NoError(t, err)
+	sess.Regenerate()
 	require.Len(t, sess.SessionID(), 43)
 }
 
@@ -494,9 +484,7 @@ func TestSessionPreservesDataAfterRegenerate(t *testing.T) {
 
 	require.NoError(t, err)
 
-	err = sess.Regenerate()
-
-	require.NoError(t, err)
+	sess.Regenerate()
 
 	val, err := sess.Get[int]("user_id")
 
