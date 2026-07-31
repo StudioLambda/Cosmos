@@ -6,8 +6,8 @@ import (
 )
 
 // NewHasher creates an Argon2id hasher from hash.argon2 configuration.
-func NewHasher(configuration *contract.Configuration) contract.Hasher {
+func NewHasher(configuration *contract.Configuration) *contract.Hasher {
 	config := configuration.From[argon2.Argon2Config]("hash.argon2")
 
-	return argon2.NewArgon2(config)
+	return contract.NewHasher(argon2.NewArgon2(config))
 }

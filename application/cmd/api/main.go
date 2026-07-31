@@ -12,7 +12,8 @@ import (
 	"time"
 
 	"github.com/studiolambda/cosmos/application/internal/bootstrap"
-	"github.com/studiolambda/cosmos/framework/configuration"
+	frameworkconfiguration "github.com/studiolambda/cosmos/framework/configuration"
+	"github.com/studiolambda/cosmos/framework/secret/awssm"
 )
 
 //go:embed config/*.yml
@@ -34,11 +35,33 @@ func run() error {
 	}
 
 	configuration, err := bootstrap.NewConfig(
-		configuration.Filesystem(configurationFS),
-		configuration.Environment("COSMOS"),
+		frameworkconfiguration.Filesystem(configurationFS),
+		frameworkconfiguration.Environment("COSMOS"),
 	)
 	if err != nil {
 		return err
+	}
+
+	secretsConfig, err := configuration.Get[awssm.Config]("secrets.aws_secrets_manager")
+	if err != nil {
+		return fmt.Errorf("get secrets configuration: %w", err)
+	}
+
+	if secretsConfig.Name != "" {
+		secrets, err := awssm.New(ctx, secretsConfig)
+		if err != nil {
+			return fmt.Errorf("create secrets client: %w", err)
+		}
+
+		secretCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+
+		if err := configuration.Extend(
+			frameworkconfiguration.JSONSecret(secretCtx, secrets, secretsConfig.Name),
+			frameworkconfiguration.Environment("COSMOS"),
+		); err != nil {
+			return fmt.Errorf("extend configuration with secrets: %w", err)
+		}
 	}
 
 	logger, err := bootstrap.NewLogger(configuration)

@@ -1,4 +1,4 @@
-// Package chacha20 provides a ChaCha20-Poly1305 [contract.Encrypter].
+// Package chacha20 provides a ChaCha20-Poly1305 [contract.EncrypterDriver].
 package chacha20
 
 import (
@@ -15,7 +15,7 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-// ChaCha20 implements contract.Encrypter using ChaCha20-Poly1305
+// ChaCha20 implements contract.EncrypterDriver using ChaCha20-Poly1305
 // authenticated encryption. The AEAD cipher is created once at
 // construction time and reused for every Encrypt/Decrypt call.
 // This is safe because ChaCha20-Poly1305 AEAD instances are safe

@@ -34,6 +34,16 @@ import (
 //	})
 type Handler func(w http.ResponseWriter, r *http.Request) error
 
+// HTTP converts a standard [http.Handler] into a Cosmos [Handler].
+// Standard handlers cannot return errors, so this adapter always returns nil.
+func HTTP(handler http.Handler) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		handler.ServeHTTP(w, r)
+
+		return nil
+	}
+}
+
 // HTTPStatus is an interface that errors can implement to specify
 // a custom HTTP status code when they are returned from a handler.
 // This allows for more precise error handling and appropriate HTTP

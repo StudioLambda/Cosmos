@@ -1,4 +1,4 @@
-// Package bcrypt provides a bcrypt [contract.Hasher].
+// Package bcrypt provides a bcrypt [contract.HasherDriver].
 package bcrypt
 
 import (
@@ -8,7 +8,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Bcrypt implements contract.Hasher using the bcrypt algorithm.
+// Bcrypt implements contract.HasherDriver using the bcrypt algorithm.
 // It is an acceptable alternative to Argon2 when compatibility
 // with existing bcrypt hashes is required.
 //

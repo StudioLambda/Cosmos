@@ -2,12 +2,15 @@
 package configuration
 
 import (
+	"encoding/json/v2"
 	"fmt"
 	"io/fs"
 	"maps"
+	"os"
 	"path"
 	"strings"
 
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework/configuration/internal/environment"
 
 	"gopkg.in/yaml.v3"
@@ -15,9 +18,7 @@ import (
 
 // Provider supplies configuration values. Later providers take precedence over
 // earlier providers.
-type Provider interface {
-	Values() (map[string]any, error)
-}
+type Provider = contract.ConfigurationProvider
 
 type mapProvider map[string]any
 
@@ -73,7 +74,7 @@ func (provider filesystemProvider) Values() (map[string]any, error) {
 	values := make(map[string]any)
 
 	for _, entry := range entries {
-		if entry.IsDir() || !isYAML(entry.Name()) {
+		if entry.IsDir() || (!isYAML(entry.Name()) && !isJSON(entry.Name())) {
 			continue
 		}
 
@@ -83,8 +84,8 @@ func (provider filesystemProvider) Values() (map[string]any, error) {
 			return nil, fmt.Errorf("read configuration %q: %w", filename, err)
 		}
 
-		var parsed map[string]any
-		if err := yaml.Unmarshal(contents, &parsed); err != nil {
+		parsed, err := parse(entry.Name(), os.ExpandEnv(string(contents)))
+		if err != nil {
 			return nil, fmt.Errorf("parse configuration %q: %w", filename, err)
 		}
 
@@ -130,6 +131,28 @@ func isYAML(filename string) bool {
 	extension := strings.ToLower(path.Ext(filename))
 
 	return extension == ".yaml" || extension == ".yml"
+}
+
+func isJSON(filename string) bool {
+	return strings.EqualFold(path.Ext(filename), ".json")
+}
+
+func parse(filename, contents string) (map[string]any, error) {
+	var values map[string]any
+
+	if isJSON(filename) {
+		if err := json.Unmarshal([]byte(contents), &values); err != nil {
+			return nil, err
+		}
+
+		return values, nil
+	}
+
+	if err := yaml.Unmarshal([]byte(contents), &values); err != nil {
+		return nil, err
+	}
+
+	return values, nil
 }
 
 func normalize(values map[string]any) map[string]any {

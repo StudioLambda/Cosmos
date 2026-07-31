@@ -1,4 +1,4 @@
-// Package aes provides an AES-GCM [contract.Encrypter].
+// Package aes provides an AES-GCM [contract.EncrypterDriver].
 package aes
 
 import (
@@ -14,7 +14,7 @@ import (
 	"github.com/studiolambda/cosmos/contract"
 )
 
-// AES implements contract.Encrypter using AES-GCM (Galois/Counter
+// AES implements contract.EncrypterDriver using AES-GCM (Galois/Counter
 // Mode) authenticated encryption. The cipher.AEAD is created once
 // during construction and reused for every operation. This is safe
 // because GCM instances are safe for concurrent use with different

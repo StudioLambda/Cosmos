@@ -57,21 +57,30 @@ func New(providers ...frameworkconfiguration.Provider) (*Koanf, error) {
 func NewWith(config Config, providers ...frameworkconfiguration.Provider) (*Koanf, error) {
 	config = config.withDefaults()
 
-	values, err := frameworkconfiguration.Resolve(providers...)
-	if err != nil {
-		return nil, fmt.Errorf("resolve configuration: %w", err)
-	}
-
 	driver := &Koanf{
 		koanf:  koanf.New(config.Delimiter),
 		config: config,
 	}
 
-	if err := driver.koanf.Load(confmap.Provider(values, config.Delimiter), nil); err != nil {
-		return nil, fmt.Errorf("load configuration: %w", err)
+	if err := driver.Extend(providers...); err != nil {
+		return nil, err
 	}
 
 	return driver, nil
+}
+
+// Extend loads additional providers. Later providers override existing values.
+func (configuration *Koanf) Extend(providers ...contract.ConfigurationProvider) error {
+	values, err := frameworkconfiguration.Resolve(providers...)
+	if err != nil {
+		return fmt.Errorf("resolve configuration: %w", err)
+	}
+
+	if err := configuration.koanf.Load(confmap.Provider(values, configuration.config.Delimiter), nil); err != nil {
+		return fmt.Errorf("load configuration: %w", err)
+	}
+
+	return nil
 }
 
 // NewKoanfFrom creates a new Koanf-backed configuration driver from an

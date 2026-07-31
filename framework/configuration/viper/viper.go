@@ -53,17 +53,28 @@ func New(providers ...frameworkconfiguration.Provider) (*Viper, error) {
 func NewWith(config Config, providers ...frameworkconfiguration.Provider) (*Viper, error) {
 	config = config.withDefaults()
 
+	instance := viper.NewWithOptions(viper.KeyDelimiter(config.Delimiter))
+	driver := &Viper{viper: instance, config: config}
+
+	if err := driver.Extend(providers...); err != nil {
+		return nil, err
+	}
+
+	return driver, nil
+}
+
+// Extend loads additional providers. Later providers override existing values.
+func (configuration *Viper) Extend(providers ...contract.ConfigurationProvider) error {
 	values, err := frameworkconfiguration.Resolve(providers...)
 	if err != nil {
-		return nil, fmt.Errorf("resolve configuration: %w", err)
+		return fmt.Errorf("resolve configuration: %w", err)
 	}
 
-	instance := viper.NewWithOptions(viper.KeyDelimiter(config.Delimiter))
-	if err := instance.MergeConfigMap(values); err != nil {
-		return nil, fmt.Errorf("load configuration: %w", err)
+	if err := configuration.viper.MergeConfigMap(values); err != nil {
+		return fmt.Errorf("load configuration: %w", err)
 	}
 
-	return &Viper{viper: instance, config: config}, nil
+	return nil
 }
 
 // NewViperFrom wraps an existing [viper.Viper] instance.

@@ -1,18 +1,18 @@
 package bootstrap
 
 import (
-	"errors"
-
 	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework/crypto/aes"
 )
 
 // NewCrypto creates an AES-GCM encrypter from crypto.aes configuration.
-func NewCrypto(configuration *contract.Configuration) (*aes.AES, error) {
-	key, err := configuration.Get[string]("crypto.aes.key")
-	if err != nil || key == "" {
-		return nil, errors.New("crypto.aes.key must be configured")
+func NewCrypto(configuration *contract.Configuration) (*contract.Encrypter, error) {
+	config := configuration.From[aes.AESConfig]("crypto.aes")
+
+	driver, err := aes.NewAES(config)
+	if err != nil {
+		return nil, err
 	}
 
-	return aes.NewAES(aes.AESConfig{Key: []byte(key)})
+	return contract.NewEncrypter(driver), nil
 }

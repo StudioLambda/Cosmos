@@ -76,6 +76,34 @@ func TestFilesystemLoadsYAMLFilesInLexicalOrder(t *testing.T) {
 	}, values)
 }
 
+func TestFilesystemLoadsJSONFilesInLexicalOrder(t *testing.T) {
+	t.Parallel()
+
+	values, err := configuration.Resolve(configuration.Filesystem(fstest.MapFS{
+		"config/base.json":     &fstest.MapFile{Data: []byte(`{"app":{"name":"cosmos","port":8080}}`)},
+		"config/override.json": &fstest.MapFile{Data: []byte(`{"app":{"port":9090}}`)},
+	}))
+
+	require.NoError(t, err)
+	require.Equal(t, map[string]any{
+		"app": map[string]any{
+			"name": "cosmos",
+			"port": float64(9090),
+		},
+	}, values)
+}
+
+func TestFilesystemExpandsEnvironmentVariables(t *testing.T) {
+	t.Setenv("COSMOS_DATABASE_DSN", "postgres://user:password@localhost:5432/cosmos?sslmode=require")
+
+	values, err := configuration.Resolve(configuration.Filesystem(fstest.MapFS{
+		"config/database.yml": &fstest.MapFile{Data: []byte("database:\n  dsn: \"${COSMOS_DATABASE_DSN}\"\n")},
+	}))
+
+	require.NoError(t, err)
+	require.Equal(t, "postgres://user:password@localhost:5432/cosmos?sslmode=require", values["database"].(map[string]any)["dsn"])
+}
+
 func TestEnvironmentOverridesEarlierProviders(t *testing.T) {
 	t.Setenv("COSMOS__HTTP__SERVER__PORT", "9090")
 

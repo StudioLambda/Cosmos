@@ -64,3 +64,22 @@ func TestConfigurationHasReportsPresence(t *testing.T) {
 	require.True(t, configuration.Has("app.name"))
 	require.False(t, configuration.Has("app.port"))
 }
+
+func TestConfigurationExtendPassesProvidersToDriver(t *testing.T) {
+	t.Parallel()
+
+	driver := contractmock.NewConfigurationDriverMock(t)
+	provider := configurationProvider{}
+	driver.On("Extend", []contract.ConfigurationProvider{provider}).Return(nil)
+	configuration := contract.NewConfiguration(driver)
+
+	err := configuration.Extend(provider)
+
+	require.NoError(t, err)
+}
+
+type configurationProvider struct{}
+
+func (configurationProvider) Values() (map[string]any, error) {
+	return nil, nil
+}

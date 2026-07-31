@@ -1,4 +1,4 @@
-// Package argon2 provides an Argon2id [contract.Hasher].
+// Package argon2 provides an Argon2id [contract.HasherDriver].
 package argon2
 
 import (
@@ -12,7 +12,7 @@ import (
 // requiring a direct import of the argon2 package.
 type Argon2Config argon2.Config
 
-// Argon2 implements contract.Hasher using the Argon2id algorithm.
+// Argon2 implements contract.HasherDriver using the Argon2id algorithm.
 // It is the recommended hasher for password storage due to its
 // resistance to GPU and side-channel attacks.
 //

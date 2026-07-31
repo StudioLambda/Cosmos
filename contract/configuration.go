@@ -19,6 +19,16 @@ type ConfigurationDriver interface {
 	Has(key string) bool
 
 	Delimiter() string
+
+	// Extend loads additional providers. Later providers override values loaded
+	// earlier by this driver.
+	Extend(providers ...ConfigurationProvider) error
+}
+
+// ConfigurationProvider supplies values that can be merged into a
+// [ConfigurationDriver].
+type ConfigurationProvider interface {
+	Values() (map[string]any, error)
 }
 
 type Configurable interface {
@@ -64,6 +74,12 @@ func (configuration *Configuration) Prefix() string {
 // Driver returns the underlying [ConfigurationDriver].
 func (configuration *Configuration) Driver() ConfigurationDriver {
 	return configuration.driver
+}
+
+// Extend loads additional configuration providers. Later providers override
+// values loaded earlier by this configuration.
+func (configuration *Configuration) Extend(providers ...ConfigurationProvider) error {
+	return configuration.driver.Extend(providers...)
 }
 
 func (configuration *Configuration) Prefixed(prefix string) *Configuration {

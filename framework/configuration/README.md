@@ -7,7 +7,7 @@ for the `contract.ConfigurationDriver` interface:
 - `framework/configuration/viper`
 
 Providers are resolved in order: later providers override earlier values. The
-filesystem provider loads `.yml` and `.yaml` files from `config/` in lexical
+filesystem provider loads `.json`, `.yml`, and `.yaml` files from `config/` in lexical
 order. Values in later files override earlier files.
 
 ## Environment
@@ -35,3 +35,20 @@ driver, err := koanf.New(
 
 Use a deployment secret manager or environment injection for credentials; do
 not commit production secrets to YAML files.
+
+## Extension
+
+Configuration can be extended during application bootstrap with the same
+providers used during construction. Extension must complete before concurrent
+configuration reads begin.
+
+```go
+err := config.Extend(
+    configuration.JSONSecret(ctx, secrets, "cosmos/api/production"),
+    configuration.Environment("COSMOS"),
+)
+```
+
+Use [JSONSecret] or [YAMLSecret] when a secret contains a complete
+configuration object. Use [RawSecret] to assign a text secret to one explicit
+configuration key.

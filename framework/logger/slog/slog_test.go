@@ -45,6 +45,10 @@ func (configurationDriver) Delimiter() string {
 	return "."
 }
 
+func (configurationDriver) Extend(...contract.ConfigurationProvider) error {
+	return nil
+}
+
 func TestConfigFromMapsStdoutOutput(t *testing.T) {
 	t.Parallel()
 

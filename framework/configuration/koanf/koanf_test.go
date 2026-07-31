@@ -123,6 +123,31 @@ func TestContractConfigurationGetUsesKoanfDriver(t *testing.T) {
 	require.Equal(t, 8080, port)
 }
 
+func TestKoanfExtendMergesProviders(t *testing.T) {
+	t.Parallel()
+
+	driver, err := frameworkconfiguration.New(configuration.Map(map[string]any{
+		"http.server.host": "127.0.0.1",
+		"http.server.port": 8080,
+	}))
+	require.NoError(t, err)
+
+	err = driver.Extend(configuration.Map(map[string]any{
+		"http.server.port": 9090,
+	}))
+	require.NoError(t, err)
+
+	var host string
+	err = driver.Unmarshal("http.server.host", &host)
+	require.NoError(t, err)
+	require.Equal(t, "127.0.0.1", host)
+
+	var port int
+	err = driver.Unmarshal("http.server.port", &port)
+	require.NoError(t, err)
+	require.Equal(t, 9090, port)
+}
+
 func TestContractConfigurationGetOrUsesFallbackWithKoanfDriver(t *testing.T) {
 	t.Parallel()
 
