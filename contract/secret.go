@@ -7,6 +7,8 @@ import (
 	"fmt"
 )
 
+// ErrSecretNotFound indicates that a named secret does not exist. Drivers
+// should wrap it so callers can test it with [errors.Is].
 var ErrSecretNotFound = errors.New("secret not found")
 
 // SecretDriver retrieves raw secret payloads by name.
@@ -36,7 +38,7 @@ func (secrets *Secrets) Raw(ctx context.Context, name string) ([]byte, error) {
 	return secrets.driver.Get(ctx, name)
 }
 
-// String retrieves name as a UTF-8 string.
+// String retrieves name by converting its raw bytes to a string without UTF-8 validation.
 func (secrets *Secrets) String(ctx context.Context, name string) (string, error) {
 	value, err := secrets.Raw(ctx, name)
 	if err != nil {

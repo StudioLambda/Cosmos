@@ -1,4 +1,3 @@
-// Package gcpsecretmanager provides a Google Cloud Secret Manager [contract.SecretDriver].
 package gcpsecretmanager
 
 import (

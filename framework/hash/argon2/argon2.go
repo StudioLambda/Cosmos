@@ -1,4 +1,3 @@
-// Package argon2 provides an Argon2id [contract.HasherDriver].
 package argon2
 
 import (

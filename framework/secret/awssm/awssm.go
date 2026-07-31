@@ -1,4 +1,3 @@
-// Package awssm provides an AWS Secrets Manager [contract.SecretDriver].
 package awssm
 
 import (

@@ -1,4 +1,3 @@
-// Package chacha20 provides a ChaCha20-Poly1305 [contract.EncrypterDriver].
 package chacha20
 
 import (

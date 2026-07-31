@@ -1,6 +1,6 @@
 # framework/crypto
 
-Authenticated encryption adapters implementing `contract.Encrypter`.
+Authenticated encryption drivers implementing `contract.EncrypterDriver`.
 
 ## Implementations
 
@@ -12,3 +12,5 @@ Authenticated encryption adapters implementing `contract.Encrypter`.
 - Prefer authenticated modes only (provided by this package).
 - Use `AdditionalData` to bind ciphertexts to context when needed.
 - Call `Close()` to zero in-memory key material after use.
+- Wrap a driver with `contract.NewEncrypter` for JSON-encoded typed values, or
+  use its `EncryptRaw` and `DecryptRaw` methods for bytes.

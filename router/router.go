@@ -414,7 +414,8 @@ func (router *Router[H]) Trace(pattern string, handler H) {
 //
 // Example:
 //
-//	http.ListenAndServe(":8080", r)
+//	server := &http.Server{Addr: ":8080", Handler: r}
+//	_ = server.ListenAndServe()
 func (router *Router[H]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	router.mux().ServeHTTP(w, r)
 }

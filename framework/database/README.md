@@ -11,3 +11,5 @@ SQL database drivers implementing `contract.DatabaseDriver`.
 ## When to use it
 
 Import one concrete driver package and wrap it with `contract.NewDatabase`.
+The facade provides typed `Find[T]`, `Select[T]`, cursors, and transactions;
+drivers retain raw destination-based SQL operations.

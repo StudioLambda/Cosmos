@@ -18,18 +18,19 @@ type secretProvider struct {
 }
 
 // JSONSecret creates a provider that parses a JSON object secret as
-// configuration values.
+// configuration values. Its values follow normal provider merge precedence.
 func JSONSecret(ctx context.Context, driver contract.SecretDriver, name string) Provider {
 	return secretProvider{ctx: ctx, driver: driver, name: name, format: "json"}
 }
 
 // YAMLSecret creates a provider that parses a YAML object secret as
-// configuration values.
+// configuration values. Its values follow normal provider merge precedence.
 func YAMLSecret(ctx context.Context, driver contract.SecretDriver, name string) Provider {
 	return secretProvider{ctx: ctx, driver: driver, name: name, format: "yaml"}
 }
 
-// RawSecret creates a provider that stores a UTF-8 secret value at key.
+// RawSecret creates a provider that stores a valid UTF-8 secret value at the
+// supplied dotted configuration key.
 func RawSecret(ctx context.Context, driver contract.SecretDriver, name, key string) Provider {
 	return secretProvider{ctx: ctx, driver: driver, name: name, format: "raw", key: key}
 }

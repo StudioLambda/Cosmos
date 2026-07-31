@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// ErrConfigurationKeyNotFound indicates that a configuration value is absent.
 var ErrConfigurationKeyNotFound = errors.New("configuration key not found")
 
 // ConfigurationDriver defines the contract for configuration backends.
@@ -18,6 +19,7 @@ type ConfigurationDriver interface {
 	// Has reports whether the given configuration key exists.
 	Has(key string) bool
 
+	// Delimiter returns the backend delimiter used to translate Cosmos dotted keys.
 	Delimiter() string
 
 	// Extend loads additional providers. Later providers override values loaded
@@ -31,10 +33,12 @@ type ConfigurationProvider interface {
 	Values() (map[string]any, error)
 }
 
+// Configurable populates itself from a prefixed configuration view.
 type Configurable interface {
 	FromConfiguration(configuration *Configuration)
 }
 
+// ConfigurablePointer constrains a pointer to a [Configurable] value.
 type ConfigurablePointer[T any] interface {
 	*T
 	Configurable
@@ -46,15 +50,17 @@ type Configuration struct {
 	driver ConfigurationDriver
 }
 
+// ConfigurationConfig configures a [Configuration] view.
 type ConfigurationConfig struct {
 	prefix string
 }
 
+// DefaultConfigurationConfig holds the default unprefixed view settings.
 var DefaultConfigurationConfig = ConfigurationConfig{
 	prefix: "",
 }
 
-// NewConfiguration creates a new [Configuration] that delegates to the given driver.
+// NewConfigurationWith creates a [Configuration] with the supplied view settings.
 func NewConfiguration(driver ConfigurationDriver) *Configuration {
 	return NewConfigurationWith(driver, DefaultConfigurationConfig)
 }
@@ -67,6 +73,7 @@ func NewConfigurationWith(driver ConfigurationDriver, config ConfigurationConfig
 	}
 }
 
+// Prefix returns the dotted key prefix applied by this view.
 func (configuration *Configuration) Prefix() string {
 	return configuration.config.prefix
 }
@@ -82,6 +89,8 @@ func (configuration *Configuration) Extend(providers ...ConfigurationProvider) e
 	return configuration.driver.Extend(providers...)
 }
 
+// Prefixed returns a view that shares the driver and prepends a normalized
+// dotted prefix to subsequent keys.
 func (configuration *Configuration) Prefixed(prefix string) *Configuration {
 	return NewConfigurationWith(configuration.driver, ConfigurationConfig{
 		prefix: configuration.Key(configuration.Prefix(), prefix),
@@ -92,6 +101,7 @@ func (configuration *Configuration) driverKey(key string) string {
 	return strings.ReplaceAll(key, ".", configuration.Driver().Delimiter())
 }
 
+// Key joins nonempty key parts into a normalized dotted key.
 func (configuration *Configuration) Key(parts ...string) string {
 	out := make([]string, 0, len(parts))
 
@@ -129,6 +139,8 @@ func (configuration *Configuration) Has(key string) bool {
 	return configuration.driver.Has(configuration.driverKey(configuration.Key(configuration.Prefix(), key)))
 }
 
+// From allocates T, populates it from prefix through [Configurable], and
+// returns the populated value.
 func (configuration *Configuration) From[T any, P ConfigurablePointer[T]](prefix string) T {
 	t := P(new(T))
 

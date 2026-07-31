@@ -12,15 +12,24 @@ import (
 
 // Config configures an OIDC client.
 type Config struct {
-	IssuerURL    string
-	ClientID     string
+	// IssuerURL is the provider issuer URL used for OIDC discovery.
+	IssuerURL string
+	// ClientID is the registered OIDC client identifier.
+	ClientID string
+	// ClientSecret is the confidential client secret. Load it through a secret
+	// provider rather than committing it to configuration.
 	ClientSecret string
-	RedirectURL  string
-	Scopes       []string
-	Audiences    []string
+	// RedirectURL is the exact callback URL registered with the provider. It is
+	// required when using [Client.Login] or [Client.Callback].
+	RedirectURL string
+	// Scopes are requested during browser login. Empty scopes default to openid.
+	Scopes []string
+	// Audiences are accepted JWT audiences. Empty audiences default to ClientID.
+	Audiences []string
 }
 
-// FromConfiguration populates Config from OIDC configuration.
+// FromConfiguration populates Config from issuer_url, client_id,
+// client_secret, redirect_url, scopes, and audiences configuration values.
 func (config *Config) FromConfiguration(configuration *contract.Configuration) {
 	config.IssuerURL = configuration.GetOr("issuer_url", "")
 	config.ClientID = configuration.GetOr("client_id", "")
@@ -38,7 +47,8 @@ type Client struct {
 	config   Config
 }
 
-// New discovers an OIDC provider and creates a client.
+// New discovers an OIDC provider and creates a client. Empty scopes default to
+// openid; empty accepted audiences default to the configured client ID.
 func New(ctx context.Context, config Config) (*Client, error) {
 	if config.IssuerURL == "" {
 		return nil, fmt.Errorf("OIDC issuer URL cannot be empty")

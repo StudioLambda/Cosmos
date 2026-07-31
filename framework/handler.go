@@ -34,8 +34,9 @@ import (
 //	})
 type Handler func(w http.ResponseWriter, r *http.Request) error
 
-// HTTP converts a standard [http.Handler] into a Cosmos [Handler].
-// Standard handlers cannot return errors, so this adapter always returns nil.
+// HTTP converts a standard [http.Handler] into a Cosmos [Handler]. Standard
+// handlers cannot return errors, so errors they handle internally do not enter
+// Cosmos error rendering and this adapter always returns nil.
 func HTTP(handler http.Handler) Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		handler.ServeHTTP(w, r)

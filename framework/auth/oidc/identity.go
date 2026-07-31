@@ -12,11 +12,16 @@ type identityKey struct{}
 
 // Identity represents an authenticated OIDC subject.
 type Identity struct {
-	Subject string         `json:"subject"`
-	Issuer  string         `json:"issuer"`
-	Email   string         `json:"email"`
-	Name    string         `json:"name"`
-	Claims  map[string]any `json:"claims"`
+	// Subject is the provider's stable identifier for the authenticated subject.
+	Subject string `json:"subject"`
+	// Issuer identifies the OIDC provider that authenticated the subject.
+	Issuer string `json:"issuer"`
+	// Email is the optional email claim supplied by the provider.
+	Email string `json:"email"`
+	// Name is the optional name claim supplied by the provider.
+	Name string `json:"name"`
+	// Claims holds provider-controlled token claims.
+	Claims map[string]any `json:"claims"`
 }
 
 // From returns the authenticated identity attached to request.

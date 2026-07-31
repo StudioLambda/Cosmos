@@ -2,8 +2,16 @@
 // Cosmos modules.
 //
 // The package is dependency-light and focuses on stable abstraction boundaries:
-// cache, database, session, cryptography, hashing, eventing, and response hooks.
+// cache, configuration, database, secrets, session, cryptography, hashing,
+// eventing, and response hooks.
 // It is intended for dependency injection and adapter-style implementations.
+
+// # Abstraction model
+//
+// Drivers define raw backend contracts. Typed facades such as [Configuration],
+// [Secrets], [Encrypter], and [Hasher] delegate to drivers and add typed
+// decoding or JSON encoding. Applications normally depend on facades; adapters
+// implement drivers.
 //
 // Architecture
 //

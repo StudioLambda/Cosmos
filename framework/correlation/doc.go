@@ -1,10 +1,7 @@
-// Package correlation provides correlation ID logging helpers.
+// Package correlation provides slog integration for request correlation IDs.
 //
-// It establishes a request-scoped correlation identifier, stores it in
-// context and exposes a slog handler decorator that injects that value into
-// logs. Use [middleware.Correlation] to establish the correlation ID.
-//
-// Example
-//
-//	logger := slog.New(correlation.Handler(slog.NewJSONHandler(os.Stdout, nil)))
+// Use middleware.Correlation to accept a valid W3C traceparent trace ID or
+// configured correlation header, generate a safe fallback, store the result in
+// request context, and write it to the response header. [Handler] adds that
+// context value to slog records.
 package correlation

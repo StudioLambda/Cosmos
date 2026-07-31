@@ -1,12 +1,17 @@
-// Package session provides session drivers for framework apps.
+// Package session provides [contract.SessionDriver] implementations for Cosmos
+// applications.
 //
-// It bridges HTTP cookies to contract.Session values and persists session data
-// through a configurable driver (for example, cache-backed storage).
+// Use middleware.Session to load sessions from cookies, attach them to requests,
+// and persist changes through a driver from this package.
 //
 // Example
 //
+//	cache := contract.NewCache(memory.NewMemory(memory.MemoryConfig{
+//		Expiration: 5 * time.Minute,
+//		Cleanup:    10 * time.Minute,
+//	}))
 //	driver := session.NewCacheDriver(
-//		contract.NewCache(cache.NewMemory(cache.MemoryConfig{Expiration: 5 * time.Minute, Cleanup: 10 * time.Minute})),
+//		cache,
 //		session.DefaultCacheDriverConfig,
 //	)
 //	app.Use(middleware.Session(driver, middleware.DefaultSessionConfig))

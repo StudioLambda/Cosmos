@@ -10,7 +10,8 @@ import (
 )
 
 // CacheDriver implements [contract.SessionDriver] by storing sessions
-// in any [contract.CacheDriver] backend. Sessions are JSON-serialized
+// through a typed [contract.Cache]. Wrap a raw [contract.CacheDriver] with
+// [contract.NewCache] before creating this driver. Sessions are JSON-serialized
 // and keyed with a configurable prefix to avoid collisions.
 //
 // WARNING: Session data is stored without encryption. When using a

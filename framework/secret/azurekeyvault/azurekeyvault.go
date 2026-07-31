@@ -1,4 +1,3 @@
-// Package azurekeyvault provides an Azure Key Vault [contract.SecretDriver].
 package azurekeyvault
 
 import (

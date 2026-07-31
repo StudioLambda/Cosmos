@@ -21,7 +21,11 @@
 // # Initialization behavior
 //
 // Use [New] to create an application router and [NewServer] to run with secure
-// timeout defaults.
+// timeout defaults. Use [HTTP] to register a standard [http.Handler].
+//
+// Configuration providers can be extended during startup, including with
+// secrets from a [contract.SecretDriver]. OIDC browser login is provided by the
+// framework/auth/oidc package and requires session middleware.
 //
 // Example
 //

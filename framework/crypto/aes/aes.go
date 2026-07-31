@@ -1,4 +1,3 @@
-// Package aes provides an AES-GCM [contract.EncrypterDriver].
 package aes
 
 import (

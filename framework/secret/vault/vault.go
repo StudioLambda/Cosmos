@@ -1,4 +1,3 @@
-// Package vault provides a HashiCorp Vault [contract.SecretDriver].
 package vault
 
 import (

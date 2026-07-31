@@ -1,18 +1,23 @@
 # framework/session
 
-Session middleware and cache-backed session persistence.
+Cache-backed `contract.SessionDriver` persistence. HTTP middleware is in
+`framework/middleware`.
 
 ## What this package provides
 
-- HTTP middleware for loading, committing, and rotating sessions.
 - Cache-backed `contract.SessionDriver` implementation.
-- Cookie/session lifecycle configuration.
+- `NewCacheDriver(cache, config)` with a `*contract.Cache` facade.
 
 ## Behavior summary
 
 - Sessions are loaded per request and persisted when changed.
 - Regenerated session IDs cause old IDs to be deleted.
 - Absolute session lifetime is enforced independently from sliding TTL.
+
+Install `middleware.Session(driver, middleware.DefaultSessionConfig)` to load
+and persist a session for each request. Retrieve it with `request.Session(r)`,
+which returns `(*contract.Session, bool)`; `request.MustSession(r)` panics when
+it is missing.
 
 ## Security notes
 

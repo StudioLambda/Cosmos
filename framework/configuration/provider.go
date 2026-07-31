@@ -1,4 +1,10 @@
-// Package configuration provides reusable configuration sources.
+// Package configuration provides composable configuration providers.
+//
+// Providers merge in argument order, with later values overriding earlier
+// values. Filesystem providers load JSON and YAML files in lexical order and
+// expand environment variables. Use [contract.Configuration.Extend] during
+// startup to merge additional providers, including [JSONSecret], [YAMLSecret],
+// and [RawSecret].
 package configuration
 
 import (

@@ -1,4 +1,3 @@
-// Package bcrypt provides a bcrypt [contract.HasherDriver].
 package bcrypt
 
 import (

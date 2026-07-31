@@ -67,7 +67,11 @@ const sessionIDLength = 32
 // SessionKey is the context key used to store and retrieve the session from a context.Context.
 var SessionKey = sessionKey{}
 
+// ErrSessionKeyNotFound indicates that a session has no value for a key.
 var ErrSessionKeyNotFound = errors.New("session key not found")
+
+// ErrSessionInvalidValueType indicates that a session value cannot be decoded
+// into its requested type.
 var ErrSessionInvalidValueType = errors.New("session invalid value type")
 
 // generateSessionID generates a cryptographically random session
@@ -85,7 +89,8 @@ func generateSessionID() string {
 // NewSession creates a new session with the specified expiration
 // time and initial storage data. It generates a cryptographically
 // random session ID. The session is marked as changed to ensure it
-// is persisted on first save. Returns an error if ID generation fails.
+// is persisted on first save. Its error result is retained for compatibility
+// and is always nil because crypto/rand.Read is infallible.
 //
 // Example:
 //
@@ -230,9 +235,11 @@ func (session *Session) Extend(expiresAt time.Time) {
 	session.changed = true
 }
 
-// Regenerate generates a new cryptographically random session ID.
-// The original session ID is preserved for cleanup. This operation
-// marks the session as changed.
+// Regenerate generates a new cryptographically random session ID. The original
+// session ID is preserved for cleanup and this operation marks the session as
+// changed. When using middleware.Session, the middleware persists the new
+// session, deletes the old record, and issues the replacement cookie before
+// response headers are written.
 //
 // WARNING: This method MUST be called after any authentication
 // state change (login, logout, privilege escalation).
@@ -248,7 +255,6 @@ func (session *Session) Regenerate() {
 
 	session.id = id
 	session.changed = true
-
 }
 
 // Clear removes all data from the session while maintaining the

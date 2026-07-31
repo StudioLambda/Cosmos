@@ -31,6 +31,7 @@ driver, err := koanf.New(
 	configuration.Filesystem(configurationFS),
 	configuration.Environment("COSMOS"),
 )
+config := contract.NewConfiguration(driver)
 ```
 
 Use a deployment secret manager or environment injection for credentials; do
@@ -44,8 +45,8 @@ configuration reads begin.
 
 ```go
 err := config.Extend(
-    configuration.JSONSecret(ctx, secrets, "cosmos/api/production"),
-    configuration.Environment("COSMOS"),
+	configuration.JSONSecret(ctx, secrets.Driver(), "cosmos/api/production"),
+	configuration.Environment("COSMOS"),
 )
 ```
 

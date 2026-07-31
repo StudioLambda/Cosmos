@@ -18,9 +18,9 @@ import (
 // propagate correlation IDs between services.
 const DefaultHeader = "X-Correlation-ID"
 
-// Generator is a function that generates a new
-// correlation ID. It should return a unique string suitable
-// for distributed tracing.
+// Generator produces a correlation ID when request headers provide no safe ID.
+// Output is trimmed and must be nonempty, at most 64 characters, and use the
+// safe correlation ID character set; invalid output is replaced by a fallback.
 type Generator = func() string
 
 // CorrelationConfig configures the correlation ID middleware.
@@ -41,12 +41,13 @@ var DefaultCorrelationConfig = CorrelationConfig{
 // existing ID in the following order:
 //
 //  1. The W3C traceparent header (extracts the trace ID component)
-//  2. The X-Correlation-ID header
+//  2. The configured correlation header
 //
 // If a client-provided header value is present, it is accepted only
 // when it matches a constrained safe format (ASCII alphanumeric plus
 // '-', '_', '.' and max length 64). Otherwise, a new 16-byte random
-// hex ID is generated. The correlation ID is stored in the request
+// hex ID is generated. Invalid custom-generator output uses a time-and-sequence
+// fallback, so correlation ID establishment never fails. The correlation ID is stored in the request
 // context and set on the response header.
 //
 // Retrieve the correlation ID downstream with [request.CorrelationID].
@@ -163,8 +164,9 @@ func defaultGenerator() string {
 var fallbackSequence atomic.Uint64
 
 // generateSafeID attempts to generate a correlation ID using the configured
-// generator. If generation fails or produces an unsafe ID, it falls back to a
-// deterministic-safe ID derived from current time and an atomic sequence.
+// generator. Unsafe output falls back to a deterministic-safe ID derived from
+// current time and an atomic sequence. The fallback is safe for propagation but
+// is not cryptographically random.
 func generateSafeID(generator Generator) string {
 	if generated := strings.TrimSpace(generator()); isSafeCorrelationID(generated) {
 		return generated
