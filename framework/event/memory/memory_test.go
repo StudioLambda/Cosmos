@@ -67,7 +67,7 @@ func TestMemoryBrokerWildcardStar(t *testing.T) {
 		_ = broker.Close()
 	})
 
-	var received int64
+	var received atomic.Int64
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -75,7 +75,7 @@ func TestMemoryBrokerWildcardStar(t *testing.T) {
 	_, err := broker.Subscribe(
 		ctx, "user.*.created", func(payload []byte) {
 			defer wg.Done()
-			atomic.AddInt64(&received, 1)
+			received.Add(1)
 		},
 	)
 
@@ -87,7 +87,7 @@ func TestMemoryBrokerWildcardStar(t *testing.T) {
 
 	wg.Wait()
 
-	require.Equal(t, int64(1), atomic.LoadInt64(&received))
+	require.Equal(t, int64(1), received.Load())
 }
 
 func TestMemoryBrokerPublishDoesNotDeadlockWithSubscribeInHandler(t *testing.T) {
@@ -138,7 +138,7 @@ func TestMemoryBrokerWildcardHash(t *testing.T) {
 		_ = broker.Close()
 	})
 
-	var received int64
+	var received atomic.Int64
 	var wg sync.WaitGroup
 
 	wg.Add(2)
@@ -146,7 +146,7 @@ func TestMemoryBrokerWildcardHash(t *testing.T) {
 	_, err := broker.Subscribe(
 		ctx, "logs.#", func(payload []byte) {
 			defer wg.Done()
-			atomic.AddInt64(&received, 1)
+			received.Add(1)
 		},
 	)
 
@@ -160,7 +160,7 @@ func TestMemoryBrokerWildcardHash(t *testing.T) {
 
 	wg.Wait()
 
-	require.Equal(t, int64(2), atomic.LoadInt64(&received))
+	require.Equal(t, int64(2), received.Load())
 }
 
 func TestMemoryBrokerExactMatch(t *testing.T) {
@@ -173,7 +173,7 @@ func TestMemoryBrokerExactMatch(t *testing.T) {
 		_ = broker.Close()
 	})
 
-	var received int64
+	var received atomic.Int64
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -181,7 +181,7 @@ func TestMemoryBrokerExactMatch(t *testing.T) {
 	_, err := broker.Subscribe(
 		ctx, "user.created", func(payload []byte) {
 			defer wg.Done()
-			atomic.AddInt64(&received, 1)
+			received.Add(1)
 		},
 	)
 
@@ -192,7 +192,7 @@ func TestMemoryBrokerExactMatch(t *testing.T) {
 
 	wg.Wait()
 
-	require.Equal(t, int64(1), atomic.LoadInt64(&received))
+	require.Equal(t, int64(1), received.Load())
 }
 
 func TestMemoryBrokerNoMatchDoesNotDeliver(t *testing.T) {
@@ -205,11 +205,11 @@ func TestMemoryBrokerNoMatchDoesNotDeliver(t *testing.T) {
 		_ = broker.Close()
 	})
 
-	var received int64
+	var received atomic.Int64
 
 	_, err := broker.Subscribe(
 		ctx, "user.created", func(payload []byte) {
-			atomic.AddInt64(&received, 1)
+			received.Add(1)
 		},
 	)
 
@@ -220,7 +220,7 @@ func TestMemoryBrokerNoMatchDoesNotDeliver(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Equal(t, int64(0), atomic.LoadInt64(&received))
+	require.Equal(t, int64(0), received.Load())
 }
 
 func TestMemoryBrokerUnsubscribeStopsDelivery(t *testing.T) {
@@ -233,11 +233,11 @@ func TestMemoryBrokerUnsubscribeStopsDelivery(t *testing.T) {
 		_ = broker.Close()
 	})
 
-	var received int64
+	var received atomic.Int64
 
 	unsub, err := broker.Subscribe(
 		ctx, "user.created", func(payload []byte) {
-			atomic.AddInt64(&received, 1)
+			received.Add(1)
 		},
 	)
 
@@ -251,7 +251,7 @@ func TestMemoryBrokerUnsubscribeStopsDelivery(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Equal(t, int64(0), atomic.LoadInt64(&received))
+	require.Equal(t, int64(0), received.Load())
 }
 
 func TestMemoryBrokerMultipleSubscribers(t *testing.T) {
@@ -264,7 +264,7 @@ func TestMemoryBrokerMultipleSubscribers(t *testing.T) {
 		_ = broker.Close()
 	})
 
-	var received int64
+	var received atomic.Int64
 	var wg sync.WaitGroup
 
 	wg.Add(3)
@@ -275,7 +275,7 @@ func TestMemoryBrokerMultipleSubscribers(t *testing.T) {
 			"user.created",
 			func(payload []byte) {
 				defer wg.Done()
-				atomic.AddInt64(&received, 1)
+				received.Add(1)
 			},
 		)
 		require.NoError(t, err)
@@ -286,7 +286,7 @@ func TestMemoryBrokerMultipleSubscribers(t *testing.T) {
 
 	wg.Wait()
 
-	require.Equal(t, int64(3), atomic.LoadInt64(&received))
+	require.Equal(t, int64(3), received.Load())
 }
 
 func TestMemoryBrokerPublishAfterCloseReturnsError(t *testing.T) {
@@ -513,12 +513,12 @@ func TestMemoryBrokerUnsubscribeOneDoesNotAffectOther(t *testing.T) {
 		_ = broker.Close()
 	})
 
-	var received int64
+	var received atomic.Int64
 	var wg sync.WaitGroup
 
 	unsub1, err := broker.Subscribe(
 		ctx, "user.created", func(payload []byte) {
-			atomic.AddInt64(&received, 1)
+			received.Add(1)
 		},
 	)
 
@@ -529,7 +529,7 @@ func TestMemoryBrokerUnsubscribeOneDoesNotAffectOther(t *testing.T) {
 	_, err = broker.Subscribe(
 		ctx, "user.created", func(payload []byte) {
 			defer wg.Done()
-			atomic.AddInt64(&received, 1)
+			received.Add(1)
 		},
 	)
 
@@ -543,7 +543,7 @@ func TestMemoryBrokerUnsubscribeOneDoesNotAffectOther(t *testing.T) {
 
 	wg.Wait()
 
-	require.Equal(t, int64(1), atomic.LoadInt64(&received))
+	require.Equal(t, int64(1), received.Load())
 }
 
 func TestMemoryBrokerPublishRejectsEmptyEvent(t *testing.T) {

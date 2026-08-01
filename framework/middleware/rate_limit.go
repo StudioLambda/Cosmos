@@ -147,10 +147,7 @@ func RateLimitWith(cache *contract.Cache, config RateLimitConfig, keyFunc RateLi
 }
 
 func writeRateLimitHeaders(w http.ResponseWriter, limit int, current rateLimitDecision) {
-	secondsUntilReset := int64(math.Ceil(current.RetryAfter.Seconds()))
-	if secondsUntilReset < 0 {
-		secondsUntilReset = 0
-	}
+	secondsUntilReset := max(int64(math.Ceil(current.RetryAfter.Seconds())), 0)
 
 	w.Header().Set("RateLimit-Limit", strconv.Itoa(limit))
 	w.Header().Set("RateLimit-Remaining", strconv.Itoa(current.Remaining))
@@ -215,10 +212,7 @@ func takeFixedWindow(
 }
 
 func buildDecision(count int64, limit int, ttl time.Duration) rateLimitDecision {
-	remaining := limit - int(count)
-	if remaining < 0 {
-		remaining = 0
-	}
+	remaining := max(limit-int(count), 0)
 
 	return rateLimitDecision{
 		Allowed:    count <= int64(limit),

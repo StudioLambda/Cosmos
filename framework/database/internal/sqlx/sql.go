@@ -245,7 +245,7 @@ func (rows sqlRows) Scan(dest any) error {
 	}
 
 	v := reflect.ValueOf(dest)
-	if v.Kind() != reflect.Ptr || v.IsNil() {
+	if v.Kind() != reflect.Pointer || v.IsNil() {
 		return errors.New("scan destination must be a non-nil pointer")
 	}
 

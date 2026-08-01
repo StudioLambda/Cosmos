@@ -169,8 +169,8 @@ func (router *Router[H]) mux() *http.ServeMux {
 // This means that the resulting handler is the same as first calling
 // the router's middleware and then the provided handler.
 func (router *Router[H]) wrap(handler H) H {
-	for i := len(router.middlewares) - 1; i >= 0; i-- {
-		handler = router.middlewares[i](handler)
+	for _, v := range slices.Backward(router.middlewares) {
+		handler = v(handler)
 	}
 
 	return handler

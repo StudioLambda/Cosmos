@@ -209,11 +209,9 @@ func NewMQTTBroker(config MQTTBrokerConfig) (*MQTTBroker, error) {
 		KeepAlive:                     keepAlive,
 		CleanStartOnInitialConnection: true,
 		SessionExpiryInterval:         0,
-		ClientConfig: paho.ClientConfig{
-			ClientID: "",
-			OnPublishReceived: []func(paho.PublishReceived) (bool, error){
-				broker.HandlePublish,
-			},
+		ClientID:                      "",
+		OnPublishReceived: []func(paho.PublishReceived) (bool, error){
+			broker.HandlePublish,
 		},
 	}
 

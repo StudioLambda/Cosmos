@@ -105,10 +105,7 @@ func (broker *RedisBroker) Subscribe(
 	event = strings.ReplaceAll(event, "#", "*")
 	sub := broker.client.PSubscribe(ctx, event)
 
-	broker.wg.Add(1)
-
-	go func() {
-		defer broker.wg.Done()
+	broker.wg.Go(func() {
 
 		for message := range sub.Channel() {
 			if !core.Match(event, message.Channel) {
@@ -125,7 +122,7 @@ func (broker *RedisBroker) Subscribe(
 				handler([]byte(message.Payload))
 			}()
 		}
-	}()
+	})
 
 	return func() error {
 		return sub.Close()

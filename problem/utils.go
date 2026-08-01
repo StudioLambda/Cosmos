@@ -13,12 +13,11 @@ func stackTrace(err error) []error {
 	var result []error
 
 	type joined interface {
+		error
 		Unwrap() []error
 	}
 
-	var target joined
-
-	if errors.As(err, &target) {
+	if target, ok := errors.AsType[joined](err); ok {
 		for _, err := range target.Unwrap() {
 			result = append(result, stackTrace(err)...)
 		}
