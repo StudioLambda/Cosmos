@@ -45,12 +45,12 @@ func HTTP(handler http.Handler) Handler {
 	}
 }
 
-// HTTPStatus is an interface that errors can implement to specify
+// HTTPStatusError is an interface that errors can implement to specify
 // a custom HTTP status code when they are returned from a handler.
 // This allows for more precise error handling and appropriate HTTP
 // response codes based on the type of error that occurred.
 //
-// When a handler returns an error that implements HTTPStatus, the
+// When a handler returns an error that implements HTTPStatusError, the
 // ServeHTTP method will use the returned status code instead of
 // the default 500 Internal Server Error.
 //
@@ -64,40 +64,50 @@ func HTTP(handler http.Handler) Handler {
 //	    return fmt.Sprintf("resource not found: %s", e.Resource)
 //	}
 //
-//	func (e NotFoundError) HTTPStatus() int {
+//	func (e NotFoundError) HTTPStatusError() int {
 //	    return http.StatusNotFound
 //	}
-type HTTPStatus interface {
+type HTTPStatusError interface {
+	error
 	HTTPStatus() int
+}
+
+type HttpHandlerError interface {
+	error
+	http.Handler
 }
 
 // StatusClientClosedRequest is the non-standard HTTP status code used
 // when the client closes the connection before the server responds.
 const StatusClientClosedRequest = 499
 
-// handleError writes an error response by inspecting the error for context
-// cancellation, custom status codes via [HTTPStatus], or self-rendering
-// capability via [http.Handler], falling back to a Problem Details response.
-func handleError(w http.ResponseWriter, r *http.Request, err error) {
-	status := http.StatusInternalServerError
+func errorStatus(err error) int {
+	if target, ok := errors.AsType[HTTPStatusError](err); ok {
+		return target.HTTPStatus()
+	}
 
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		status = StatusClientClosedRequest
+		return StatusClientClosedRequest
 	}
 
-	if target := (HTTPStatus)(nil); errors.As(err, &target) {
-		status = target.HTTPStatus()
-	}
+	return http.StatusInternalServerError
+}
 
+// handleError writes an error response by inspecting the error for context
+// cancellation, custom status codes via [HTTPStatusError], or self-rendering
+// capability via [http.Handler], falling back to a Problem Details response.
+func handleError(w http.ResponseWriter, r *http.Request, err error) {
 	// When the error itself implements http.Handler, delegate
 	// rendering entirely to it. This allows error types like
 	// problem.Problem to control their own HTTP response format.
-	if target := (http.Handler)(nil); errors.As(err, &target) {
+	if target, ok := errors.AsType[HttpHandlerError](err); ok {
 		target.ServeHTTP(w, r)
 		return
 	}
 
-	problem.NewProblem(err, status).ServeHTTP(w, r)
+	problem.
+		NewProblem(err, errorStatus(err)).
+		ServeHTTP(w, r)
 }
 
 // ServeHTTP implements the http.Handler interface, bridging Cosmos's
@@ -109,7 +119,7 @@ func handleError(w http.ResponseWriter, r *http.Request, err error) {
 // response (WriteHeader was called), the error is logged instead
 // of attempting a second write which would corrupt the response.
 //
-// Errors implementing [HTTPStatus] get their custom status code,
+// Errors implementing [HTTPStatusError] get their custom status code,
 // and errors implementing [http.Handler] render themselves
 // directly. If no status code has been written after the handler
 // returns, a 204 No Content is sent as the default.
