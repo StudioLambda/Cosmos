@@ -2,7 +2,7 @@ package container
 
 import "sync"
 
-type Resolver[T any] = func(c *Container) (T, error)
+type Resolver[T any] func(c *Container) (T, error)
 
 func NewResolver[T any](r Resolver[T]) Resolver[any] {
 	return func(c *Container) (any, error) {

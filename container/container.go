@@ -17,10 +17,13 @@ type Container struct {
 }
 
 var ContainerKey containerKey
+
 var ErrServiceNotFound = errors.New("service not found in container")
 var ErrInvalidConversion = errors.New("invalid conversion")
 var ErrCallableNotFunction = errors.New("callable must be a function")
 var ErrVariadicCallableNotSupported = errors.New("variadic functions are not supported")
+var ErrTargetNotCallable = errors.New("target not callable")
+var ErrInvalidOutNum = errors.New("invalid number of return values")
 
 func NewContainer() *Container {
 	return &Container{
@@ -89,27 +92,110 @@ func (c *Container) MustResolve[T any]() T {
 	return v
 }
 
-func (c *Container) Resolve[T any]() (t T, e error) {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
+func (c *Container) Make[T any](f any) (t T, e error) {
+	rv := reflect.ValueOf(f)
 
-	k := Key[T]()
+	if rv.Kind() != reflect.Func {
+		return t, fmt.Errorf("%w: expected func but got %T", ErrTargetNotCallable, f)
+	}
 
-	if r, ok := c.resolvers[k]; ok {
-		v, err := r(c)
+	rt := rv.Type()
 
+	outs := rt.NumOut()
+	if outs < 1 || outs > 2 {
+		return t, fmt.Errorf("%w: expected 1 or 2 but got %d", ErrInvalidOutNum, outs)
+	}
+
+	target := reflect.TypeFor[T]()
+
+	if !rt.Out(0).AssignableTo(target) {
+		return t, fmt.Errorf(
+			"%w: expected %v but got %v",
+			ErrInvalidConversion,
+			target,
+			rt.Out(0),
+		)
+	}
+
+	if outs == 2 && !rt.Out(1).Implements(reflect.TypeFor[error]()) {
+		return t, fmt.Errorf(
+			"%w: second return must be error, got %v",
+			ErrInvalidConversion,
+			rt.Out(1),
+		)
+	}
+
+	args := make([]reflect.Value, rt.NumIn())
+
+	for i := range args {
+		arg, err := c.ResolveType(rt.In(i))
 		if err != nil {
 			return t, err
 		}
-
-		if res, ok := v.(T); ok {
-			return res, nil
-		}
-
-		return t, fmt.Errorf("%w from %T to %T", ErrInvalidConversion, v, t)
+		args[i] = arg
 	}
 
-	return t, fmt.Errorf("%w: %s", ErrServiceNotFound, k)
+	results := rv.Call(args)
+
+	if outs == 2 && !results[1].IsNil() {
+		return t, results[1].Interface().(error)
+	}
+
+	return results[0].Interface().(T), nil
+}
+
+func (c *Container) MustMake[T any](f any) T {
+	r, err := c.Make[T](f)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return r
+}
+
+func (c *Container) ResolveType(t reflect.Type) (reflect.Value, error) {
+	k := keyFromType(t)
+
+	c.mutex.RLock()
+	r, ok := c.resolvers[k]
+	c.mutex.RUnlock()
+
+	if !ok {
+		return reflect.Value{}, fmt.Errorf("%w: %s", ErrServiceNotFound, k)
+	}
+
+	v, err := r(c) // no container lock held
+	if err != nil {
+		return reflect.Value{}, err
+	}
+
+	rv := reflect.ValueOf(v)
+
+	if !rv.IsValid() {
+		return reflect.Value{}, fmt.Errorf("%w: resolver returned nil", ErrInvalidConversion)
+	}
+
+	if !rv.Type().AssignableTo(t) {
+		return reflect.Value{}, fmt.Errorf(
+			"%w from %v to %v",
+			ErrInvalidConversion,
+			rv.Type(),
+			t,
+		)
+	}
+
+	return rv, nil
+}
+
+func (c *Container) Resolve[T any]() (t T, err error) {
+	v, err := c.ResolveType(reflect.TypeFor[T]())
+
+	if err != nil {
+		return t, err
+	}
+
+	return v.Interface().(T), nil
 }
 
 func (c *Container) Register[T any](resolver Resolver[T]) {
