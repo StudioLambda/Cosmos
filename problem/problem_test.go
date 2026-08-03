@@ -11,34 +11,6 @@ import (
 	"github.com/studiolambda/cosmos/problem"
 )
 
-type SuperProblemError struct {
-	problem.Details
-	Email string `json:"email"`
-}
-
-func NewSuperProblemError(email string) SuperProblemError {
-	return SuperProblemError{
-		Title:  "super problem",
-		Detail: "there was a massive super problem",
-		Status: http.StatusInternalServerError,
-		Email:  email,
-	}
-}
-
-func TestSomething(t *testing.T) {
-	s := NewSuperProblemError("foo@bar.com")
-	s2 := problem.Details{
-		Title:  "title hehe",
-		Detail: "some details",
-		Status: http.StatusNotFound,
-	}
-	o, _ := json.Marshal(s.With("foo", "bar"))
-	o2, _ := json.Marshal(s2.With("foo", "bar"))
-
-	t.Log(string(o))
-	t.Log(string(o2))
-}
-
 func TestNewDetails(t *testing.T) {
 	t.Parallel()
 
