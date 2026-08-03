@@ -19,6 +19,12 @@
 // (for example, var ErrUserNotFound = problem.Details{...}) and derive
 // per-request instances with [Details.WithError] and [Details.With].
 //
+// # Request extensions
+//
+// Middleware can attach safe client-facing extension members with
+// [WithContextValues]. [Details.ServeHTTP] includes those values in the
+// response without modifying the original Details value.
+//
 // Example
 //
 //	var ErrNotFound = problem.Details{

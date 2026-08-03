@@ -21,6 +21,10 @@ Details is the RFC 9457 structure: Type, Title, Detail, Status, Instance. Additi
 
 Content negotiation: application/problem+json, application/json, text/plain.
 
+Request extensions: middleware can add client-facing values with
+WithContextValues. Calls compose with later values winning; explicit Details.With
+values take precedence, and standard RFC 9457 members are ignored.
+
 ## Code Style
 
 Define problems as package variables with consistent Type URIs. Methods return new instances (immutable). Use With() for metadata and WithError() for wrapping.

@@ -307,6 +307,7 @@ func (problem Details) jsonProblemHandler(w http.ResponseWriter) {
 //
 //	problem.Details{Status: http.StatusNotFound, Title: "Not Found"}.ServeHTTP(w, r)
 func (problem Details) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	problem = problem.withContextValues(r.Context())
 	problem = problem.Defaulted(r) // Just in case.
 	accept := internal.ParseAccept(r)
 

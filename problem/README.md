@@ -157,6 +157,27 @@ JSON output:
 }
 ```
 
+### Request Context Metadata
+
+Middleware can add client-facing extension members to a request context. Values
+from later middleware replace earlier values with the same key; explicit
+`Details.With` values take precedence when serving.
+
+```go
+func Correlation(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        ctx := problem.WithContextValues(r.Context(), map[string]any{
+            "correlation_id": correlationID,
+        })
+
+        next.ServeHTTP(w, r.WithContext(ctx))
+    })
+}
+```
+
+Standard RFC 9457 member names (`type`, `title`, `detail`, `status`, and
+`instance`) are ignored when read from the request context.
+
 ### Error Wrapping
 
 Wrap native Go errors:
