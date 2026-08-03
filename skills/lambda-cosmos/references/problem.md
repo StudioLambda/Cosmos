@@ -6,24 +6,23 @@ Cosmos `problem` is a pure Go RFC 9457 implementation.
 go get github.com/studiolambda/cosmos/problem
 ```
 
-`problem.Problem` implements:
+`problem.Details` implements:
 
 - `error`
 - `http.Handler`
-- `json.Marshaler`
 
 ---
 
 ## Define reusable templates
 
 ```go
-var ErrNotFound = problem.Problem{
+var ErrNotFound = problem.Details{
 	Type:   "https://api.example.com/errors/not-found",
 	Title:  "Resource Not Found",
 	Status: http.StatusNotFound,
 }
 
-var ErrForbidden = problem.Problem{
+var ErrForbidden = problem.Details{
 	Type:   "https://api.example.com/errors/forbidden",
 	Title:  "Forbidden",
 	Status: http.StatusForbidden,
@@ -36,7 +35,7 @@ Use copy-on-write modifiers per request:
 return ErrNotFound.WithError(err).With("user_id", id)
 ```
 
-This is the recommended consumer pattern: define `problem.Problem` as top-level
+This is the recommended consumer pattern: define `problem.Details` as top-level
 error templates and derive per-request values with `WithError` and `With`.
 
 ---
@@ -50,13 +49,6 @@ p = p.With("trace_id", traceID)
 p = p.Without("trace_id")
 
 p = p.WithoutError()
-
-p = p.WithStackTrace()
-p = p.WithoutStackTrace()
-
-value, ok := p.Additional("trace_id")
-_ = value
-_ = ok
 ```
 
 All modifier methods return new values (immutable/copy-on-write style).
@@ -66,8 +58,7 @@ All modifier methods return new values (immutable/copy-on-write style).
 ## Serving behavior
 
 ```go
-p.ServeHTTP(w, r)     // production-safe negotiation
-p.ServeHTTPDev(w, r)  // includes stack traces; development only
+p.ServeHTTP(w, r)
 ```
 
 ### Negotiation order
@@ -100,12 +91,7 @@ Important: `Detail` is **not** auto-populated from `err.Error()`.
 JSON is a flat object with RFC fields + additional fields.
 Wrapped `err` is not serialized directly.
 
-Use `WithStackTrace()` (key: `problem.StackTraceKey`) if you explicitly want
-error-chain strings in payload.
-
----
-
-## Error-chain integration
+## Error integration
 
 ```go
 p := ErrNotFound.WithError(fmt.Errorf("query failed: %w", sql.ErrNoRows))
@@ -115,16 +101,14 @@ if errors.Is(p, sql.ErrNoRows) {
 }
 
 root := errors.Unwrap(p)
-stack := p.Errors()
 _ = root
-_ = stack
 ```
 
 ---
 
 ## Framework interaction
 
-When returned from a `framework.Handler`, `Problem` is treated as `http.Handler`
+When returned from a `framework.Handler`, `Details` is treated as `http.Handler`
 and renders itself through the framework error pipeline.
 
 ```go
@@ -138,5 +122,4 @@ func getUser(w http.ResponseWriter, r *http.Request) error {
 ## Gotchas
 
 - Always capture returned value from `With*` / `Without*` methods.
-- `ServeHTTPDev` must not be used in production.
-- `UnmarshalJSON` is pointer receiver; most other methods are value receiver.
+- Wrapped errors are never serialized.

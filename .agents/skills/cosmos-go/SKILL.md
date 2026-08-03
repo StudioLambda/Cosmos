@@ -155,10 +155,8 @@ func ParseAccept(request *http.Request) Accept {
 Unexported functions with non-obvious logic also get doc comments:
 
 ```go
-// stackTrace creates a stack trace of all the errors found
-// that have been either Joined or Wrapped using [errors.Join]
-// or [fmt.Errorf] with `%w` directive.
-func stackTrace(err error) []error {
+// normalizeStatus maps an unset status to the default HTTP status.
+func normalizeStatus(status int) int {
 ```
 
 ### Godoc Links
@@ -167,8 +165,8 @@ Use bracket syntax to cross-reference types and functions:
 
 ```go
 // With adds a new additional value to the given key.
-// Use [Problem.Without] to remove values.
-// See [NewProblem] for creating problems from errors.
+// Use [Details.Without] to remove values.
+// See [NewDetails] for creating details from errors.
 ```
 
 ### Struct Field Comments

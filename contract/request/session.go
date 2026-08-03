@@ -9,7 +9,7 @@ import (
 
 // ErrSessionNotFound is the problem returned when attempting to
 // retrieve a session that does not exist in the request context.
-var ErrSessionNotFound = problem.Problem{
+var ErrSessionNotFound = problem.Details{
 	Title:  "Session not found",
 	Detail: "Unable to find the session in the request",
 	Status: http.StatusInternalServerError,

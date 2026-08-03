@@ -56,7 +56,7 @@ func TestCSRFBlocksCrossOriginPost(t *testing.T) {
 func TestCSRFWithCustomError(t *testing.T) {
 	t.Parallel()
 
-	customErr := problem.Problem{
+	customErr := problem.Details{
 		Title:  "Custom CSRF Error",
 		Detail: "Custom detail",
 		Status: http.StatusUnauthorized,
@@ -125,5 +125,5 @@ func TestCSRFBlockedErrorWrapsOriginal(t *testing.T) {
 	captured = handler(rec, req)
 
 	require.Error(t, captured)
-	require.True(t, errors.As(captured, &problem.Problem{}))
+	require.True(t, errors.As(captured, &problem.Details{}))
 }

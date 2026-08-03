@@ -17,7 +17,7 @@ import (
 // ErrRateLimited is the default error returned when a request
 // exceeds the configured rate limit. It uses HTTP 429 Too Many
 // Requests per RFC 6585.
-var ErrRateLimited = problem.Problem{
+var ErrRateLimited = problem.Details{
 	Title:  "Too Many Requests",
 	Detail: "Rate limit exceeded. Please slow down and retry later.",
 	Status: http.StatusTooManyRequests,
@@ -43,7 +43,7 @@ type RateLimitConfig struct {
 
 	// ErrorResponse is the problem returned when a request is
 	// rate-limited. Defaults to [ErrRateLimited].
-	ErrorResponse problem.Problem
+	ErrorResponse problem.Details
 }
 
 // RateLimitKeyFunc resolves the caller key used for rate limiting.

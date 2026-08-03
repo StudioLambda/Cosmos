@@ -99,14 +99,14 @@ func errorStatus(err error) int {
 func handleError(w http.ResponseWriter, r *http.Request, err error) {
 	// When the error itself implements http.Handler, delegate
 	// rendering entirely to it. This allows error types like
-	// problem.Problem to control their own HTTP response format.
+	// problem.Details to control their own HTTP response format.
 	if target, ok := errors.AsType[HttpHandlerError](err); ok {
 		target.ServeHTTP(w, r)
 		return
 	}
 
 	problem.
-		NewProblem(err, errorStatus(err)).
+		NewDetails(err, errorStatus(err)).
 		ServeHTTP(w, r)
 }
 

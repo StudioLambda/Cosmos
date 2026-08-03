@@ -9,7 +9,7 @@ import (
 
 // ErrNoHooksMiddleware is the problem returned when attempting to
 // access hooks from a request that lacks the hooks middleware.
-var ErrNoHooksMiddleware = problem.Problem{
+var ErrNoHooksMiddleware = problem.Details{
 	Title:  "No hooks context",
 	Detail: "Unable to resolve hooks as there's no context value",
 	Status: http.StatusInternalServerError,

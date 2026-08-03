@@ -211,28 +211,24 @@ blocks after early returns.
 ```go
 // Defaulted fills in zero-value fields with sensible defaults.
 // Each field is guarded independently, keeping the logic flat.
-func (problem Problem) Defaulted(request *http.Request) Problem {
-	if problem.Type == "" {
-		problem.Type = "about:blank"
+func (details Details) Defaulted(request *http.Request) Details {
+	if details.Type == "" {
+		details.Type = "about:blank"
 	}
 
-	if problem.Status == 0 {
-		problem.Status = http.StatusInternalServerError
+	if details.Status == 0 {
+		details.Status = http.StatusInternalServerError
 	}
 
-	if problem.Title == "" {
-		problem.Title = http.StatusText(problem.Status)
+	if details.Title == "" {
+		details.Title = http.StatusText(details.Status)
 	}
 
-	if problem.Instance == "" {
-		problem.Instance = request.URL.String()
+	if details.Instance == "" {
+		details.Instance = request.URL.Path
 	}
 
-	if traces := problem.Errors(); problem.Detail == "" && len(traces) > 0 {
-		problem.Detail = traces[0].Error()
-	}
-
-	return problem
+	return details
 }
 ```
 

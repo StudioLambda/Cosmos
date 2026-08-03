@@ -119,7 +119,7 @@ func TestRateLimitUsesCustomErrorResponse(t *testing.T) {
 	t.Parallel()
 
 	store := contract.NewCache(cache.NewMemory(cache.MemoryConfig{Expiration: time.Minute, Cleanup: time.Minute}))
-	customErr := problem.Problem{Title: "Slow Down", Status: http.StatusServiceUnavailable}
+	customErr := problem.Details{Title: "Slow Down", Status: http.StatusServiceUnavailable}
 	handler := middleware.RateLimitWith(store, middleware.RateLimitConfig{
 		Name:          "login",
 		Limit:         1,
@@ -184,7 +184,7 @@ func TestRateLimitUsesAtomicCounterWithTTL(t *testing.T) {
 
 type brokenCacheDriver struct{}
 
-var errBrokenCache = problem.Problem{Title: "broken cache", Status: http.StatusInternalServerError}
+var errBrokenCache = problem.Details{Title: "broken cache", Status: http.StatusInternalServerError}
 
 func (brokenCacheDriver) Get(_ context.Context, _ string) ([]byte, error) { return nil, errBrokenCache }
 func (brokenCacheDriver) Put(_ context.Context, _ string, _ []byte, _ time.Duration) error {

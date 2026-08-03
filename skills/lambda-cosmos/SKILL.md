@@ -35,7 +35,7 @@ app.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) error {
 
 	user, err := findUser(id)
 	if err != nil {
-		return problem.Problem{
+		return problem.Details{
 			Title:  "User not found",
 			Status: http.StatusNotFound,
 		}.WithError(err).With("user_id", id)
@@ -65,7 +65,7 @@ When a `framework.Handler` returns an error:
 1. `context.Canceled` / `context.DeadlineExceeded` -> status `499`.
 2. If error implements `framework.HTTPStatus` -> uses `HTTPStatus()`.
 3. If error implements `http.Handler` -> error renders itself.
-4. Otherwise -> `problem.NewProblem(err, status).ServeHTTP(...)`.
+4. Otherwise -> `problem.NewDetails(err, status).ServeHTTP(...)`.
 
 If handler returns `nil` and wrote nothing -> **204 No Content**.
 
@@ -95,7 +95,7 @@ For the full router API, load [references/router.md](references/router.md).
 ## Problem Details (RFC 9457)
 
 ```go
-var ErrNotFound = problem.Problem{
+var ErrNotFound = problem.Details{
 	Type:   "https://api.example.com/errors/not-found",
 	Title:  "Resource Not Found",
 	Status: http.StatusNotFound,
@@ -104,12 +104,12 @@ var ErrNotFound = problem.Problem{
 return ErrNotFound.WithError(err).With("user_id", id)
 ```
 
-`problem.Problem` implements `error`, `http.Handler`, and `json.Marshaler`.
+`problem.Details` implements `error` and `http.Handler`.
 Negotiation supports `application/problem+json`, `application/json`, then
 plain text fallback.
 
-Consumer guidance: define `problem.Problem` as package-level reusable error
-variables (`var ErrUserNotFound = problem.Problem{...}`) and derive request-
+Consumer guidance: define `problem.Details` as package-level reusable error
+variables (`var ErrUserNotFound = problem.Details{...}`) and derive request-
 specific values using `WithError` / `With`.
 
 For full details, load [references/problem.md](references/problem.md).

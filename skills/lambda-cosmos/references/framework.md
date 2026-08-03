@@ -24,7 +24,7 @@ For a returned error:
 1. `context.Canceled` / `context.DeadlineExceeded` -> status `499`.
 2. If error implements `framework.HTTPStatus` -> use that status.
 3. If error implements `http.Handler` -> call `ServeHTTP` on the error.
-4. Else -> `problem.NewProblem(err, status)` and serve.
+4. Else -> `problem.NewDetails(err, status)` and serve.
 
 If no error and nothing was written -> `204 No Content`.
 

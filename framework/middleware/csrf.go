@@ -11,7 +11,7 @@ import (
 // ErrCSRFBlocked is the default error returned when a CSRF attack is detected.
 // It contains a structured problem response with appropriate HTTP status and details
 // that can be safely returned to clients without exposing security implementation details.
-var ErrCSRFBlocked = problem.Problem{
+var ErrCSRFBlocked = problem.Details{
 	Title:  "Cross-Origin Request Blocked",
 	Detail: "The request was rejected because its origin or fetch context did not meet security requirements.",
 	Status: http.StatusForbidden,
@@ -47,7 +47,7 @@ func CSRF(config CSRFConfig) framework.Middleware {
 // CSRFWith creates a CSRF protection middleware using a custom
 // CrossOriginProtection instance. This provides full control over the
 // CSRF engine while preserving a serializable application config.
-func CSRFWith(config CSRFConfig, csrf *http.CrossOriginProtection, errResponse problem.Problem) framework.Middleware {
+func CSRFWith(config CSRFConfig, csrf *http.CrossOriginProtection, errResponse problem.Details) framework.Middleware {
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
 			if err := csrf.Check(r); err != nil {

@@ -1,12 +1,12 @@
 // Package problem implements RFC 9457 Problem Details for HTTP APIs.
 //
-// The package centers on [Problem], an error-compatible value type that can be
+// The package centers on [Details], an error-compatible value type that can be
 // served directly as an HTTP response and safely derived via copy-on-write
-// helpers such as [Problem.With] and [Problem.WithError].
+// helpers such as [Details.With] and [Details.WithError].
 //
 // # Content negotiation
 //
-// Problem responses are negotiated using request Accept headers and can be
+// Problem Details responses are negotiated using request Accept headers and can be
 // emitted as application/problem+json, application/json, or text/plain.
 //
 // # Immutability
@@ -15,13 +15,13 @@
 // mutating shared values. This makes package-level problem templates safe to
 // reuse across requests.
 //
-// Application code should define [Problem] values as package-level variables
-// (for example, var ErrUserNotFound = problem.Problem{...}) and derive
-// per-request instances with [Problem.WithError] and [Problem.With].
+// Application code should define [Details] values as package-level variables
+// (for example, var ErrUserNotFound = problem.Details{...}) and derive
+// per-request instances with [Details.WithError] and [Details.With].
 //
 // Example
 //
-//	var ErrNotFound = problem.Problem{
+//	var ErrNotFound = problem.Details{
 //		Title:  "Resource Not Found",
 //		Detail: "The requested resource does not exist",
 //		Status: http.StatusNotFound,

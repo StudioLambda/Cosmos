@@ -20,7 +20,7 @@ app.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) error {
 server := framework.NewServer(framework.ServerConfig{}, app)
 ```
 
-`framework.Handler` returns an error. Errors implementing `framework.HTTPStatus` select a status; errors implementing `http.Handler`, including `problem.Problem`, render themselves. A handler that neither writes a response nor returns an error receives `204 No Content`.
+`framework.Handler` returns an error. Errors implementing `framework.HTTPStatus` select a status; errors implementing `http.Handler`, including `problem.Details`, render themselves. A handler that neither writes a response nor returns an error receives `204 No Content`.
 
 Use `framework.HTTP(standardHandler)` to adapt a standard handler for a route. Use `middleware.HTTP(standardMiddleware)` to adapt standard `func(http.Handler) http.Handler` middleware while retaining errors returned by Cosmos handlers.
 

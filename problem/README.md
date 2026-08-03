@@ -8,7 +8,6 @@ The problem module helps standardize API error responses following RFC 9457. It 
 
 - **RFC 9457 Compliant**: Full implementation of Problem Details for HTTP APIs
 - **Content Negotiation**: Automatic support for JSON, Problem+JSON, and plain text
-- **Stack Traces**: Optional error stack traces for development
 - **HTTP Handler**: Implements `http.Handler` for direct serving
 - **Error Wrapping**: Compatible with Go's error interface
 - **Extensible**: Add custom fields via additional metadata
@@ -33,13 +32,13 @@ import (
 )
 
 var (
-    ErrNotFound = problem.Problem{
+    ErrNotFound = problem.Details{
         Title:  "Resource Not Found",
         Detail: "The requested resource does not exist",
         Status: http.StatusNotFound,
     }
 
-    ErrUnauthorized = problem.Problem{
+    ErrUnauthorized = problem.Details{
         Title:  "Unauthorized",
         Detail: "Authentication is required to access this resource",
         Status: http.StatusUnauthorized,
@@ -59,10 +58,10 @@ func main() {
 
 ## RFC 9457 Structure
 
-The Problem type follows RFC 9457 specification:
+The Details type follows RFC 9457 specification:
 
 ```go
-type Problem struct {
+type Details struct {
     Type     string // URI reference identifying the problem type
     Title    string // Short, human-readable summary
     Detail   string // Human-readable explanation specific to this occurrence
@@ -83,23 +82,23 @@ When serving, missing fields are automatically filled:
 
 ## Basic Usage
 
-### Define Problem Variables
+### Define Details Variables
 
 ```go
 var (
-    ErrNotFound = problem.Problem{
+    ErrNotFound = problem.Details{
         Title:  "Resource Not Found",
         Detail: "The requested resource does not exist",
         Status: http.StatusNotFound,
     }
 
-    ErrBadRequest = problem.Problem{
+    ErrBadRequest = problem.Details{
         Title:  "Invalid Request",
         Detail: "The request contains invalid data",
         Status: http.StatusBadRequest,
     }
 
-    ErrForbidden = problem.Problem{
+    ErrForbidden = problem.Details{
         Title:  "Access Denied",
         Detail: "You do not have permission to access this resource",
         Status: http.StatusForbidden,
@@ -107,7 +106,7 @@ var (
 )
 ```
 
-### Serve Problems
+### Serve Details
 
 ```go
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +118,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 ### Attach Runtime Error to a Reusable Template
 
 ```go
-var ErrInternal = problem.Problem{
+var ErrInternal = problem.Details{
     Type:   "https://api.example.com/errors/internal",
     Title:  "Internal Server Error",
     Status: http.StatusInternalServerError,
@@ -170,46 +169,6 @@ if err != nil {
 }
 ```
 
-### Stack Traces
-
-Enable stack traces for development:
-
-```go
-func handler(w http.ResponseWriter, r *http.Request) {
-    err := someOperation()
-    if err != nil {
-        // Add stack trace
-        problem := ErrInternalError.
-            WithError(err).
-            WithStackTrace()
-
-        problem.ServeHTTP(w, r)
-    }
-}
-```
-
-Development mode shortcut:
-
-```go
-problem.ServeHTTPDev(w, r) // Automatically adds stack trace
-```
-
-JSON output with stack trace:
-
-```json
-{
-  "type": "about:blank",
-  "title": "Internal Server Error",
-  "detail": "database connection failed",
-  "status": 500,
-  "instance": "/api/users",
-  "stack_trace": [
-    "database connection failed",
-    "connection timeout: context deadline exceeded"
-  ]
-}
-```
-
 ### Remove Information
 
 Remove additional metadata or error information:
@@ -220,7 +179,6 @@ problem := ErrNotFound.
     Without("debug_info") // Remove before sending to production
 
 problem = problem.WithoutError() // Remove wrapped error
-problem = problem.WithoutStackTrace() // Remove stack trace
 ```
 
 ## Content Negotiation
@@ -271,16 +229,16 @@ The requested resource does not exist
 
 ### Implement Error Interface
 
-Problem implements Go's error interface:
+Details implements Go's error interface:
 
 ```go
-var ErrInternal = problem.Problem{
+var ErrInternal = problem.Details{
     Title:  "Something went wrong",
     Status: http.StatusInternalServerError,
 }
 
 var err error = ErrInternal
-fmt.Println(err.Error()) // "500 internal server error: something went wrong"
+fmt.Println(err.Error()) // "500 Something went wrong"
 ```
 
 ### Unwrap Errors
@@ -294,9 +252,6 @@ problem := ErrInternalError.WithError(originalErr)
 if err := problem.Unwrap(); err != nil {
     // err is originalErr
 }
-
-// Get all errors in chain
-errors := problem.Errors() // []error
 ```
 
 ### Custom Status Codes
@@ -317,7 +272,7 @@ func (e CustomError) HTTPStatus() int {
 }
 
 // Attach runtime errors to reusable template values
-var ErrInternal = problem.Problem{
+var ErrInternal = problem.Details{
     Title:  "Internal Server Error",
     Status: http.StatusInternalServerError,
 }
@@ -329,7 +284,7 @@ p.HTTPStatus() // Returns 418
 
 ## JSON Serialization
 
-Problems can be marshaled and unmarshaled:
+Details can be marshaled and unmarshaled:
 
 ```go
 // Marshal to JSON
@@ -337,7 +292,7 @@ problem := ErrNotFound.With("resource_id", 123)
 data, err := json.Marshal(problem)
 
 // Unmarshal from JSON
-var restored problem.Problem
+var restored problem.Details
 err = json.Unmarshal(data, &restored)
 ```
 
@@ -385,7 +340,7 @@ app.Get("/users/{id}", getUser)
 ### Middleware Error Handler
 
 ```go
-var ErrInternal = problem.Problem{
+var ErrInternal = problem.Details{
     Title:  "Internal Server Error",
     Status: http.StatusInternalServerError,
 }
@@ -396,7 +351,6 @@ func errorHandler(next http.Handler) http.Handler {
             if err := recover(); err != nil {
                 ErrInternal.
                     With("panic", fmt.Sprint(err)).
-                    WithStackTrace().
                     ServeHTTP(w, r)
             }
         }()
@@ -407,13 +361,12 @@ func errorHandler(next http.Handler) http.Handler {
 
 ## Best Practices
 
-1. **Define Problems as Package-Level Variables (SHOULD)**: Treat `problem.Problem` values as top-level reusable error templates (for example `var ErrUserNotFound = problem.Problem{...}`) and derive request-specific values with `WithError` / `With`.
+1. **Define Details as Package-Level Variables (SHOULD)**: Treat `problem.Details` values as top-level reusable error templates (for example `var ErrUserNotFound = problem.Details{...}`) and derive request-specific values with `WithError` / `With`.
 2. **Use Appropriate Status Codes**: Match HTTP status with problem severity
 3. **Add Context**: Use `With()` to add relevant metadata
-4. **Stack Traces in Dev Only**: Only enable in development/staging
-5. **Consistent Titles**: Use consistent titles for the same problem type
-6. **Detailed Details**: Provide specific, actionable detail messages
-7. **Custom Types**: Set Type URI for common problems to enable client handling
+4. **Consistent Titles**: Use consistent titles for the same problem type
+5. **Detailed Details**: Provide specific, actionable detail messages
+6. **Custom Types**: Set Type URI for common problems to enable client handling
 
 ## Example: Complete API
 
@@ -427,13 +380,13 @@ import (
 )
 
 var (
-    ErrNotFound = problem.Problem{
+    ErrNotFound = problem.Details{
         Type:   "https://api.example.com/errors/not-found",
         Title:  "Resource Not Found",
         Status: http.StatusNotFound,
     }
 
-    ErrValidation = problem.Problem{
+    ErrValidation = problem.Details{
         Type:   "https://api.example.com/errors/validation",
         Title:  "Validation Failed",
         Status: http.StatusBadRequest,
@@ -462,7 +415,6 @@ func getUser(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         ErrInternal.
             WithError(err).
-            WithStackTrace().
             ServeHTTP(w, r)
         return
     }

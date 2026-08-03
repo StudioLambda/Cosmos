@@ -7,14 +7,14 @@ import (
 )
 
 // ErrUnauthenticated is returned when a request has no valid identity.
-var ErrUnauthenticated = problem.Problem{
+var ErrUnauthenticated = problem.Details{
 	Title:  "Unauthenticated",
 	Detail: "Authentication is required to access this resource.",
 	Status: http.StatusUnauthorized,
 }
 
 // ErrUnauthorized is returned when an authenticated identity lacks permission.
-var ErrUnauthorized = problem.Problem{
+var ErrUnauthorized = problem.Details{
 	Title:  "Unauthorized",
 	Detail: "The authenticated identity is not authorized to access this resource.",
 	Status: http.StatusForbidden,
@@ -22,14 +22,14 @@ var ErrUnauthorized = problem.Problem{
 
 // ErrInvalidLoginRequest is returned when a login request contains an unsafe
 // or malformed local redirect target.
-var ErrInvalidLoginRequest = problem.Problem{
+var ErrInvalidLoginRequest = problem.Details{
 	Title:  "Invalid login request",
 	Detail: "The login request could not be processed.",
 	Status: http.StatusBadRequest,
 }
 
 // ErrInvalidCallback is returned when an OIDC callback cannot be verified.
-var ErrInvalidCallback = problem.Problem{
+var ErrInvalidCallback = problem.Details{
 	Title:  "Invalid authentication callback",
 	Detail: "The authentication callback could not be verified.",
 	Status: http.StatusBadRequest,
@@ -37,13 +37,13 @@ var ErrInvalidCallback = problem.Problem{
 
 // ErrProviderUnavailable is returned when the OIDC provider cannot complete
 // an authentication operation.
-var ErrProviderUnavailable = problem.Problem{
+var ErrProviderUnavailable = problem.Details{
 	Title:  "Authentication provider unavailable",
 	Detail: "The authentication provider could not complete the request.",
 	Status: http.StatusBadGateway,
 }
 
-func invalidCallback(err error) problem.Problem {
+func invalidCallback(err error) problem.Details {
 	problem := ErrInvalidCallback.With("reason", "invalid_callback")
 	if err == nil {
 		return problem
@@ -52,7 +52,7 @@ func invalidCallback(err error) problem.Problem {
 	return problem.WithError(err)
 }
 
-func invalidLoginRequest(err error) problem.Problem {
+func invalidLoginRequest(err error) problem.Details {
 	problem := ErrInvalidLoginRequest.With("reason", "invalid_login_request")
 	if err == nil {
 		return problem
@@ -61,6 +61,6 @@ func invalidLoginRequest(err error) problem.Problem {
 	return problem.WithError(err)
 }
 
-func providerUnavailable(err error) problem.Problem {
+func providerUnavailable(err error) problem.Details {
 	return ErrProviderUnavailable.WithError(err)
 }
