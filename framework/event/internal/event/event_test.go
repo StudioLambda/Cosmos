@@ -6,18 +6,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateRejectsNonFinalHashWildcard(t *testing.T) {
+func TestValidatePatternRejectsNonFinalHashWildcard(t *testing.T) {
 	t.Parallel()
 
-	err := Validate("orders.#.created")
+	err := ValidatePattern("orders.#.created")
 
 	require.ErrorIs(t, err, ErrInvalidEvent)
 }
 
-func TestMatchHashRequiresTrailingToken(t *testing.T) {
+func TestValidateNameRejectsWildcards(t *testing.T) {
 	t.Parallel()
 
-	require.False(t, Match("logs.#", "logs"))
+	err := ValidateName("orders.*")
+
+	require.ErrorIs(t, err, ErrInvalidEvent)
+}
+
+func TestMatchHashMatchesZeroTrailingTokens(t *testing.T) {
+	t.Parallel()
+
+	require.True(t, Match("logs.#", "logs"))
 	require.True(t, Match("logs.#", "logs.error"))
 	require.True(t, Match("logs.#", "logs.error.database"))
 }

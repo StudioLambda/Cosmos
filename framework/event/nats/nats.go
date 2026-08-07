@@ -3,7 +3,7 @@ package nats
 import (
 	"context"
 	"crypto/tls"
-
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -40,8 +40,8 @@ const (
 // than brokers that require manual handler tracking.
 //
 // Wildcard patterns: '*' matches a single dot-separated token (NATS native).
-// '#' is translated to NATS '>' which matches one or more tokens and must
-// be the last token.
+// '#' is translated to NATS subscriptions that together match zero or more
+// tokens and must be the last token.
 type NATSBroker struct {
 	// conn is the underlying NATS connection.
 	// It handles all communication with the NATS server including publishing,
@@ -227,7 +227,7 @@ func (broker *NATSBroker) Publish(
 	event string,
 	payload []byte,
 ) error {
-	if err := core.Validate(event); err != nil {
+	if err := core.ValidateName(event); err != nil {
 		return err
 	}
 
@@ -235,11 +235,12 @@ func (broker *NATSBroker) Publish(
 }
 
 // Subscribe registers a handler for events matching the given pattern.
-// The event pattern supports NATS wildcards:
+// The event pattern supports portable wildcards:
 //   - "*" matches a single token (e.g., "users.*.created")
-//   - ">" matches multiple tokens (e.g., "users.>")
+//   - "#" matches zero or more trailing tokens (e.g., "users.#")
 //
-// The "#" wildcard from other brokers is automatically converted to ">".
+// The "#" wildcard is translated to an exact NATS subscription plus a '>'
+// subscription because NATS '>' does not match zero tokens.
 // Multiple subscribers to the same subject all receive messages (fan-out).
 //
 // Returns an unsubscribe function that removes this specific handler.
@@ -250,28 +251,43 @@ func (broker *NATSBroker) Subscribe(
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
-	if err := core.Validate(event); err != nil {
+	if err := core.ValidatePattern(event); err != nil {
 		return nil, err
 	}
 
-	subject := convertSubject(event)
+	subjects := natsSubjects(event)
+	subs := make([]*nats.Subscription, 0, len(subjects))
 
-	sub, err := broker.conn.Subscribe(subject, func(msg *nats.Msg) {
-		defer func() {
-			if r := recover(); r != nil {
-				slog.Error("panic in nats event handler", "subject", subject, "panic", fmt.Sprint(r))
+	for _, subject := range subjects {
+		sub, err := broker.conn.Subscribe(subject, func(msg *nats.Msg) {
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("panic in nats event handler", "subject", subject, "panic", fmt.Sprint(r))
+				}
+			}()
+
+			handler(msg.Data)
+		})
+
+		if err != nil {
+			for _, subscribed := range subs {
+				_ = subscribed.Unsubscribe()
 			}
-		}()
 
-		handler(msg.Data)
-	})
+			return nil, err
+		}
 
-	if err != nil {
-		return nil, err
+		subs = append(subs, sub)
 	}
 
 	return func() error {
-		return sub.Unsubscribe()
+		var errs []error
+
+		for _, sub := range subs {
+			errs = append(errs, sub.Unsubscribe())
+		}
+
+		return errors.Join(errs...)
 	}, nil
 }
 
@@ -309,4 +325,19 @@ func (broker *NATSBroker) Close() error {
 // Single-level wildcards "*" are already compatible with NATS.
 func convertSubject(event string) string {
 	return strings.ReplaceAll(event, "#", ">")
+}
+
+// natsSubjects translates a portable pattern to one or more NATS subjects.
+func natsSubjects(pattern string) []string {
+	if pattern == "#" {
+		return []string{">"}
+	}
+
+	if !strings.HasSuffix(pattern, "#") {
+		return []string{convertSubject(pattern)}
+	}
+
+	prefix := strings.TrimSuffix(pattern, ".#")
+
+	return []string{prefix, prefix + ".>"}
 }

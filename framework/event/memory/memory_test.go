@@ -141,7 +141,7 @@ func TestMemoryBrokerWildcardHash(t *testing.T) {
 	var received atomic.Int64
 	var wg sync.WaitGroup
 
-	wg.Add(2)
+	wg.Add(3)
 
 	_, err := broker.Subscribe(
 		ctx, "logs.#", func(payload []byte) {
@@ -152,6 +152,9 @@ func TestMemoryBrokerWildcardHash(t *testing.T) {
 
 	require.NoError(t, err)
 
+	err = broker.Publish(ctx, "logs", []byte("data1"))
+	require.NoError(t, err)
+
 	err = broker.Publish(ctx, "logs.error", []byte("data2"))
 	require.NoError(t, err)
 
@@ -160,7 +163,7 @@ func TestMemoryBrokerWildcardHash(t *testing.T) {
 
 	wg.Wait()
 
-	require.Equal(t, int64(2), received.Load())
+	require.Equal(t, int64(3), received.Load())
 }
 
 func TestMemoryBrokerExactMatch(t *testing.T) {

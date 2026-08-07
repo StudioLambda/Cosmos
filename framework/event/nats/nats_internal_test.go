@@ -38,6 +38,22 @@ func TestConvertSubjectHashOnly(t *testing.T) {
 	require.Equal(t, ">", result)
 }
 
+func TestNATSSubjectsHashIncludesExactSubject(t *testing.T) {
+	t.Parallel()
+
+	result := natsSubjects("logs.#")
+
+	require.Equal(t, []string{"logs", "logs.>"}, result)
+}
+
+func TestNATSSubjectsHashOnlyUsesMultiTokenSubject(t *testing.T) {
+	t.Parallel()
+
+	result := natsSubjects("#")
+
+	require.Equal(t, []string{">"}, result)
+}
+
 func TestConvertSubjectMultipleHashes(t *testing.T) {
 	t.Parallel()
 

@@ -14,8 +14,8 @@ import (
 )
 
 // RedisBroker implements [contract.EventDriver] using Redis Pub/Sub.
-// It maps the "#" multi-level wildcard to Redis's "*" glob pattern
-// for topic subscriptions.
+// It uses Redis pattern subscriptions and verifies each delivery against the
+// portable event-pattern grammar.
 type RedisBroker struct {
 	client *redis.Client
 	wg     sync.WaitGroup
@@ -84,31 +84,30 @@ func NewRedisBrokerFrom(client *redis.Client) *RedisBroker {
 
 // Publish sends raw payload bytes to the given Redis channel.
 func (broker *RedisBroker) Publish(ctx context.Context, event string, payload []byte) error {
-	if err := core.Validate(event); err != nil {
+	if err := core.ValidateName(event); err != nil {
 		return err
 	}
 
 	return broker.client.Publish(ctx, event, payload).Err()
 }
 
-// Subscribe registers a handler for messages matching the given
-// event pattern. The "#" wildcard is translated to Redis's "*" glob.
+// Subscribe registers a handler for messages matching the given event pattern.
 func (broker *RedisBroker) Subscribe(
 	ctx context.Context,
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
-	if err := core.Validate(event); err != nil {
+	if err := core.ValidatePattern(event); err != nil {
 		return nil, err
 	}
 
-	event = strings.ReplaceAll(event, "#", "*")
-	sub := broker.client.PSubscribe(ctx, event)
+	pattern := event
+	sub := broker.client.PSubscribe(ctx, redisPattern(pattern))
 
 	broker.wg.Go(func() {
 
 		for message := range sub.Channel() {
-			if !core.Match(event, message.Channel) {
+			if !core.Match(pattern, message.Channel) {
 				continue
 			}
 
@@ -127,6 +126,20 @@ func (broker *RedisBroker) Subscribe(
 	return func() error {
 		return sub.Close()
 	}, nil
+}
+
+// redisPattern returns a Redis glob broad enough to receive every channel that
+// may match pattern. Core matching filters Redis's broader glob semantics.
+func redisPattern(pattern string) string {
+	if pattern == "#" {
+		return "*"
+	}
+
+	if !strings.HasSuffix(pattern, "#") {
+		return pattern
+	}
+
+	return strings.TrimSuffix(pattern, ".#") + "*"
 }
 
 // Ping verifies that the Redis connection is still alive.

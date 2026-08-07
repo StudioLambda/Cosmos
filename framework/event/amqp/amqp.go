@@ -138,7 +138,7 @@ func (broker *AMQPBroker) Publish(
 	event string,
 	payload []byte,
 ) error {
-	if err := core.Validate(event); err != nil {
+	if err := core.ValidateName(event); err != nil {
 		return err
 	}
 
@@ -199,7 +199,7 @@ func (broker *AMQPBroker) Subscribe(
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
-	if err := core.Validate(event); err != nil {
+	if err := core.ValidatePattern(event); err != nil {
 		return nil, err
 	}
 

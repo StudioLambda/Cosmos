@@ -38,12 +38,12 @@ func TestMatchEventStarDoesNotMatchMultipleTokens(t *testing.T) {
 	require.False(t, result)
 }
 
-func TestMatchEventHashDoesNotMatchZeroTokens(t *testing.T) {
+func TestMatchEventHashMatchesZeroTokens(t *testing.T) {
 	t.Parallel()
 
 	result := matchEvent("logs.#", "logs")
 
-	require.False(t, result)
+	require.True(t, result)
 }
 
 func TestMatchEventHashMatchesOneToken(t *testing.T) {

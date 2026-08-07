@@ -15,15 +15,18 @@ type EventUnsubscribeFunc = func() error
 
 type EventDecoder[T any] = func() (T, error)
 
-// EventDriver defines the contract for a publish/subscribe event
-// system backend. Drivers handle raw byte delivery; the [Events]
-// wrapper adds JSON serialization on top.
+// EventDriver defines the contract for a live publish/subscribe event system.
+// Delivery is best-effort: a successful publish does not confirm handler
+// processing, and drivers do not provide persistence or retries. Drivers
+// handle raw byte delivery; the [Events] wrapper adds JSON serialization.
 type EventDriver interface {
-	// Publish sends raw bytes to all subscribers of the named event.
+	// Publish sends raw bytes to all active subscribers of the named event.
+	// Event names are dot-separated tokens and cannot contain wildcards.
 	Publish(ctx context.Context, event string, payload []byte) error
 
-	// Subscribe registers a handler for the named event. The handler
-	// receives raw payload bytes. Returns a function to cancel the
+	// Subscribe registers a handler for an event name or pattern. Patterns use
+	// '*' for exactly one token and a final '#' for zero or more trailing tokens.
+	// The handler receives raw payload bytes. Returns a function to cancel the
 	// subscription.
 	Subscribe(ctx context.Context, event string, handler EventHandler) (EventUnsubscribeFunc, error)
 

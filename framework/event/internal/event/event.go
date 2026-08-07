@@ -11,9 +11,27 @@ import (
 // invalid characters.
 var ErrInvalidEvent = errors.New("invalid event name")
 
-// Validate checks an event name or subscription pattern. Wildcards must occupy
-// complete tokens; # matches one or more trailing tokens and must be final.
-func Validate(event string) error {
+// ValidateName checks an event name. Event names cannot contain wildcards.
+func ValidateName(event string) error {
+	if err := validate(event); err != nil {
+		return err
+	}
+
+	if strings.ContainsAny(event, "*#") {
+		return fmt.Errorf("%w: event names cannot contain wildcards", ErrInvalidEvent)
+	}
+
+	return nil
+}
+
+// ValidatePattern checks a subscription pattern. Wildcards must occupy complete
+// tokens; # matches zero or more trailing tokens and must be final.
+func ValidatePattern(event string) error {
+	return validate(event)
+}
+
+// validate checks the syntax shared by event names and subscription patterns.
+func validate(event string) error {
 	if event == "" {
 		return fmt.Errorf("%w: must not be empty", ErrInvalidEvent)
 	}
@@ -54,7 +72,7 @@ func Match(pattern string, event string) bool {
 
 	if hasTailWildcard {
 		patternTokens = patternTokens[:len(patternTokens)-1]
-		if len(eventTokens) <= len(patternTokens) {
+		if len(eventTokens) < len(patternTokens) {
 			return false
 		}
 	} else if len(patternTokens) != len(eventTokens) {
