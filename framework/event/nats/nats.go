@@ -47,7 +47,8 @@ type NATSBroker struct {
 	// conn is the underlying NATS connection.
 	// It handles all communication with the NATS server including publishing,
 	// subscribing, and maintaining the connection lifecycle.
-	conn *nats.Conn
+	conn  *nats.Conn
+	owned bool
 }
 
 // NATSBrokerConfig configures a NATS broker connection.
@@ -208,14 +209,13 @@ func NewNATSBrokerWith(config NATSBrokerConfig, runtime NATSBrokerRuntime) (*NAT
 		return nil, err
 	}
 
-	return NewNATSBrokerFrom(conn), nil
+	return &NATSBroker{conn: conn, owned: true}, nil
 }
 
 // NewNATSBrokerFrom creates a new NATS broker from an existing connection.
 // This is useful when you need full control over connection creation or want
-// to share a connection across multiple components.
-// The broker takes ownership of the connection and will close it when Close
-// is called.
+// to share a connection across multiple components. The caller retains
+// ownership of conn.
 func NewNATSBrokerFrom(conn *nats.Conn) *NATSBroker {
 	return &NATSBroker{
 		conn: conn,
@@ -307,11 +307,14 @@ func (broker *NATSBroker) Ping(ctx context.Context) error {
 	return broker.conn.FlushWithContext(ctx)
 }
 
-// Close gracefully shuts down the NATS connection.
-// It drains all pending messages before closing, ensuring no messages are
-// lost.
-// After Close is called, the broker cannot be reused.
+// Close drains and closes the NATS connection only when the broker created it.
+// A broker created with [NewNATSBrokerFrom] leaves its caller-owned connection
+// open.
 func (broker *NATSBroker) Close() error {
+	if !broker.owned {
+		return nil
+	}
+
 	if err := broker.conn.Drain(); err != nil {
 		return err
 	}

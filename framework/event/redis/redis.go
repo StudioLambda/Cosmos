@@ -19,6 +19,7 @@ import (
 // portable event-pattern grammar.
 type RedisBroker struct {
 	client *redis.Client
+	owned  bool
 	wg     sync.WaitGroup
 }
 
@@ -60,7 +61,7 @@ func NewRedisBroker(config RedisBrokerConfig) *RedisBroker {
 		DB:       config.DB,
 	})
 
-	return NewRedisBrokerFrom(client)
+	return &RedisBroker{client: client, owned: true}
 }
 
 func (config RedisBrokerConfig) withDefaults() RedisBrokerConfig {
@@ -76,7 +77,8 @@ func (config RedisBrokerConfig) withDefaults() RedisBrokerConfig {
 }
 
 // NewRedisBrokerFrom wraps an existing redis.Client as a
-// RedisBroker, allowing reuse of a pre-configured connection.
+// RedisBroker, allowing reuse of a pre-configured client. The caller retains
+// ownership of client.
 func NewRedisBrokerFrom(client *redis.Client) *RedisBroker {
 	return &RedisBroker{
 		client: client,
@@ -148,10 +150,13 @@ func (broker *RedisBroker) Ping(ctx context.Context) error {
 	return broker.client.Ping(ctx).Err()
 }
 
-// Close shuts down the underlying Redis client connection and
-// waits for all active subscription goroutines to finish.
+// Close waits for all active subscription goroutines to finish. It closes the
+// Redis client only when the broker created it.
 func (broker *RedisBroker) Close() error {
-	err := broker.client.Close()
+	var err error
+	if broker.owned {
+		err = broker.client.Close()
+	}
 	broker.wg.Wait()
 
 	return err

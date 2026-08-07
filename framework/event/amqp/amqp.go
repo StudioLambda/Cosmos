@@ -35,6 +35,9 @@ type AMQPBroker struct {
 	// exchange is the name of the topic exchange where events are published.
 	exchange string
 
+	// owned reports whether Close must close conn.
+	owned bool
+
 	// mu protects concurrent access to the publish channel.
 	mu sync.Mutex
 }
@@ -87,22 +90,42 @@ func NewAMQPBroker(config AMQPBrokerConfig) (*AMQPBroker, error) {
 		exchange = DefaultAMQPExchange
 	}
 
-	return NewAMQPBrokerFrom(conn, exchange)
+	broker, err := newAMQPBrokerFrom(conn, AMQPBrokerConfig{Exchange: exchange}, true)
+	if err != nil {
+		_ = conn.Close()
+
+		return nil, err
+	}
+
+	return broker, nil
 }
 
 // NewAMQPBrokerFrom creates a new AMQPBroker using an existing
-// AMQP connection and exchange name. This constructor is useful
+// AMQP connection and broker configuration. This constructor is useful
 // when you need to share a connection across multiple brokers
 // or have custom connection configuration requirements.
 //
 // The function creates a dedicated channel for publishing and
 // declares the topic exchange. If the exchange already exists
 // with matching configuration, the declaration is idempotent.
-// The broker takes ownership of managing the connection lifecycle.
+// The caller retains ownership of conn.
 func NewAMQPBrokerFrom(
 	conn *amqp091.Connection,
-	exchange string,
+	config AMQPBrokerConfig,
 ) (*AMQPBroker, error) {
+	return newAMQPBrokerFrom(conn, config, false)
+}
+
+func newAMQPBrokerFrom(conn *amqp091.Connection, config AMQPBrokerConfig, owned bool) (*AMQPBroker, error) {
+	if conn == nil {
+		return nil, errors.New("nil AMQP connection")
+	}
+
+	exchange := config.Exchange
+	if exchange == "" {
+		exchange = DefaultAMQPExchange
+	}
+
 	pubCh, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -130,6 +153,7 @@ func NewAMQPBrokerFrom(
 		conn:     conn,
 		pubCh:    pubCh,
 		exchange: exchange,
+		owned:    owned,
 	}, nil
 }
 
@@ -296,20 +320,25 @@ func (broker *AMQPBroker) Ping(ctx context.Context) error {
 	return ch.Close()
 }
 
-// Close closes the broker's publish channel and the underlying
-// AMQP connection, releasing all associated resources. This will
-// also cause all active subscriber channels to be closed.
+// Close closes the broker's publish channel. It also closes the AMQP connection
+// when the broker created it, which closes active subscriber channels.
 //
 // If closing the publish channel fails, the connection is still
 // closed and the channel close error is returned.
 func (broker *AMQPBroker) Close() error {
 	if broker.pubCh != nil {
 		if err := broker.pubCh.Close(); err != nil {
-			broker.conn.Close()
+			if broker.owned {
+				_ = broker.conn.Close()
+			}
 
 			return err
 		}
 	}
 
-	return broker.conn.Close()
+	if broker.owned {
+		return broker.conn.Close()
+	}
+
+	return nil
 }

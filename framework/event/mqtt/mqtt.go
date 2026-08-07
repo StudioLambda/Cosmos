@@ -45,6 +45,7 @@ type MQTTBroker struct {
 
 	// client is the autopaho connection manager with auto-reconnection.
 	client *autopaho.ConnectionManager
+	owned  bool
 
 	// qos is the quality of service level for publish and subscribe.
 	qos byte
@@ -229,14 +230,15 @@ func NewMQTTBroker(config MQTTBrokerConfig) (*MQTTBroker, error) {
 	}
 
 	broker.client = cm
+	broker.owned = true
 
 	return broker, nil
 }
 
 // NewMQTTBrokerFrom creates a new MQTTBroker from an existing
 // autopaho ConnectionManager and QoS level. This constructor is
-// useful for advanced scenarios where the user needs full control
-// over the MQTT connection configuration.
+// useful for advanced scenarios where the user needs full control over the MQTT
+// connection configuration. The caller retains ownership of client.
 //
 // Because autopaho.ConnectionManager does not allow post-creation
 // configuration changes, the caller must wire up message routing
@@ -516,8 +518,8 @@ func (broker *MQTTBroker) Close() error {
 	return broker.Shutdown(context.Background())
 }
 
-// Shutdown stops accepting deliveries, waits for in-flight handlers until ctx
-// expires, then disconnects from the MQTT broker.
+// Shutdown stops accepting deliveries and waits for in-flight handlers until
+// ctx expires. It disconnects only a client created by [NewMQTTBroker].
 func (broker *MQTTBroker) Shutdown(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -529,6 +531,10 @@ func (broker *MQTTBroker) Shutdown(ctx context.Context) error {
 
 	if err := waitGroupContext(ctx, &broker.routeWg); err != nil {
 		return err
+	}
+
+	if !broker.owned {
+		return nil
 	}
 
 	return broker.client.Disconnect(ctx)
