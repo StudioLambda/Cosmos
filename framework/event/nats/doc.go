@@ -1,2 +1,2 @@
-// Package nats provides a NATS [contract.EventDriver].
+// Package nats provides NATS event publisher and subscriber drivers.
 package nats

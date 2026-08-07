@@ -1,2 +1,2 @@
-// Package mqtt provides an MQTT [contract.EventDriver].
+// Package mqtt provides MQTT event publisher and subscriber drivers.
 package mqtt

@@ -32,7 +32,8 @@ const (
 	DefaultNATSReconnectWait = 2 * time.Second
 )
 
-// NATSBroker implements the EventBroker interface using NATS messaging
+// NATSBroker implements [contract.EventPublisherDriver] and
+// [contract.EventSubscriberDriver] using NATS messaging
 // system.
 // It provides a lightweight, high-performance event broker with built-in
 // fan-out support and wildcard subscriptions.
@@ -318,6 +319,15 @@ func (broker *NATSBroker) Close() error {
 	broker.conn.Close()
 
 	return nil
+}
+
+// Shutdown gracefully drains the NATS connection before ctx expires.
+func (broker *NATSBroker) Shutdown(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	return broker.Close()
 }
 
 // convertSubject converts event patterns to NATS subject format.

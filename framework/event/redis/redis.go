@@ -13,7 +13,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// RedisBroker implements [contract.EventDriver] using Redis Pub/Sub.
+// RedisBroker implements [contract.EventPublisherDriver] and
+// [contract.EventSubscriberDriver] using Redis Pub/Sub.
 // It uses Redis pattern subscriptions and verifies each delivery against the
 // portable event-pattern grammar.
 type RedisBroker struct {
@@ -154,4 +155,13 @@ func (broker *RedisBroker) Close() error {
 	broker.wg.Wait()
 
 	return err
+}
+
+// Shutdown closes the Redis client unless ctx has already expired.
+func (broker *RedisBroker) Shutdown(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	return broker.Close()
 }

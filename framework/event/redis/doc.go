@@ -1,2 +1,2 @@
-// Package redis provides a Redis [contract.EventDriver].
+// Package redis provides Redis event publisher and subscriber drivers.
 package redis

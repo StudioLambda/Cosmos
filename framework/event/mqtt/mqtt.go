@@ -19,7 +19,8 @@ import (
 
 const defaultMaxConcurrentDeliveries = 1024
 
-// MQTTBroker implements the EventBroker interface using MQTT v5
+// MQTTBroker implements [contract.EventPublisherDriver] and
+// [contract.EventSubscriberDriver] using MQTT v5
 // protocol for publish/subscribe messaging. It uses the Eclipse
 // Paho Go client with automatic reconnection support and always
 // operates with clean sessions for simplicity.
@@ -503,11 +504,28 @@ func (broker *MQTTBroker) Ping(ctx context.Context) error {
 // complete before disconnecting. This will terminate all active
 // subscriptions and close the underlying connection.
 func (broker *MQTTBroker) Close() error {
+	return broker.Shutdown(context.Background())
+}
+
+// Shutdown stops accepting deliveries, waits for in-flight handlers until ctx
+// expires, then disconnects from the MQTT broker.
+func (broker *MQTTBroker) Shutdown(ctx context.Context) error {
 	broker.lifecycle.Lock()
 	broker.closed = true
 	broker.lifecycle.Unlock()
 
-	broker.routeWg.Wait()
+	done := make(chan struct{})
 
-	return broker.client.Disconnect(context.Background())
+	go func() {
+		broker.routeWg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	return broker.client.Disconnect(ctx)
 }

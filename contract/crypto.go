@@ -7,7 +7,7 @@ import (
 )
 
 // ErrEncrypterClosed is returned when Encrypt or Decrypt is called
-// after [Encrypter.Close] has been called.
+// after the concrete encrypter has been closed.
 var ErrEncrypterClosed = errors.New("encrypter is closed")
 
 // EncrypterDriver defines the interface for encrypting and decrypting raw data.
@@ -24,9 +24,6 @@ var ErrEncrypterClosed = errors.New("encrypter is closed")
 //	if err != nil {
 //		return err
 //	}
-//	if err := encrypter.Close(); err != nil {
-//		return err
-//	}
 //	_ = plaintext
 type EncrypterDriver interface {
 	// Encrypt takes a byte slice and returns an encrypted version of it.
@@ -36,9 +33,6 @@ type EncrypterDriver interface {
 	// Decrypt takes an encrypted byte slice and returns the decrypted original value.
 	// It returns an error if the decryption operation fails.
 	Decrypt(value []byte) ([]byte, error)
-
-	// Close releases encrypter resources and clears key material when applicable.
-	Close() error
 }
 
 // Encrypter provides typed encryption over an [EncrypterDriver].
@@ -88,9 +82,4 @@ func (encrypter *Encrypter) EncryptRaw(value []byte) ([]byte, error) {
 // DecryptRaw decrypts raw bytes.
 func (encrypter *Encrypter) DecryptRaw(value []byte) ([]byte, error) {
 	return encrypter.driver.Decrypt(value)
-}
-
-// Close releases encrypter resources and clears key material when applicable.
-func (encrypter *Encrypter) Close() error {
-	return encrypter.driver.Close()
 }

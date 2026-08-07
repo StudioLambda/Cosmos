@@ -1,2 +1,2 @@
-// Package memory provides an in-memory [contract.EventDriver].
+// Package memory provides in-memory event publisher and subscriber drivers.
 package memory

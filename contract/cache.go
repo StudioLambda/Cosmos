@@ -49,9 +49,6 @@ type CacheDriver interface {
 
 	// TTL returns the remaining lifetime for key.
 	TTL(ctx context.Context, key string) (time.Duration, error)
-
-	// Ping verifies that the connection is still alive.
-	Ping(ctx context.Context) error
 }
 
 // CacheCounterWithTTL is an optional cache-driver capability for atomically

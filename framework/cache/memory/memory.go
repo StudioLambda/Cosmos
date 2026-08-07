@@ -195,8 +195,3 @@ func (memory *Memory) adjust(key string, delta int64) (int64, error) {
 
 	return next, nil
 }
-
-// Ping verifies that the connection is still alive.
-func (memory *Memory) Ping(ctx context.Context) error {
-	return nil // always connected, in memory
-}

@@ -37,13 +37,14 @@ func (config *MemoryBrokerConfig) FromConfiguration(configuration *contract.Conf
 	config.MaxConcurrentDeliveries = configuration.GetOr("max_concurrent_deliveries", 0)
 }
 
-// MemoryBroker implements [contract.EventDriver] using only in-memory
+// MemoryBroker implements [contract.EventPublisherDriver] and
+// [contract.EventSubscriberDriver] using only in-memory
 // data structures with no external dependencies.
 //
 // Wildcard patterns: '*' matches a single dot-separated token,
 // '#' matches zero or more tokens (must be the last token in the pattern).
 type MemoryBroker struct {
-	// lifecycle serializes delivery admission with Close so no WaitGroup work
+	// lifecycle serializes delivery admission with Shutdown so no WaitGroup work
 	// is added after shutdown begins waiting.
 	lifecycle sync.Mutex
 	mu        sync.RWMutex
@@ -164,26 +165,24 @@ func (broker *MemoryBroker) Subscribe(
 	}, nil
 }
 
-// Ping verifies that the broker is still available.
-func (broker *MemoryBroker) Ping(ctx context.Context) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	if broker.closed.Load() {
-		return ErrBrokerClosed
-	}
-
-	return nil
-}
-
-// Close shuts down the broker and waits for in-flight deliveries.
-func (broker *MemoryBroker) Close() error {
+// Shutdown stops the broker and waits for in-flight deliveries until ctx expires.
+func (broker *MemoryBroker) Shutdown(ctx context.Context) error {
 	broker.lifecycle.Lock()
 	broker.closed.Store(true)
 	broker.lifecycle.Unlock()
 
-	broker.wg.Wait()
+	done := make(chan struct{})
+
+	go func() {
+		broker.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 
 	broker.mu.Lock()
 	defer broker.mu.Unlock()

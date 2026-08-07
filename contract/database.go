@@ -38,12 +38,6 @@ type DatabaseRows interface {
 // transaction management. The [Database] wrapper provides type-safe
 // convenience methods on top of this driver.
 type DatabaseDriver interface {
-	// Close closes the database connection and releases associated resources.
-	Close() error
-
-	// Ping verifies that the database connection is still alive.
-	Ping(ctx context.Context) error
-
 	// Exec executes a SQL query that modifies data (e.g., INSERT, UPDATE, DELETE).
 	// Returns the number of rows affected.
 	Exec(ctx context.Context, query string, args ...any) (int64, error)
@@ -90,11 +84,6 @@ type Database struct {
 // NewDatabase creates a new [Database] that delegates operations to the given driver.
 //
 // Example:
-//
-//	db := contract.NewDatabase(driver)
-//	if err := db.Ping(context.Background()); err != nil {
-//		return err
-//	}
 func NewDatabase(driver DatabaseDriver) *Database {
 	return &Database{driver: driver}
 }
@@ -108,29 +97,6 @@ func NewDatabase(driver DatabaseDriver) *Database {
 //	_ = rawDriver
 func (database *Database) Driver() DatabaseDriver {
 	return database.driver
-}
-
-// Close closes the database connection and releases associated resources.
-//
-// Example:
-//
-//	db := contract.NewDatabase(driver)
-//	if err := db.Close(); err != nil {
-//		return err
-//	}
-func (database *Database) Close() error {
-	return database.driver.Close()
-}
-
-// Ping verifies that the database connection is still alive.
-//
-// Example:
-//
-//	if err := db.Ping(context.Background()); err != nil {
-//		return err
-//	}
-func (database *Database) Ping(ctx context.Context) error {
-	return database.driver.Ping(ctx)
 }
 
 // Exec executes a SQL query that modifies data. Returns the number of rows affected.

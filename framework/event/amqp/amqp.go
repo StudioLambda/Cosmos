@@ -13,7 +13,8 @@ import (
 	amqp091 "github.com/rabbitmq/amqp091-go"
 )
 
-// AMQPBroker implements the EventBroker interface using RabbitMQ's
+// AMQPBroker implements [contract.EventPublisherDriver] and
+// [contract.EventSubscriberDriver] using RabbitMQ's
 // AMQP protocol for publish/subscribe messaging. It uses a topic
 // exchange to broadcast events to all subscribed consumers, with
 // each subscriber receiving messages in their own exclusive queue.
@@ -190,7 +191,7 @@ func (broker *AMQPBroker) Publish(
 // continue processing until the context is cancelled or the
 // returned unsubscribe function is called. The handler receives
 // raw payload bytes, which callers can decode with json.Unmarshal
-// (or via [contract.NewEvents] for typed decoding).
+// (or via [contract.NewEventSubscriber] for typed decoding).
 //
 // If subscription setup fails, the returned unsubscribe function
 // will return the setup error when called.
@@ -311,4 +312,13 @@ func (broker *AMQPBroker) Close() error {
 	}
 
 	return broker.conn.Close()
+}
+
+// Shutdown closes the AMQP connection unless ctx has already expired.
+func (broker *AMQPBroker) Shutdown(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	return broker.Close()
 }
