@@ -468,6 +468,31 @@ func TestMemoryBrokerShutdownReturnsCancelledContext(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 }
 
+func TestMemoryBrokerShutdownReturnsDeadlineExceeded(t *testing.T) {
+	t.Parallel()
+
+	broker := event.NewMemoryBroker(event.DefaultMemoryBrokerConfig)
+	release := make(chan struct{})
+	started := make(chan struct{})
+
+	_, err := broker.Subscribe(context.Background(), "slow.event", func([]byte) {
+		close(started)
+		<-release
+	})
+	require.NoError(t, err)
+	require.NoError(t, broker.Publish(context.Background(), "slow.event", nil))
+
+	<-started
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
+
+	require.ErrorIs(t, broker.Shutdown(ctx), context.DeadlineExceeded)
+
+	close(release)
+	require.NoError(t, broker.Shutdown(context.Background()))
+}
+
 func TestMemoryBrokerShutdownRejectsDeliveryAdmittedAfterShutdown(t *testing.T) {
 	t.Parallel()
 

@@ -156,12 +156,3 @@ func (broker *RedisBroker) Close() error {
 
 	return err
 }
-
-// Shutdown closes the Redis client unless ctx has already expired.
-func (broker *RedisBroker) Shutdown(ctx context.Context) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	return broker.Close()
-}

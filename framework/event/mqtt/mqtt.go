@@ -2,6 +2,7 @@ package mqtt
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -399,6 +400,14 @@ func (broker *MQTTBroker) Subscribe(
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
+	broker.lifecycle.Lock()
+	if broker.closed {
+		broker.lifecycle.Unlock()
+
+		return nil, errors.New("mqtt broker is closed")
+	}
+	broker.lifecycle.Unlock()
+
 	if err := core.ValidatePattern(event); err != nil {
 		return nil, err
 	}
@@ -510,22 +519,34 @@ func (broker *MQTTBroker) Close() error {
 // Shutdown stops accepting deliveries, waits for in-flight handlers until ctx
 // expires, then disconnects from the MQTT broker.
 func (broker *MQTTBroker) Shutdown(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	broker.lifecycle.Lock()
 	broker.closed = true
 	broker.lifecycle.Unlock()
 
+	if err := waitGroupContext(ctx, &broker.routeWg); err != nil {
+		return err
+	}
+
+	return broker.client.Disconnect(ctx)
+}
+
+// waitGroupContext waits for group until ctx expires.
+func waitGroupContext(ctx context.Context, group *sync.WaitGroup) error {
 	done := make(chan struct{})
 
 	go func() {
-		broker.routeWg.Wait()
+		group.Wait()
 		close(done)
 	}()
 
 	select {
 	case <-done:
+		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-
-	return broker.client.Disconnect(ctx)
 }

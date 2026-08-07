@@ -321,15 +321,6 @@ func (broker *NATSBroker) Close() error {
 	return nil
 }
 
-// Shutdown gracefully drains the NATS connection before ctx expires.
-func (broker *NATSBroker) Shutdown(ctx context.Context) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	return broker.Close()
-}
-
 // convertSubject converts event patterns to NATS subject format.
 // It replaces the multi-level wildcard "#" with NATS's ">" wildcard.
 // Single-level wildcards "*" are already compatible with NATS.

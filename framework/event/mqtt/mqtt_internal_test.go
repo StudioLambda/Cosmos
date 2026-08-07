@@ -1,6 +1,7 @@
 package mqtt
 
 import (
+	"context"
 	"encoding/json/v2"
 	"sync"
 	"sync/atomic"
@@ -19,6 +20,21 @@ func TestConvertTopicDotsToSlashes(t *testing.T) {
 	result := convertTopic("user.created")
 
 	require.Equal(t, "user/created", result)
+}
+
+func TestWaitGroupContextReturnsDeadlineExceeded(t *testing.T) {
+	t.Parallel()
+
+	var group sync.WaitGroup
+	group.Add(1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
+
+	require.ErrorIs(t, waitGroupContext(ctx, &group), context.DeadlineExceeded)
+
+	group.Done()
+	require.NoError(t, waitGroupContext(context.Background(), &group))
 }
 
 func TestConvertTopicStarToPlus(t *testing.T) {

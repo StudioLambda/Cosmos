@@ -313,12 +313,3 @@ func (broker *AMQPBroker) Close() error {
 
 	return broker.conn.Close()
 }
-
-// Shutdown closes the AMQP connection unless ctx has already expired.
-func (broker *AMQPBroker) Shutdown(ctx context.Context) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	return broker.Close()
-}

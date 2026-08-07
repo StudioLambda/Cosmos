@@ -130,15 +130,18 @@ func (broker *MemoryBroker) Subscribe(
 	event string,
 	handler contract.EventHandler,
 ) (contract.EventUnsubscribeFunc, error) {
-	if broker.closed.Load() {
-		return nil, ErrBrokerClosed
-	}
-
 	if err := core.ValidatePattern(event); err != nil {
 		return nil, err
 	}
 
 	handlerID := strconv.FormatUint(broker.nextID.Add(1), 10)
+
+	broker.lifecycle.Lock()
+	defer broker.lifecycle.Unlock()
+
+	if broker.closed.Load() {
+		return nil, ErrBrokerClosed
+	}
 
 	broker.mu.Lock()
 	defer broker.mu.Unlock()
@@ -167,21 +170,16 @@ func (broker *MemoryBroker) Subscribe(
 
 // Shutdown stops the broker and waits for in-flight deliveries until ctx expires.
 func (broker *MemoryBroker) Shutdown(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	broker.lifecycle.Lock()
 	broker.closed.Store(true)
 	broker.lifecycle.Unlock()
 
-	done := make(chan struct{})
-
-	go func() {
-		broker.wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-ctx.Done():
-		return ctx.Err()
+	if err := waitGroupContext(ctx, &broker.wg); err != nil {
+		return err
 	}
 
 	broker.mu.Lock()
@@ -190,6 +188,23 @@ func (broker *MemoryBroker) Shutdown(ctx context.Context) error {
 	broker.handlers = make(map[string]map[string]contract.EventHandler)
 
 	return nil
+}
+
+// waitGroupContext waits for group until ctx expires.
+func waitGroupContext(ctx context.Context, group *sync.WaitGroup) error {
+	done := make(chan struct{})
+
+	go func() {
+		group.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // deliverToHandler invokes a handler with the raw payload,
