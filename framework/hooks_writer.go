@@ -1,7 +1,6 @@
 package framework
 
 import (
-	"log/slog"
 	"net/http"
 	"sync/atomic"
 
@@ -18,6 +17,7 @@ type ResponseWriter struct {
 	http.ResponseWriter
 	*contract.Hooks
 	writeHeaderCalled atomic.Bool
+	logger            *atomic.Pointer[contract.Logger]
 }
 
 // ResponseWriterFlusher extends ResponseWriter with the
@@ -42,10 +42,18 @@ type WrappedResponseWriter interface {
 // the given hooks on write operations. If the underlying writer
 // implements http.Flusher, the returned value also satisfies
 // http.Flusher via ResponseWriterFlusher.
-func NewResponseWriter(writer http.ResponseWriter, hooks *contract.Hooks) WrappedResponseWriter {
+func NewResponseWriter(
+	writer http.ResponseWriter,
+	hooks *contract.Hooks,
+	logger ...*atomic.Pointer[contract.Logger],
+) WrappedResponseWriter {
 	wrapped := &ResponseWriter{
 		ResponseWriter: writer,
 		Hooks:          hooks,
+	}
+
+	if len(logger) > 0 {
+		wrapped.logger = logger[0]
 	}
 
 	if flusher, ok := writer.(http.Flusher); ok {
@@ -83,7 +91,7 @@ func (writer *ResponseWriter) WriteHeader(status int) {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					slog.Error("before write header hook panicked", "error", r)
+					writer.logHookPanic("before write header hook panicked", r)
 				}
 			}()
 
@@ -116,7 +124,7 @@ func (writer *ResponseWriter) Write(content []byte) (int, error) {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					slog.Error("before write hook panicked", "error", r)
+					writer.logHookPanic("before write hook panicked", r)
 				}
 			}()
 
@@ -125,4 +133,12 @@ func (writer *ResponseWriter) Write(content []byte) (int, error) {
 	}
 
 	return writer.ResponseWriter.Write(content)
+}
+
+func (writer *ResponseWriter) logHookPanic(message string, recovered any) {
+	if writer.logger == nil {
+		return
+	}
+
+	writer.logger.Load().Error(message, "error", recovered)
 }

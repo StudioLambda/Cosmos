@@ -64,6 +64,8 @@ func Logger(logger *contract.Logger) framework.Middleware {
 
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
+			request.SetLogger(r, logger)
+
 			hooks := request.Hooks(r)
 			status := http.StatusInternalServerError
 
@@ -73,7 +75,7 @@ func Logger(logger *contract.Logger) framework.Middleware {
 
 			hooks.AfterResponse(func(err error) {
 				if err != nil || (status >= 500 && status < 600) {
-					logger.ErrorContext(
+					request.Logger(r).ErrorContext(
 						r.Context(),
 						"request failed",
 						"method", r.Method,

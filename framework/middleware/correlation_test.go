@@ -1,6 +1,7 @@
 package middleware_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -8,6 +9,7 @@ import (
 	"github.com/studiolambda/cosmos/contract/request"
 	"github.com/studiolambda/cosmos/framework"
 	correlation "github.com/studiolambda/cosmos/framework/middleware"
+	"github.com/studiolambda/cosmos/problem"
 
 	"github.com/stretchr/testify/require"
 )
@@ -289,4 +291,47 @@ func TestCorrelationStoresIDInRequestContext(t *testing.T) {
 	handler.Record(req)
 
 	require.NotEmpty(t, fromHelper)
+}
+
+func TestMiddlewareAddsCorrelationIDToProblemDetailsByDefault(t *testing.T) {
+	t.Parallel()
+
+	handler := correlation.Correlation(correlation.DefaultCorrelationConfig)(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		return problem.Details{Status: http.StatusBadRequest, Title: "bad request"}
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Accept", "application/problem+json")
+	res := handler.Record(req)
+	var body map[string]any
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&body))
+
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	require.Equal(t, res.Header.Get("X-Correlation-ID"), body["correlation_id"])
+}
+
+func TestMiddlewareDoesNotAddCorrelationIDToProblemDetailsWhenProblemKeyIsEmpty(t *testing.T) {
+	t.Parallel()
+
+	handler := correlation.CorrelationWith(correlation.CorrelationConfig{}, func() string {
+		return "test-correlation-id"
+	})(framework.Handler(func(
+		w http.ResponseWriter,
+		r *http.Request,
+	) error {
+		return problem.Details{Status: http.StatusBadRequest, Title: "bad request"}
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Accept", "application/problem+json")
+	res := handler.Record(req)
+	var body map[string]any
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&body))
+
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	_, exists := body["correlation_id"]
+	require.False(t, exists)
 }

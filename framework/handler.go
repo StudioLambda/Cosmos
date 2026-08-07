@@ -3,11 +3,12 @@ package framework
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 
 	"github.com/studiolambda/cosmos/contract"
+	"github.com/studiolambda/cosmos/contract/request"
 	"github.com/studiolambda/cosmos/problem"
 )
 
@@ -129,21 +130,27 @@ func (handler Handler) ServeHTTP(
 	r *http.Request,
 ) {
 	hooks := contract.NewHooks()
-	wrapped := NewResponseWriter(w, hooks)
 	ctx := context.WithValue(r.Context(), contract.HooksKey, hooks)
-	err := handler(wrapped, r.WithContext(ctx))
+	ctx = problem.WithContextValuesContainer(ctx, problem.NewContextValues())
+	ctx = contract.WithLogValuesContainer(ctx, contract.NewLogValues())
+	logger := new(atomic.Pointer[contract.Logger])
+	logger.Store(contract.NewLogger(nil))
+	ctx = context.WithValue(ctx, contract.LoggerKey, logger)
+	requestContext := r.WithContext(ctx)
+	wrapped := NewResponseWriter(w, hooks, logger)
+	err := handler(wrapped, requestContext)
 
 	if err != nil {
 		if wrapped.WriteHeaderCalled() {
-			slog.ErrorContext(
-				r.Context(),
+			request.Logger(r).ErrorContext(
+				requestContext.Context(),
 				"handler error after partial response write",
 				"method", r.Method,
 				"path", r.URL.Path,
 				"err", err,
 			)
 		} else {
-			handleError(wrapped, r.WithContext(ctx), err)
+			handleError(wrapped, requestContext, err)
 		}
 	}
 
@@ -155,7 +162,8 @@ func (handler Handler) ServeHTTP(
 		func() {
 			defer func() {
 				if recovered := recover(); recovered != nil {
-					slog.Error(
+					request.Logger(r).ErrorContext(
+						requestContext.Context(),
 						"after response hook panicked",
 						"error", recovered,
 					)

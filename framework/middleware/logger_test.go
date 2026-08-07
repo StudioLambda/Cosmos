@@ -10,7 +10,6 @@ import (
 
 	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework"
-	"github.com/studiolambda/cosmos/framework/correlation"
 	frameworklogger "github.com/studiolambda/cosmos/framework/logger/slog"
 	"github.com/studiolambda/cosmos/framework/middleware"
 
@@ -175,7 +174,7 @@ func TestLoggerIncludesCorrelationID(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	logger := slog.New(correlation.Handler(slog.NewTextHandler(&buf, nil)))
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
 
 	handler := middleware.Correlation(middleware.DefaultCorrelationConfig)(
 		middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(logger)))(framework.Handler(func(

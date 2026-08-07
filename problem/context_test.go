@@ -4,6 +4,8 @@ import (
 	"encoding/json/v2"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/studiolambda/cosmos/problem"
@@ -34,6 +36,26 @@ func TestWithContextValuesComposesValues(t *testing.T) {
 
 	if body["correlation_id"] != "correlation" {
 		t.Fatalf("expected correlation_id, got %v", body["correlation_id"])
+	}
+}
+
+func TestContextValuesIsSafeForConcurrentUse(t *testing.T) {
+	t.Parallel()
+
+	values := problem.NewContextValues()
+	var waitGroup sync.WaitGroup
+
+	for index := range 100 {
+		waitGroup.Go(func() {
+			key := "value_" + strconv.Itoa(index)
+			values.Add(map[string]any{key: index})
+			_ = values.Values()
+		})
+	}
+
+	waitGroup.Wait()
+	if len(values.Values()) != 100 {
+		t.Fatalf("expected 100 values, got %d", len(values.Values()))
 	}
 }
 

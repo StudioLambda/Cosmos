@@ -120,3 +120,25 @@ func TestNewLoggerWithNilDriverDiscardsRecords(t *testing.T) {
 		logger.With("component", "test").Error("also discarded")
 	})
 }
+
+func TestLoggerAddsContextValues(t *testing.T) {
+	t.Parallel()
+
+	driver := contractmock.NewLoggerDriverMock(t)
+	logger := contract.NewLogger(driver)
+	ctx := contract.WithLogValues(t.Context(), map[string]any{"correlation_id": "request"})
+
+	driver.On("InfoContext", ctx, "processing", []any{"correlation_id", "request"}).Return()
+	logger.InfoContext(ctx, "processing")
+}
+
+func TestLoggerCallAttributesOverrideContextValues(t *testing.T) {
+	t.Parallel()
+
+	driver := contractmock.NewLoggerDriverMock(t)
+	logger := contract.NewLogger(driver)
+	ctx := contract.WithLogValues(t.Context(), map[string]any{"correlation_id": "request"})
+
+	driver.On("InfoContext", ctx, "processing", []any{"correlation_id", "explicit"}).Return()
+	logger.InfoContext(ctx, "processing", "correlation_id", "explicit")
+}

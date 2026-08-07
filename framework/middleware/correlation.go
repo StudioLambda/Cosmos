@@ -12,6 +12,7 @@ import (
 
 	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework"
+	"github.com/studiolambda/cosmos/problem"
 )
 
 // DefaultHeader is the default HTTP header used to
@@ -28,12 +29,17 @@ type CorrelationConfig struct {
 	// Header is the HTTP header name used to read and write
 	// the correlation ID. Defaults to "X-Correlation-ID".
 	Header string
+
+	// ProblemKey is the RFC 9457 problem extension member name used to include
+	// the correlation ID in error responses. An empty value disables this.
+	ProblemKey string
 }
 
 // DefaultCorrelationConfig holds the default correlation middleware
 // configuration.
 var DefaultCorrelationConfig = CorrelationConfig{
-	Header: DefaultHeader,
+	Header:     DefaultHeader,
+	ProblemKey: "correlation_id",
 }
 
 // Correlation returns middleware that ensures every request has
@@ -94,6 +100,15 @@ func CorrelationWith(config CorrelationConfig, generate Generator) framework.Mid
 			w.Header().Set(config.Header, id)
 
 			ctx := context.WithValue(r.Context(), contract.CorrelationIDKey, id)
+			ctx = contract.WithLogValues(ctx, map[string]any{
+				"correlation_id": id,
+			})
+
+			if config.ProblemKey != "" {
+				ctx = problem.WithContextValues(ctx, map[string]any{
+					config.ProblemKey: id,
+				})
+			}
 
 			return next(w, r.WithContext(ctx))
 		}
@@ -102,6 +117,7 @@ func CorrelationWith(config CorrelationConfig, generate Generator) framework.Mid
 
 func (config *CorrelationConfig) FromConfiguration(configuration *contract.Configuration) {
 	config.Header = configuration.GetOr("header", DefaultCorrelationConfig.Header)
+	config.ProblemKey = configuration.GetOr("problem_key", DefaultCorrelationConfig.ProblemKey)
 }
 
 func (config CorrelationConfig) withDefaults() CorrelationConfig {
