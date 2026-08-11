@@ -106,101 +106,103 @@ func (dispatcher *JobDispatcher) Dispatch(ctx context.Context, job Job) error {
 	})
 }
 
-// JobSettlement is the explicit delivery settlement requested by a job
-// handler. A worker translates it to its broker's acknowledgement, retry, and
-// rejection operations.
-type JobSettlement int
-
-const (
-	// JobRetry requests redelivery. The worker applies the job retry policy
-	// unless the error also implements [JobRetryAfterError].
-	JobRetry JobSettlement = iota + 1
-
-	// JobReject requests terminal rejection. A broker may dead-letter rejected
-	// deliveries according to its configured policy.
-	JobReject
-
-	// JobFail requests terminal failure handling. A driver may archive or
-	// dead-letter the delivery when its backend supports and is configured for
-	// that behavior; it is not guaranteed by this contract.
-	JobFail
-)
-
-// JobSettlementError is an inspectable job handler result. Use [errors.As] to
-// inspect it while [errors.Is] and [errors.As] continue to traverse its cause.
-type JobSettlementError interface {
-	error
-
-	// Settlement returns the requested delivery settlement.
-	Settlement() JobSettlement
-
-	// Unwrap returns the error that caused this outcome.
-	Unwrap() error
+// JobRetryError requests another attempt according to the job's [RetryPolicy].
+// Use [errors.AsType] to inspect it while [errors.Is] and [errors.AsType]
+// continue to traverse its cause.
+type JobRetryError struct {
+	cause error
 }
 
-// JobRetryAfterError is an optional extension of [JobSettlementError] returned by
-// [RetryJobAfter]. RetryAfter is a requested delay, not a guarantee: drivers
-// may be unable to schedule delayed retries exactly or at all.
-type JobRetryAfterError interface {
-	JobSettlementError
-
-	// RetryAfter returns the requested delay before retrying.
-	RetryAfter() time.Duration
-}
-
-type jobOutcomeError struct {
-	cause      error
-	settlement JobSettlement
-}
-
-func (jobOutcomeError *jobOutcomeError) Error() string {
-	if jobOutcomeError.cause == nil {
-		return "job outcome"
-	}
-
-	return jobOutcomeError.cause.Error()
-}
-
-func (jobOutcomeError *jobOutcomeError) Settlement() JobSettlement {
-	return jobOutcomeError.settlement
-}
-
-func (jobOutcomeError *jobOutcomeError) Unwrap() error {
-	return jobOutcomeError.cause
-}
-
-type jobRetryAfterError struct {
-	*jobOutcomeError
+// JobRetryAfterError requests another attempt after a delay. RetryAfter is a
+// requested delay, not a guarantee: drivers may be unable to schedule delayed
+// retries exactly or at all.
+type JobRetryAfterError struct {
+	*JobRetryError
 	delay time.Duration
 }
 
-func (jobRetryAfterError *jobRetryAfterError) RetryAfter() time.Duration {
+// JobRejectedError requests terminal rejection. Broker dead-lettering, if any,
+// is determined by the driver's backend configuration.
+type JobRejectedError struct {
+	cause error
+}
+
+// JobFailedError requests terminal failure handling. A driver may archive or
+// dead-letter the delivery when its backend supports and is configured for that
+// behavior; it is not guaranteed by this contract.
+type JobFailedError struct {
+	cause error
+}
+
+// Error returns the underlying cause message, or a generic outcome message
+// when no cause was provided.
+func (jobRetryError *JobRetryError) Error() string {
+	return jobOutcomeMessage(jobRetryError.cause)
+}
+
+// Unwrap returns the error that caused this outcome.
+func (jobRetryError *JobRetryError) Unwrap() error {
+	return jobRetryError.cause
+}
+
+// Error returns the underlying cause message, or a generic outcome message
+// when no cause was provided.
+func (jobRejectedError *JobRejectedError) Error() string {
+	return jobOutcomeMessage(jobRejectedError.cause)
+}
+
+// Unwrap returns the error that caused this outcome.
+func (jobRejectedError *JobRejectedError) Unwrap() error {
+	return jobRejectedError.cause
+}
+
+// Error returns the underlying cause message, or a generic outcome message
+// when no cause was provided.
+func (jobFailedError *JobFailedError) Error() string {
+	return jobOutcomeMessage(jobFailedError.cause)
+}
+
+// Unwrap returns the error that caused this outcome.
+func (jobFailedError *JobFailedError) Unwrap() error {
+	return jobFailedError.cause
+}
+
+func jobOutcomeMessage(cause error) string {
+	if cause == nil {
+		return "job outcome"
+	}
+
+	return cause.Error()
+}
+
+// RetryAfter returns the requested delay before retrying.
+func (jobRetryAfterError *JobRetryAfterError) RetryAfter() time.Duration {
 	return jobRetryAfterError.delay
 }
 
 // RetryJob requests another attempt according to the job's [RetryPolicy].
-func RetryJob(err error) error {
-	return &jobOutcomeError{cause: err, settlement: JobRetry}
+func RetryJob(err error) *JobRetryError {
+	return &JobRetryError{cause: err}
 }
 
 // RetryJobAfter requests another attempt after delay. The delay is a request,
 // not a guarantee; see [JobRetryAfterError].
-func RetryJobAfter(err error, delay time.Duration) error {
-	return &jobRetryAfterError{
-		jobOutcomeError: &jobOutcomeError{cause: err, settlement: JobRetry},
-		delay:           delay,
+func RetryJobAfter(err error, delay time.Duration) *JobRetryAfterError {
+	return &JobRetryAfterError{
+		JobRetryError: &JobRetryError{cause: err},
+		delay:         delay,
 	}
 }
 
 // RejectJob requests terminal rejection. Broker dead-lettering, if any, is
 // determined by the driver's backend configuration.
-func RejectJob(err error) error {
-	return &jobOutcomeError{cause: err, settlement: JobReject}
+func RejectJob(err error) *JobRejectedError {
+	return &JobRejectedError{cause: err}
 }
 
-// FailJob requests terminal failure handling. See [JobFail].
-func FailJob(err error) error {
-	return &jobOutcomeError{cause: err, settlement: JobFail}
+// FailJob requests terminal failure handling. See [JobFailedError].
+func FailJob(err error) *JobFailedError {
+	return &JobFailedError{cause: err}
 }
 
 // JobResolver resolves a job name to a fresh [Job] value. A resolver must not
@@ -300,18 +302,12 @@ func (worker *JobWorker) handle(ctx context.Context, delivery JobDelivery) error
 }
 
 func (worker *JobWorker) settle(ctx context.Context, delivery JobDelivery, policy RetryPolicy, err error) error {
-	var settlement JobSettlementError
-	if errors.As(err, &settlement) {
-		switch settlement.Settlement() {
-		case JobReject:
-			return delivery.Reject(ctx)
-		case JobFail:
-			return delivery.Fail(ctx, err)
-		case JobRetry:
-			return worker.retry(ctx, delivery, policy, err)
-		default:
-			return delivery.Fail(ctx, fmt.Errorf("unknown job settlement %d: %w", settlement.Settlement(), err))
-		}
+	if _, ok := errors.AsType[*JobRejectedError](err); ok {
+		return delivery.Reject(ctx)
+	}
+
+	if _, ok := errors.AsType[*JobFailedError](err); ok {
+		return delivery.Fail(ctx, err)
 	}
 
 	return worker.retry(ctx, delivery, policy, err)
@@ -323,8 +319,7 @@ func (worker *JobWorker) retry(ctx context.Context, delivery JobDelivery, policy
 		return delivery.Fail(ctx, err)
 	}
 
-	var delayed JobRetryAfterError
-	if errors.As(err, &delayed) {
+	if delayed, ok := errors.AsType[*JobRetryAfterError](err); ok {
 		return delivery.Retry(ctx, delayed.RetryAfter())
 	}
 

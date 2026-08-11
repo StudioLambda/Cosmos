@@ -226,53 +226,47 @@ func TestJobWorkerFailsUnresolvableJob(t *testing.T) {
 	require.ErrorIs(t, delivery.failed, cause)
 }
 
-func TestRetryJobPreservesCauseAndSettlement(t *testing.T) {
+func TestRetryJobPreservesCauseAndType(t *testing.T) {
 	t.Parallel()
 
 	cause := errors.New("service unavailable")
 	err := contract.RetryJob(cause)
-	var settlement contract.JobSettlementError
 
-	require.ErrorAs(t, err, &settlement)
-	require.Equal(t, contract.JobRetry, settlement.Settlement())
+	_, ok := errors.AsType[*contract.JobRetryError](err)
+	require.True(t, ok)
 	require.ErrorIs(t, err, cause)
 }
 
-func TestRejectJobPreservesCauseAndSettlement(t *testing.T) {
+func TestRejectJobPreservesCauseAndType(t *testing.T) {
 	t.Parallel()
 
 	cause := errors.New("invalid recipient")
 	err := contract.RejectJob(cause)
-	var settlement contract.JobSettlementError
 
-	require.ErrorAs(t, err, &settlement)
-	require.Equal(t, contract.JobReject, settlement.Settlement())
+	_, ok := errors.AsType[*contract.JobRejectedError](err)
+	require.True(t, ok)
 	require.ErrorIs(t, err, cause)
 }
 
-func TestFailJobPreservesCauseAndSettlement(t *testing.T) {
+func TestFailJobPreservesCauseAndType(t *testing.T) {
 	t.Parallel()
 
 	cause := errors.New("invalid template")
 	err := contract.FailJob(cause)
-	var settlement contract.JobSettlementError
 
-	require.ErrorAs(t, err, &settlement)
-	require.Equal(t, contract.JobFail, settlement.Settlement())
+	_, ok := errors.AsType[*contract.JobFailedError](err)
+	require.True(t, ok)
 	require.ErrorIs(t, err, cause)
 }
 
-func TestRetryJobAfterPreservesCauseSettlementAndDelay(t *testing.T) {
+func TestRetryJobAfterPreservesCauseTypeAndDelay(t *testing.T) {
 	t.Parallel()
 
 	cause := errors.New("rate limited")
 	err := contract.RetryJobAfter(cause, time.Minute)
-	var settlement contract.JobSettlementError
-	var delayed contract.JobRetryAfterError
 
-	require.ErrorAs(t, err, &settlement)
-	require.Equal(t, contract.JobRetry, settlement.Settlement())
-	require.ErrorAs(t, err, &delayed)
+	delayed, ok := errors.AsType[*contract.JobRetryAfterError](err)
+	require.True(t, ok)
 	require.Equal(t, time.Minute, delayed.RetryAfter())
 	require.ErrorIs(t, err, cause)
 }
