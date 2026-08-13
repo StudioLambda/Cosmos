@@ -4,14 +4,13 @@ Cosmos is a collection of composable HTTP modules for Go that stay close to the 
 
 ## Modules
 
-This workspace contains six independently publishable modules:
+This workspace contains five independently publishable modules:
 
 - `collection`: generic slice and map helpers.
 - `router`: generic HTTP router built on `http.ServeMux`.
 - `problem`: RFC 9457 problem details.
 - `contract`: typed facades, service-driver interfaces, and request/response helpers.
 - `framework`: error-returning HTTP application framework and integrations.
-- `application`: application quickstart.
 
 `collection`, `router`, and `problem` are foundational. `contract` depends on `collection` and `problem`; `framework` depends on `contract`, `router`, and `problem`.
 
