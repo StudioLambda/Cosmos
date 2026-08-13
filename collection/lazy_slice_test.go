@@ -222,6 +222,19 @@ func TestLazySliceFilterReturnsMatchingItems(t *testing.T) {
 	require.Equal(t, []int{2, 4}, got)
 }
 
+func TestLazySliceFilterYieldsDenseOutputIndices(t *testing.T) {
+	t.Parallel()
+
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5}))
+	var indices []int
+
+	for index := range lazy.Filter(func(_ int, value int) bool { return value%2 == 0 }) {
+		indices = append(indices, index)
+	}
+
+	require.Equal(t, []int{0, 1}, indices)
+}
+
 // TestLazySliceFilterReturnsEmptyWhenNoneMatch verifies that Filter returns an
 // empty sequence when no items satisfy the predicate.
 func TestLazySliceFilterReturnsEmptyWhenNoneMatch(t *testing.T) {
@@ -293,6 +306,21 @@ func TestLazySliceFlatMapFlattensMappedResults(t *testing.T) {
 	}).Items()
 
 	require.Equal(t, []int{1, 10, 2, 20, 3, 30}, got)
+}
+
+func TestLazySliceFlatMapYieldsDenseOutputIndices(t *testing.T) {
+	t.Parallel()
+
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
+	var indices []int
+
+	for index := range lazy.FlatMap(func(_ int, value int) []int {
+		return []int{value, value * 10}
+	}) {
+		indices = append(indices, index)
+	}
+
+	require.Equal(t, []int{0, 1, 2, 3, 4, 5}, indices)
 }
 
 // TestLazySliceFlatMapIsLazy verifies that FlatMap does not consume the source until needed.
@@ -658,6 +686,19 @@ func TestLazySliceChunkSplitsIntoChunksOfGivenSize(t *testing.T) {
 	require.Equal(t, [][]int{{1, 2}, {3, 4}, {5}}, chunks)
 }
 
+func TestLazySliceChunkYieldsDenseOutputIndices(t *testing.T) {
+	t.Parallel()
+
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4, 5}))
+	var indices []int
+
+	for index := range lazy.Chunk(2) {
+		indices = append(indices, index)
+	}
+
+	require.Equal(t, []int{0, 1, 2}, indices)
+}
+
 // TestLazySliceChunkOnEmptyLazyYieldsNoChunks verifies that Chunk over an empty
 // sequence produces no chunks.
 func TestLazySliceChunkOnEmptyLazyYieldsNoChunks(t *testing.T) {
@@ -705,6 +746,19 @@ func TestLazySliceSlidingReturnsWindowsWithDefaultStepOfOne(t *testing.T) {
 	}
 
 	require.Equal(t, [][]int{{1, 2}, {2, 3}, {3, 4}}, windows)
+}
+
+func TestLazySliceSlidingYieldsDenseOutputIndices(t *testing.T) {
+	t.Parallel()
+
+	lazy := collection.NewLazySlice(slices.All([]int{1, 2, 3, 4}))
+	var indices []int
+
+	for index := range lazy.Sliding(2) {
+		indices = append(indices, index)
+	}
+
+	require.Equal(t, []int{0, 1, 2}, indices)
 }
 
 // TestLazySliceSlidingReturnsWindowsWithExplicitStep verifies that Sliding with an
@@ -907,6 +961,20 @@ func TestLazySliceConcatYieldsAllItemsFromBothSources(t *testing.T) {
 	require.Equal(t, []int{1, 2, 3, 4, 5, 6}, got)
 }
 
+func TestLazySliceConcatYieldsDenseOutputIndices(t *testing.T) {
+	t.Parallel()
+
+	first := collection.NewLazySlice(slices.All([]int{1, 2, 3}))
+	second := collection.NewLazySlice(slices.All([]int{4, 5, 6}))
+	var indices []int
+
+	for index := range first.Concat(second) {
+		indices = append(indices, index)
+	}
+
+	require.Equal(t, []int{0, 1, 2, 3, 4, 5}, indices)
+}
+
 // TestLazySliceGroupByGroupsAllItemsByKeyIntoEagerSubCollections verifies that
 // GroupBy partitions items into map entries of eager Slices.
 func TestLazySliceGroupByGroupsAllItemsByKeyIntoEagerSubCollections(t *testing.T) {
@@ -942,6 +1010,19 @@ func TestLazySliceNthPicksEveryNthItemFromIndexZero(t *testing.T) {
 	got := lazy.Nth(3).Items()
 
 	require.Equal(t, []int{0, 3, 6}, got)
+}
+
+func TestLazySliceNthYieldsDenseOutputIndices(t *testing.T) {
+	t.Parallel()
+
+	lazy := collection.NewLazySlice(slices.All([]int{0, 1, 2, 3, 4, 5, 6}))
+	var indices []int
+
+	for index := range lazy.Nth(3) {
+		indices = append(indices, index)
+	}
+
+	require.Equal(t, []int{0, 1, 2}, indices)
 }
 
 // TestLazySliceNthPicksEveryNthItemStartingAtGivenOffset verifies that Nth with an

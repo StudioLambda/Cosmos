@@ -118,9 +118,9 @@ func (lazySlice LazySlice[T]) Filter(f func(int, T) bool) LazySlice[T] {
 				if !yield(index, v) {
 					return
 				}
-			}
 
-			index++
+				index++
+			}
 		}
 	})
 }
@@ -156,9 +156,9 @@ func (lazySlice LazySlice[T]) FlatMap[K any](f func(int, T) []K) LazySlice[K] {
 				if !yield(index, mapped) {
 					return
 				}
-			}
 
-			index++
+				index++
+			}
 		}
 	})
 }
@@ -351,12 +351,13 @@ func (lazySlice LazySlice[T]) Chunk(size int) iter.Seq2[int, []T] {
 					return
 				}
 
+				index++
 				chunk = nil
 			}
 		}
 
 		if len(chunk) > 0 {
-			yield(index, chunk)
+			_ = yield(index, chunk)
 		}
 	}
 }
@@ -392,6 +393,7 @@ func (lazySlice LazySlice[T]) Sliding(size int, step ...int) iter.Seq2[int, []T]
 					return
 				}
 
+				index++
 				window = window[s:]
 			}
 		}
@@ -463,9 +465,9 @@ func (lazySlice LazySlice[T]) Unique[K comparable](key func(int, T) K) LazySlice
 				if !yield(index, v) {
 					return
 				}
-			}
 
-			index++
+				index++
+			}
 		}
 	})
 }
@@ -497,6 +499,8 @@ func (lazySlice LazySlice[T]) Concat(other LazySlice[T]) LazySlice[T] {
 			if !yield(index, v) {
 				return
 			}
+
+			index++
 		}
 
 		for _, v := range other {
@@ -551,6 +555,8 @@ func (lazySlice LazySlice[T]) Nth(n int, offset ...int) LazySlice[T] {
 				if !yield(index, v) {
 					return
 				}
+
+				index++
 			}
 
 			stepIdx++
