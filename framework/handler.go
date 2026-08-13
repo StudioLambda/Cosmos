@@ -65,7 +65,7 @@ func HTTP(handler http.Handler) Handler {
 //	    return fmt.Sprintf("resource not found: %s", e.Resource)
 //	}
 //
-//	func (e NotFoundError) HTTPStatusError() int {
+//	func (e NotFoundError) HTTPStatus() int {
 //	    return http.StatusNotFound
 //	}
 type HTTPStatusError interface {
