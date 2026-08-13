@@ -1,6 +1,9 @@
 package framework
 
 import (
+	"bufio"
+	"io"
+	"net"
 	"net/http"
 	"sync/atomic"
 
@@ -29,6 +32,162 @@ type ResponseWriterFlusher struct {
 	http.Flusher
 }
 
+func (writer *ResponseWriterFlusher) Flush() {
+	flushResponseWriter(writer.ResponseWriter)
+}
+
+type responseWriterHijacker struct{ *ResponseWriter }
+
+func (writer *responseWriterHijacker) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return writer.ResponseWriter.hijack()
+}
+
+type responseWriterPusher struct{ *ResponseWriter }
+
+func (writer *responseWriterPusher) Push(target string, options *http.PushOptions) error {
+	return writer.ResponseWriter.push(target, options)
+}
+
+type responseWriterReaderFrom struct{ *ResponseWriter }
+
+func (writer *responseWriterReaderFrom) ReadFrom(reader io.Reader) (int64, error) {
+	return writer.ResponseWriter.readFrom(reader)
+}
+
+type responseWriterFlusherHijacker struct{ *ResponseWriter }
+
+func (writer *responseWriterFlusherHijacker) Flush() {
+	flushResponseWriter(writer.ResponseWriter)
+}
+
+func (writer *responseWriterFlusherHijacker) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return writer.ResponseWriter.hijack()
+}
+
+type responseWriterFlusherPusher struct{ *ResponseWriter }
+
+func (writer *responseWriterFlusherPusher) Flush() {
+	flushResponseWriter(writer.ResponseWriter)
+}
+
+func (writer *responseWriterFlusherPusher) Push(target string, options *http.PushOptions) error {
+	return writer.ResponseWriter.push(target, options)
+}
+
+type responseWriterFlusherReaderFrom struct{ *ResponseWriter }
+
+func (writer *responseWriterFlusherReaderFrom) Flush() {
+	flushResponseWriter(writer.ResponseWriter)
+}
+
+func (writer *responseWriterFlusherReaderFrom) ReadFrom(reader io.Reader) (int64, error) {
+	return writer.ResponseWriter.readFrom(reader)
+}
+
+type responseWriterHijackerPusher struct{ *ResponseWriter }
+
+func (writer *responseWriterHijackerPusher) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return writer.ResponseWriter.hijack()
+}
+
+func (writer *responseWriterHijackerPusher) Push(target string, options *http.PushOptions) error {
+	return writer.ResponseWriter.push(target, options)
+}
+
+type responseWriterHijackerReaderFrom struct{ *ResponseWriter }
+
+func (writer *responseWriterHijackerReaderFrom) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return writer.ResponseWriter.hijack()
+}
+
+func (writer *responseWriterHijackerReaderFrom) ReadFrom(reader io.Reader) (int64, error) {
+	return writer.ResponseWriter.readFrom(reader)
+}
+
+type responseWriterPusherReaderFrom struct{ *ResponseWriter }
+
+func (writer *responseWriterPusherReaderFrom) Push(target string, options *http.PushOptions) error {
+	return writer.ResponseWriter.push(target, options)
+}
+
+func (writer *responseWriterPusherReaderFrom) ReadFrom(reader io.Reader) (int64, error) {
+	return writer.ResponseWriter.readFrom(reader)
+}
+
+type responseWriterFlusherHijackerPusher struct{ *ResponseWriter }
+
+func (writer *responseWriterFlusherHijackerPusher) Flush() {
+	flushResponseWriter(writer.ResponseWriter)
+}
+
+func (writer *responseWriterFlusherHijackerPusher) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return writer.ResponseWriter.hijack()
+}
+
+func (writer *responseWriterFlusherHijackerPusher) Push(target string, options *http.PushOptions) error {
+	return writer.ResponseWriter.push(target, options)
+}
+
+type responseWriterFlusherHijackerReaderFrom struct{ *ResponseWriter }
+
+func (writer *responseWriterFlusherHijackerReaderFrom) Flush() {
+	flushResponseWriter(writer.ResponseWriter)
+}
+
+func (writer *responseWriterFlusherHijackerReaderFrom) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return writer.ResponseWriter.hijack()
+}
+
+func (writer *responseWriterFlusherHijackerReaderFrom) ReadFrom(reader io.Reader) (int64, error) {
+	return writer.ResponseWriter.readFrom(reader)
+}
+
+type responseWriterFlusherPusherReaderFrom struct{ *ResponseWriter }
+
+func (writer *responseWriterFlusherPusherReaderFrom) Flush() {
+	flushResponseWriter(writer.ResponseWriter)
+}
+
+func (writer *responseWriterFlusherPusherReaderFrom) Push(target string, options *http.PushOptions) error {
+	return writer.ResponseWriter.push(target, options)
+}
+
+func (writer *responseWriterFlusherPusherReaderFrom) ReadFrom(reader io.Reader) (int64, error) {
+	return writer.ResponseWriter.readFrom(reader)
+}
+
+type responseWriterHijackerPusherReaderFrom struct{ *ResponseWriter }
+
+func (writer *responseWriterHijackerPusherReaderFrom) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return writer.ResponseWriter.hijack()
+}
+
+func (writer *responseWriterHijackerPusherReaderFrom) Push(target string, options *http.PushOptions) error {
+	return writer.ResponseWriter.push(target, options)
+}
+
+func (writer *responseWriterHijackerPusherReaderFrom) ReadFrom(reader io.Reader) (int64, error) {
+	return writer.ResponseWriter.readFrom(reader)
+}
+
+type responseWriterFlusherHijackerPusherReaderFrom struct{ *ResponseWriter }
+
+func (writer *responseWriterFlusherHijackerPusherReaderFrom) Flush() {
+	flushResponseWriter(writer.ResponseWriter)
+}
+
+func (writer *responseWriterFlusherHijackerPusherReaderFrom) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return writer.ResponseWriter.hijack()
+}
+
+func (writer *responseWriterFlusherHijackerPusherReaderFrom) Push(target string, options *http.PushOptions) error {
+	return writer.ResponseWriter.push(target, options)
+}
+
+func (writer *responseWriterFlusherHijackerPusherReaderFrom) ReadFrom(reader io.Reader) (int64, error) {
+	return writer.ResponseWriter.readFrom(reader)
+}
+
 // WrappedResponseWriter is the interface returned by
 // NewResponseWriter. It combines the standard http.ResponseWriter
 // with a WriteHeaderCalled check so callers can determine
@@ -39,9 +198,9 @@ type WrappedResponseWriter interface {
 }
 
 // NewResponseWriter creates a WrappedResponseWriter that fires
-// the given hooks on write operations. If the underlying writer
-// implements http.Flusher, the returned value also satisfies
-// http.Flusher via ResponseWriterFlusher.
+// the given hooks on write operations. It preserves http.Flusher,
+// http.Hijacker, http.Pusher, and io.ReaderFrom when the underlying writer
+// implements them.
 func NewResponseWriter(
 	writer http.ResponseWriter,
 	hooks *contract.Hooks,
@@ -56,14 +215,45 @@ func NewResponseWriter(
 		wrapped.logger = logger[0]
 	}
 
-	if flusher, ok := writer.(http.Flusher); ok {
-		return &ResponseWriterFlusher{
-			ResponseWriter: wrapped,
-			Flusher:        flusher,
-		}
-	}
+	_, flusher := writer.(http.Flusher)
+	_, hijacker := writer.(http.Hijacker)
+	_, pusher := writer.(http.Pusher)
+	_, readerFrom := writer.(io.ReaderFrom)
 
-	return wrapped
+	switch {
+	case flusher && hijacker && pusher && readerFrom:
+		return &responseWriterFlusherHijackerPusherReaderFrom{wrapped}
+	case flusher && hijacker && pusher:
+		return &responseWriterFlusherHijackerPusher{wrapped}
+	case flusher && hijacker && readerFrom:
+		return &responseWriterFlusherHijackerReaderFrom{wrapped}
+	case flusher && pusher && readerFrom:
+		return &responseWriterFlusherPusherReaderFrom{wrapped}
+	case hijacker && pusher && readerFrom:
+		return &responseWriterHijackerPusherReaderFrom{wrapped}
+	case flusher && hijacker:
+		return &responseWriterFlusherHijacker{wrapped}
+	case flusher && pusher:
+		return &responseWriterFlusherPusher{wrapped}
+	case flusher && readerFrom:
+		return &responseWriterFlusherReaderFrom{wrapped}
+	case hijacker && pusher:
+		return &responseWriterHijackerPusher{wrapped}
+	case hijacker && readerFrom:
+		return &responseWriterHijackerReaderFrom{wrapped}
+	case pusher && readerFrom:
+		return &responseWriterPusherReaderFrom{wrapped}
+	case flusher:
+		return &ResponseWriterFlusher{ResponseWriter: wrapped, Flusher: writer.(http.Flusher)}
+	case hijacker:
+		return &responseWriterHijacker{wrapped}
+	case pusher:
+		return &responseWriterPusher{wrapped}
+	case readerFrom:
+		return &responseWriterReaderFrom{wrapped}
+	default:
+		return wrapped
+	}
 }
 
 // WriteHeaderCalled reports whether WriteHeader has already
@@ -133,6 +323,30 @@ func (writer *ResponseWriter) Write(content []byte) (int, error) {
 	}
 
 	return writer.ResponseWriter.Write(content)
+}
+
+func flushResponseWriter(writer *ResponseWriter) {
+	if !writer.WriteHeaderCalled() {
+		writer.WriteHeader(http.StatusOK)
+	}
+
+	writer.ResponseWriter.(http.Flusher).Flush()
+}
+
+func (writer *ResponseWriter) hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return writer.ResponseWriter.(http.Hijacker).Hijack()
+}
+
+func (writer *ResponseWriter) push(target string, options *http.PushOptions) error {
+	return writer.ResponseWriter.(http.Pusher).Push(target, options)
+}
+
+func (writer *ResponseWriter) readFrom(reader io.Reader) (int64, error) {
+	return io.Copy(writerOnly{writer}, reader)
+}
+
+type writerOnly struct {
+	io.Writer
 }
 
 func (writer *ResponseWriter) logHookPanic(message string, recovered any) {
