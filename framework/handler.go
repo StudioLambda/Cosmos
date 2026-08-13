@@ -142,7 +142,7 @@ func (handler Handler) ServeHTTP(
 
 	if err != nil {
 		if wrapped.WriteHeaderCalled() {
-			request.Logger(r).ErrorContext(
+			request.Logger(requestContext).ErrorContext(
 				requestContext.Context(),
 				"handler error after partial response write",
 				"method", r.Method,
@@ -162,7 +162,7 @@ func (handler Handler) ServeHTTP(
 		func() {
 			defer func() {
 				if recovered := recover(); recovered != nil {
-					request.Logger(r).ErrorContext(
+					request.Logger(requestContext).ErrorContext(
 						requestContext.Context(),
 						"after response hook panicked",
 						"error", recovered,
