@@ -5,7 +5,6 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
@@ -59,6 +58,9 @@ type SQSDriverConfig struct {
 	// MaxMessages controls the maximum number of messages received per poll. A
 	// zero value uses one message.
 	MaxMessages int32
+
+	// Logger records delivery failures. A nil logger discards records.
+	Logger *contract.Logger
 }
 
 // DefaultSQSDriverConfig returns SQS driver defaults.
@@ -81,6 +83,7 @@ type Driver struct {
 	failureQueueURL string
 	waitTimeSeconds int32
 	maxMessages     int32
+	logger          *contract.Logger
 }
 
 // New creates an SQS job driver and its AWS SDK client.
@@ -135,6 +138,7 @@ func newFrom(client client, config SQSDriverConfig) (*Driver, error) {
 		failureQueueURL: config.FailureQueueURL,
 		waitTimeSeconds: config.WaitTimeSeconds,
 		maxMessages:     config.MaxMessages,
+		logger:          driverLogger(config.Logger),
 	}, nil
 }
 
@@ -207,13 +211,13 @@ func (driver *Driver) handle(ctx context.Context, queue, queueURL string, receiv
 	if err != nil {
 		delivery := newDelivery(driver, queueURL, received, contract.JobMessage{})
 		if delivery == nil {
-			slog.Error("invalid SQS job delivery", "error", err, "queue", queue)
+			driver.logger.Error("invalid SQS job delivery", "error", err, "queue", queue)
 
 			return
 		}
 
 		if failureErr := delivery.fail(ctx, err, stringPointer(received.Body)); failureErr != nil {
-			slog.Error("failed invalid SQS job message", "error", failureErr, "queue", queue)
+			driver.logger.Error("failed invalid SQS job message", "error", failureErr, "queue", queue)
 		}
 
 		return
@@ -221,13 +225,13 @@ func (driver *Driver) handle(ctx context.Context, queue, queueURL string, receiv
 
 	delivery := newDelivery(driver, queueURL, received, message)
 	if delivery == nil {
-		slog.Error("invalid SQS job delivery", "error", ErrInvalidDelivery, "queue", queue, "job_id", message.ID)
+		driver.logger.Error("invalid SQS job delivery", "error", ErrInvalidDelivery, "queue", queue, "job_id", message.ID)
 
 		return
 	}
 
 	if err := handler(ctx, delivery); err != nil {
-		slog.Error("SQS job delivery handler failed", "error", err, "queue", queue, "job_id", message.ID)
+		driver.logger.Error("SQS job delivery handler failed", "error", err, "queue", queue, "job_id", message.ID)
 	}
 }
 
@@ -348,10 +352,18 @@ func (delivery *delivery) fail(ctx context.Context, err error, rawMessage string
 			return fmt.Errorf("send job failure: %w", sendErr)
 		}
 	} else {
-		slog.Error("SQS job delivery failed", "error", err, "queue", delivery.message.Queue, "job_id", delivery.message.ID)
+		delivery.driver.logger.Error("SQS job delivery failed", "error", err, "queue", delivery.message.Queue, "job_id", delivery.message.ID)
 	}
 
 	return delivery.delete(ctx)
+}
+
+func driverLogger(logger *contract.Logger) *contract.Logger {
+	if logger == nil {
+		return contract.NewLogger(nil)
+	}
+
+	return logger
 }
 
 func (delivery *delivery) delete(ctx context.Context) error {
