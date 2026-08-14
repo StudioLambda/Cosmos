@@ -5,7 +5,6 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"fmt"
-	"log/slog"
 	"maps"
 	"math"
 	"slices"
@@ -89,6 +88,9 @@ type DriverConfig struct {
 	// acknowledged. When empty, Fail terminally rejects the original delivery; any
 	// resulting dead-lettering depends on broker policy.
 	FailureQueue string
+
+	// Logger records delivery failures. A nil logger discards records.
+	Logger *contract.Logger
 }
 
 // DefaultDriverConfig returns the default AMQP job driver configuration.
@@ -116,6 +118,7 @@ type Driver struct {
 
 	mu     sync.Mutex
 	closed bool
+	logger *contract.Logger
 }
 
 // New connects to RabbitMQ, declares the configured durable topology, and returns a
@@ -176,7 +179,7 @@ func newFrom(config DriverConfig, connection *amqp091.Connection, owned bool) (*
 		return nil, fmt.Errorf("enable AMQP publisher confirms: %w", err)
 	}
 
-	return &Driver{connection: connection, publisher: publisher, confirms: publisher.NotifyPublish(make(chan amqp091.Confirmation, 1)), config: config, queues: maps.Clone(config.Queues), owned: owned}, nil
+	return &Driver{connection: connection, publisher: publisher, confirms: publisher.NotifyPublish(make(chan amqp091.Confirmation, 1)), config: config, queues: maps.Clone(config.Queues), owned: owned, logger: driverLogger(config.Logger)}, nil
 }
 
 // Dispatch serializes message as a [contract.JobMessage] and persistently publishes
@@ -250,15 +253,23 @@ func (driver *Driver) handle(ctx context.Context, queue string, channel *amqp091
 	if err != nil {
 		delivery.message.ID = received.MessageId
 		if failureErr := delivery.Fail(ctx, err); failureErr != nil {
-			slog.Error("failed malformed AMQP job delivery", "error", failureErr, "queue", queue)
+			driver.logger.Error("failed malformed AMQP job delivery", "error", failureErr, "queue", queue)
 		}
 
 		return
 	}
 
 	if err := handler(ctx, delivery); err != nil {
-		slog.Error("AMQP job delivery handler failed", "error", err, "queue", queue, "job_id", message.ID)
+		driver.logger.Error("AMQP job delivery handler failed", "error", err, "queue", queue, "job_id", message.ID)
 	}
+}
+
+func driverLogger(logger *contract.Logger) *contract.Logger {
+	if logger == nil {
+		return contract.NewLogger(nil)
+	}
+
+	return logger
 }
 
 func (driver *Driver) queue(name string) (QueueConfig, error) {
