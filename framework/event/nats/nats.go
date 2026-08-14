@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -47,8 +46,9 @@ type NATSBroker struct {
 	// conn is the underlying NATS connection.
 	// It handles all communication with the NATS server including publishing,
 	// subscribing, and maintaining the connection lifecycle.
-	conn  *nats.Conn
-	owned bool
+	conn   *nats.Conn
+	owned  bool
+	logger *contract.Logger
 }
 
 // NATSBrokerConfig configures a NATS broker connection.
@@ -115,6 +115,9 @@ type NATSBrokerConfig struct {
 	// RootCAs is a list of paths to root CA certificate files.
 	// Used to verify the NATS server's certificate when using TLS.
 	RootCAs []string
+
+	// Logger records recovered handler panics. A nil logger discards records.
+	Logger *contract.Logger
 }
 
 // NATSBrokerRuntime holds runtime-only NATS broker settings.
@@ -209,7 +212,7 @@ func NewNATSBrokerWith(config NATSBrokerConfig, runtime NATSBrokerRuntime) (*NAT
 		return nil, err
 	}
 
-	return &NATSBroker{conn: conn, owned: true}, nil
+	return &NATSBroker{conn: conn, owned: true, logger: eventLogger(config.Logger)}, nil
 }
 
 // NewNATSBrokerFrom creates a new NATS broker from an existing connection.
@@ -218,7 +221,8 @@ func NewNATSBrokerWith(config NATSBrokerConfig, runtime NATSBrokerRuntime) (*NAT
 // ownership of conn.
 func NewNATSBrokerFrom(conn *nats.Conn) *NATSBroker {
 	return &NATSBroker{
-		conn: conn,
+		conn:   conn,
+		logger: eventLogger(nil),
 	}
 }
 
@@ -263,7 +267,7 @@ func (broker *NATSBroker) Subscribe(
 		sub, err := broker.conn.Subscribe(subject, func(msg *nats.Msg) {
 			defer func() {
 				if r := recover(); r != nil {
-					slog.Error("panic in nats event handler", "subject", subject, "panic", fmt.Sprint(r))
+					broker.logger.Error("panic in nats event handler", "subject", subject, "panic", fmt.Sprint(r))
 				}
 			}()
 
@@ -290,6 +294,14 @@ func (broker *NATSBroker) Subscribe(
 
 		return errors.Join(errs...)
 	}, nil
+}
+
+func eventLogger(logger *contract.Logger) *contract.Logger {
+	if logger == nil {
+		return contract.NewLogger(nil)
+	}
+
+	return logger
 }
 
 // Ping verifies that the NATS connection is still alive.
