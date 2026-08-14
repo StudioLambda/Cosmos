@@ -3,7 +3,6 @@ package memory
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -24,6 +23,9 @@ type MemoryBrokerConfig struct {
 	// MaxConcurrentDeliveries is the maximum number of concurrent
 	// handler goroutines allowed per MemoryBroker.
 	MaxConcurrentDeliveries int
+
+	// Logger records recovered handler panics. A nil logger discards records.
+	Logger *contract.Logger
 }
 
 // DefaultMemoryBrokerConfig holds the default in-memory event broker
@@ -53,6 +55,7 @@ type MemoryBroker struct {
 	closed    atomic.Bool
 	sem       chan struct{}
 	wg        sync.WaitGroup
+	logger    *contract.Logger
 }
 
 // NewMemoryBroker creates a new in-memory event broker.
@@ -61,9 +64,14 @@ func NewMemoryBroker(config MemoryBrokerConfig) *MemoryBroker {
 		config.MaxConcurrentDeliveries = DefaultMemoryBrokerConfig.MaxConcurrentDeliveries
 	}
 
+	if config.Logger == nil {
+		config.Logger = contract.NewLogger(nil)
+	}
+
 	return &MemoryBroker{
 		handlers: make(map[string]map[string]contract.EventHandler),
 		sem:      make(chan struct{}, config.MaxConcurrentDeliveries),
+		logger:   config.Logger,
 	}
 }
 
@@ -215,7 +223,7 @@ func (broker *MemoryBroker) deliverToHandler(
 ) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			slog.Error(
+			broker.logger.Error(
 				"event handler panicked",
 				"error", recovered,
 			)

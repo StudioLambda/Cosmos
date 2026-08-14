@@ -10,11 +10,30 @@ import (
 	"testing"
 	"time"
 
+	"github.com/studiolambda/cosmos/contract"
 	core "github.com/studiolambda/cosmos/framework/event/internal/event"
 	event "github.com/studiolambda/cosmos/framework/event/memory"
 
 	"github.com/stretchr/testify/require"
 )
+
+type loggerDriver struct {
+	errors chan string
+}
+
+func (driver loggerDriver) DebugContext(context.Context, string, ...any) {}
+
+func (driver loggerDriver) InfoContext(context.Context, string, ...any) {}
+
+func (driver loggerDriver) WarnContext(context.Context, string, ...any) {}
+
+func (driver loggerDriver) ErrorContext(_ context.Context, message string, _ ...any) {
+	driver.errors <- message
+}
+
+func (driver loggerDriver) With(...any) contract.LoggerDriver {
+	return driver
+}
 
 func TestMemoryBrokerPublishAndSubscribe(t *testing.T) {
 	t.Parallel()
@@ -55,6 +74,32 @@ func TestMemoryBrokerPublishAndSubscribe(t *testing.T) {
 	wg.Wait()
 
 	require.Equal(t, "hello", received)
+}
+
+func TestMemoryBrokerLogsRecoveredHandlerPanic(t *testing.T) {
+	t.Parallel()
+
+	logs := make(chan string, 1)
+	broker := event.NewMemoryBroker(event.MemoryBrokerConfig{
+		Logger: contract.NewLogger(loggerDriver{errors: logs}),
+	})
+
+	t.Cleanup(func() {
+		_ = broker.Shutdown(context.Background())
+	})
+
+	_, err := broker.Subscribe(context.Background(), "user.created", func([]byte) {
+		panic("unexpected")
+	})
+	require.NoError(t, err)
+	require.NoError(t, broker.Publish(context.Background(), "user.created", nil))
+
+	select {
+	case message := <-logs:
+		require.Equal(t, "event handler panicked", message)
+	case <-time.After(time.Second):
+		t.Fatal("expected recovered handler panic to be logged")
+	}
 }
 
 func TestMemoryBrokerWildcardStar(t *testing.T) {
