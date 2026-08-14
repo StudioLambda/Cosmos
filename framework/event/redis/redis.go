@@ -3,7 +3,6 @@ package redis
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"strings"
 	"sync"
 
@@ -21,6 +20,7 @@ type RedisBroker struct {
 	client *redis.Client
 	owned  bool
 	wg     sync.WaitGroup
+	logger *contract.Logger
 }
 
 // RedisBrokerConfig configures the Redis pub/sub event broker.
@@ -40,6 +40,9 @@ type RedisBrokerConfig struct {
 
 	// DB is the Redis logical database number.
 	DB int
+
+	// Logger records recovered handler panics. A nil logger discards records.
+	Logger *contract.Logger
 }
 
 // DefaultRedisBrokerConfig holds the default Redis event broker configuration.
@@ -61,7 +64,7 @@ func NewRedisBroker(config RedisBrokerConfig) *RedisBroker {
 		DB:       config.DB,
 	})
 
-	return &RedisBroker{client: client, owned: true}
+	return &RedisBroker{client: client, owned: true, logger: brokerLogger(config.Logger)}
 }
 
 func (config RedisBrokerConfig) withDefaults() RedisBrokerConfig {
@@ -82,6 +85,7 @@ func (config RedisBrokerConfig) withDefaults() RedisBrokerConfig {
 func NewRedisBrokerFrom(client *redis.Client) *RedisBroker {
 	return &RedisBroker{
 		client: client,
+		logger: brokerLogger(nil),
 	}
 }
 
@@ -117,7 +121,7 @@ func (broker *RedisBroker) Subscribe(
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						slog.Error("panic in redis event handler", "event", event, "panic", fmt.Sprint(r))
+						broker.logger.Error("panic in redis event handler", "event", event, "panic", fmt.Sprint(r))
 					}
 				}()
 
@@ -129,6 +133,14 @@ func (broker *RedisBroker) Subscribe(
 	return func() error {
 		return sub.Close()
 	}, nil
+}
+
+func brokerLogger(logger *contract.Logger) *contract.Logger {
+	if logger == nil {
+		return contract.NewLogger(nil)
+	}
+
+	return logger
 }
 
 // redisPattern returns a Redis glob broad enough to receive every channel that
