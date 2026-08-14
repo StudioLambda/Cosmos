@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -35,6 +34,9 @@ var (
 type MemoryDriverConfig struct {
 	// RetryDelay is used when a delivery requests a retry with a zero delay.
 	RetryDelay time.Duration
+
+	// Logger records delivery failures. A nil logger discards records.
+	Logger *contract.Logger
 }
 
 // DefaultMemoryDriverConfig holds the default in-memory job driver configuration.
@@ -56,6 +58,7 @@ type MemoryDriver struct {
 	nextID        atomic.Uint64
 	active        sync.WaitGroup
 	schedulerDone chan struct{}
+	logger        *contract.Logger
 }
 
 type queue struct {
@@ -108,6 +111,7 @@ func NewMemoryDriver(config MemoryDriverConfig) *MemoryDriver {
 		done:          make(chan struct{}),
 		retryDelay:    config.RetryDelay,
 		schedulerDone: make(chan struct{}),
+		logger:        driverLogger(config.Logger),
 	}
 
 	go driver.schedule()
@@ -254,17 +258,17 @@ func (driver *MemoryDriver) handle(ctx context.Context, handler contract.JobDeli
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			err = fmt.Errorf("job delivery handler panicked: %v", recovered)
-			slog.Error("job delivery handler panicked", "error", recovered, "job_id", delivery.message.ID, "queue", delivery.message.Queue)
+			driver.logger.Error("job delivery handler panicked", "error", recovered, "job_id", delivery.message.ID, "queue", delivery.message.Queue)
 		}
 
 		if err != nil {
-			slog.Error("job delivery handler failed", "error", err, "job_id", delivery.message.ID, "queue", delivery.message.Queue)
+			driver.logger.Error("job delivery handler failed", "error", err, "job_id", delivery.message.ID, "queue", delivery.message.Queue)
 			_ = delivery.Fail(context.Background(), err)
 		}
 
 		if !delivery.settled() {
 			err = ErrDeliveryUnsettled
-			slog.Error("job delivery handler did not settle delivery", "job_id", delivery.message.ID, "queue", delivery.message.Queue)
+			driver.logger.Error("job delivery handler did not settle delivery", "job_id", delivery.message.ID, "queue", delivery.message.Queue)
 			_ = delivery.Fail(context.Background(), err)
 		}
 	}()
@@ -451,11 +455,19 @@ func (delivery *memoryDelivery) Reject(ctx context.Context) error {
 func (delivery *memoryDelivery) Fail(ctx context.Context, err error) error {
 	return delivery.settle(ctx, func() error {
 		if err != nil {
-			slog.Error("job delivery failed", "error", err, "job_id", delivery.message.ID, "queue", delivery.message.Queue)
+			delivery.driver.logger.Error("job delivery failed", "error", err, "job_id", delivery.message.ID, "queue", delivery.message.Queue)
 		}
 
 		return nil
 	})
+}
+
+func driverLogger(logger *contract.Logger) *contract.Logger {
+	if logger == nil {
+		return contract.NewLogger(nil)
+	}
+
+	return logger
 }
 
 func (delivery *memoryDelivery) settle(ctx context.Context, operation func() error) error {
