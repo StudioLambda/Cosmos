@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"sync"
 
 	"github.com/studiolambda/cosmos/contract"
@@ -40,6 +39,8 @@ type AMQPBroker struct {
 
 	// mu protects concurrent access to the publish channel.
 	mu sync.Mutex
+
+	logger *contract.Logger
 }
 
 // AMQPBrokerConfig configures the creation of a new AMQPBroker,
@@ -63,6 +64,9 @@ type AMQPBrokerConfig struct {
 	// Exchange is the name of the topic exchange to use for events.
 	// If empty, DefaultAMQPExchange is used.
 	Exchange string
+
+	// Logger records recovered handler panics. A nil logger discards records.
+	Logger *contract.Logger
 }
 
 // DefaultAMQPExchange is the default name for the topic exchange
@@ -154,6 +158,7 @@ func newAMQPBrokerFrom(conn *amqp091.Connection, config AMQPBrokerConfig, owned 
 		pubCh:    pubCh,
 		exchange: exchange,
 		owned:    owned,
+		logger:   brokerLogger(config.Logger),
 	}, nil
 }
 
@@ -290,7 +295,7 @@ func (broker *AMQPBroker) Subscribe(
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						slog.Error("panic in amqp event handler", "event", event, "panic", fmt.Sprint(r))
+						broker.logger.Error("panic in amqp event handler", "event", event, "panic", fmt.Sprint(r))
 					}
 				}()
 
@@ -304,6 +309,14 @@ func (broker *AMQPBroker) Subscribe(
 
 		return ch.Close()
 	}, nil
+}
+
+func brokerLogger(logger *contract.Logger) *contract.Logger {
+	if logger == nil {
+		return contract.NewLogger(nil)
+	}
+
+	return logger
 }
 
 // Ping verifies that the AMQP connection is still alive.
