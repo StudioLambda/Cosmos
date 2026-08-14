@@ -7,7 +7,6 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"strings"
 	"sync"
@@ -84,6 +83,9 @@ type Config struct {
 	// MaxDeliver caps deliveries for provisioned consumers. Zero leaves the
 	// JetStream server default in effect.
 	MaxDeliver int
+
+	// Logger records delivery failures. A nil logger discards records.
+	Logger *contract.Logger
 }
 
 // DefaultConfig returns JetStream job driver defaults. Callers must set Stream and Queues.
@@ -108,6 +110,7 @@ type Driver struct {
 	owned          bool
 	mu             sync.Mutex
 	closed         bool
+	logger         *contract.Logger
 }
 
 // New connects to NATS, provisions or validates JetStream resources, and
@@ -175,6 +178,7 @@ func newFrom(conn *nats.Conn, config Config, owned bool) (*Driver, error) {
 		jetStream:      jetStream,
 		connection:     conn,
 		owned:          owned,
+		logger:         driverLogger(config.Logger),
 	}, nil
 }
 
@@ -295,14 +299,14 @@ func (driver *Driver) handle(ctx context.Context, queue string, received *nats.M
 	if err != nil {
 		delivery := newDelivery(driver, received, contract.JobMessage{})
 		if delivery == nil {
-			slog.Error("invalid JetStream job delivery", "error", err, "queue", queue)
+			driver.logger.Error("invalid JetStream job delivery", "error", err, "queue", queue)
 
 			return
 		}
 		delivery.rawMessage = string(received.Data)
 
 		if failureErr := delivery.Fail(ctx, err); failureErr != nil {
-			slog.Error("failed invalid JetStream job message", "error", failureErr, "queue", queue)
+			driver.logger.Error("failed invalid JetStream job message", "error", failureErr, "queue", queue)
 		}
 
 		return
@@ -310,13 +314,13 @@ func (driver *Driver) handle(ctx context.Context, queue string, received *nats.M
 
 	delivery := newDelivery(driver, received, message)
 	if delivery == nil {
-		slog.Error("invalid JetStream job delivery", "error", ErrInvalidDelivery, "queue", queue, "job_id", message.ID)
+		driver.logger.Error("invalid JetStream job delivery", "error", ErrInvalidDelivery, "queue", queue, "job_id", message.ID)
 
 		return
 	}
 
 	if err := handler(ctx, delivery); err != nil {
-		slog.Error("JetStream job delivery handler failed", "error", err, "queue", queue, "job_id", message.ID)
+		driver.logger.Error("JetStream job delivery handler failed", "error", err, "queue", queue, "job_id", message.ID)
 	}
 }
 
@@ -586,7 +590,7 @@ func (delivery *delivery) Fail(ctx context.Context, err error) error {
 
 func (delivery *delivery) publishFailure(ctx context.Context, err error) error {
 	if delivery.driver.failureSubject == "" {
-		slog.Error("JetStream job delivery failed", "error", err, "queue", delivery.message.Queue, "job_id", delivery.message.ID)
+		delivery.driver.logger.Error("JetStream job delivery failed", "error", err, "queue", delivery.message.Queue, "job_id", delivery.message.ID)
 
 		return nil
 	}
@@ -608,6 +612,14 @@ func (delivery *delivery) publishFailure(ctx context.Context, err error) error {
 	}
 
 	return nil
+}
+
+func driverLogger(logger *contract.Logger) *contract.Logger {
+	if logger == nil {
+		return contract.NewLogger(nil)
+	}
+
+	return logger
 }
 
 func (delivery *delivery) settle(ctx context.Context, operation func() error) error {
