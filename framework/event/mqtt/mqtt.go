@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/url"
 	"strconv"
 	"strings"
@@ -73,6 +72,8 @@ type MQTTBroker struct {
 	// routeWg tracks in-flight handler deliveries so Close
 	// can wait for them to complete.
 	routeWg sync.WaitGroup
+
+	logger *contract.Logger
 }
 
 // MQTTBrokerConfig configures the creation of a new MQTTBroker,
@@ -110,6 +111,9 @@ type MQTTBrokerConfig struct {
 	// KeepAlive is the interval in seconds for keep-alive pings
 	// to maintain the connection. Default: 30
 	KeepAlive uint16
+
+	// Logger records recovered handler panics. A nil logger discards records.
+	Logger *contract.Logger
 }
 
 // DefaultMQTTBrokerConfig returns the default MQTT broker configuration.
@@ -205,6 +209,7 @@ func NewMQTTBroker(config MQTTBrokerConfig) (*MQTTBroker, error) {
 		handlers:      make(map[string]map[string]contract.EventHandler),
 		subscriptions: make(map[string]bool),
 		sem:           make(chan struct{}, defaultMaxConcurrentDeliveries),
+		logger:        brokerLogger(config.Logger),
 	}
 
 	cfg := autopaho.ClientConfig{
@@ -262,6 +267,7 @@ func NewMQTTBrokerFrom(
 		handlers:      make(map[string]map[string]contract.EventHandler),
 		subscriptions: make(map[string]bool),
 		sem:           make(chan struct{}, defaultMaxConcurrentDeliveries),
+		logger:        brokerLogger(nil),
 	}
 }
 
@@ -329,7 +335,7 @@ func (broker *MQTTBroker) route(pb *paho.Publish) {
 
 			defer func() {
 				if recovered := recover(); recovered != nil {
-					slog.Error(
+					broker.logError(
 						"event handler panicked",
 						"error", recovered,
 					)
@@ -349,7 +355,7 @@ func (broker *MQTTBroker) deliverToHandler(
 ) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			slog.Error(
+			broker.logError(
 				"mqtt event handler panicked",
 				"topic", topic,
 				"error", recovered,
@@ -358,6 +364,18 @@ func (broker *MQTTBroker) deliverToHandler(
 	}()
 
 	handler(payload)
+}
+
+func brokerLogger(logger *contract.Logger) *contract.Logger {
+	if logger == nil {
+		return contract.NewLogger(nil)
+	}
+
+	return logger
+}
+
+func (broker *MQTTBroker) logError(message string, args ...any) {
+	brokerLogger(broker.logger).Error(message, args...)
 }
 
 // Publish sends raw payload bytes to all subscribers of the named event.
