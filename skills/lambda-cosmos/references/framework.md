@@ -34,7 +34,7 @@ After-response hooks run at the end.
 
 ## Hooks lifecycle
 
-`framework.NewHooks()` provides request lifecycle hooks:
+`contract.NewHooks()` provides request lifecycle hooks:
 
 ```go
 hooks.BeforeWriteHeader(func(w http.ResponseWriter, status int) {
