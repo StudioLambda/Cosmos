@@ -118,9 +118,9 @@ For full details, load [references/problem.md](references/problem.md).
 
 `contract` exposes:
 
-- low-level backend interfaces: `CacheDriver`, `DatabaseDriver`, `EventDriver`, `SessionDriver`
-- typed wrappers: `*contract.Cache`, `*contract.Database`, `*contract.Events`
-- shared abstractions: `contract.Encrypter`, `contract.Hasher`, `contract.Hooks`, `*contract.Session`
+- low-level backend interfaces: `CacheDriver`, `DatabaseDriver`, `EventPublisherDriver`, `EventSubscriberDriver`, `SessionDriver`
+- typed wrappers: `*contract.Cache`, `*contract.Database`, `*contract.EventPublisher`, `*contract.EventSubscriber`
+- shared wrappers: `*contract.Encrypter`, `*contract.Hasher`, `contract.Hooks`, `*contract.Session`
 
 For signatures and usage, load [references/contract.md](references/contract.md).
 
@@ -149,7 +149,7 @@ body, err := request.StrictLimitedJSON[CreateUserInput](r, -1) // -1 => default 
 sess, ok := request.Session(r)
 if ok {
 	sess.Put("user_id", 123)
-	_ = sess.Regenerate() // after auth changes
+	sess.Regenerate() // after auth changes
 }
 
 if hooks, ok := request.TryHooks(r); ok {
@@ -175,7 +175,7 @@ middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(slog.Default())
 middleware.CSRF(middleware.CSRFConfig{TrustedOrigins: []string{"https://example.com"}})
 middleware.CORS(middleware.CORSConfig{})
 middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig)
-middleware.RateLimit(contract.NewCache(cache.NewMemory(cache.MemoryConfig{})), middleware.RateLimitConfig{})
+middleware.RateLimit(contract.NewCache(memory.NewMemory(memory.MemoryConfig{})), middleware.RateLimitConfig{})
 
 // Uses cache-backed fixed-window counters. Provide a custom cache
 // with middleware.RateLimitWith when you need cross-pod limits.
@@ -191,23 +191,24 @@ middleware before any code that reads sessions.
 ### Correlation
 
 ```go
-app.Use(correlation.Middleware())
-logger := slog.New(correlation.Handler(baseHandler))
-id := correlation.From(r)
+app.Use(middleware.Correlation(middleware.DefaultCorrelationConfig))
+id := request.CorrelationID(r)
+_ = id
 ```
 
 ### Sessions
 
 ```go
-driver := session.NewCacheDriver(contract.NewCache(cache.NewMemory(5*time.Minute, 10*time.Minute)))
-app.Use(session.Middleware(driver))
+cacheDriver := memory.NewMemory(memory.MemoryConfig{})
+driver := session.NewCacheDriver(contract.NewCache(cacheDriver), session.CacheDriverConfig{})
+app.Use(middleware.Session(driver, middleware.DefaultSessionConfig))
 ```
 
 ### Cache
 
 ```go
-memDriver := cache.NewMemory(5*time.Minute, 10*time.Minute)
-redisDriver := cache.NewRedis(&cache.RedisConfig{Addr: "localhost:6379"})
+memDriver := memory.NewMemory(memory.MemoryConfig{})
+redisDriver := redis.NewRedis(redis.RedisConfig{Addr: "localhost:6379"})
 
 c := contract.NewCache(memDriver)
 value, err := c.Remember(ctx, "key", time.Minute, computeFn)
@@ -218,8 +219,8 @@ _ = value
 ### Crypto
 
 ```go
-aes, err := crypto.NewAES(key)      // 16, 24, or 32 bytes
-cc, err := crypto.NewChaCha20(key)  // exactly 32 bytes
+aes, err := aes.NewAES(aes.AESConfig{Key: key})             // 16, 24, or 32 bytes
+cc, err := chacha20.NewChaCha20(chacha20.ChaCha20Config{Key: key}) // exactly 32 bytes
 ciphertext, err := aes.Encrypt(plaintext)
 _ = cc
 _ = ciphertext
@@ -228,8 +229,8 @@ _ = ciphertext
 ### Hash
 
 ```go
-argon := hash.NewArgon2()  // recommended
-bcrypt := hash.NewBcrypt() // compatibility
+argon := argon2.NewArgon2(argon2.DefaultArgon2Config()) // recommended
+bcrypt := bcrypt.NewBcrypt(bcrypt.DefaultBcryptConfig)  // compatibility
 hashed, err := argon.Hash(password)
 ok, err := argon.Check(password, hashed)
 _ = bcrypt
@@ -239,7 +240,7 @@ _ = ok
 ### Database
 
 ```go
-driver, err := database.NewSQL("postgres", connString)
+driver, err := postgres.New(postgres.Config{DSN: connString})
 db := contract.NewDatabase(driver)
 
 user, err := db.Find[User](ctx, "SELECT * FROM users WHERE id = $1", id)
@@ -255,10 +256,11 @@ _ = user
 ### Events
 
 ```go
-driver := event.NewMemoryBroker()
-ev := contract.NewEvents(driver)
+driver := memory.NewMemoryBroker(memory.MemoryBrokerConfig{})
+publisher := contract.NewEventPublisher(driver)
+subscriber := contract.NewEventSubscriber(driver)
 
-unsubscribe, err := ev.Subscribe[UserCreated](ctx, "user.created", func(decode contract.EventDecoder[UserCreated]) {
+unsubscribe, err := subscriber.Subscribe[UserCreated](ctx, "user.created", func(decode contract.EventDecoder[UserCreated]) {
 	msg, err := decode()
 	if err != nil {
 		return
@@ -268,9 +270,9 @@ unsubscribe, err := ev.Subscribe[UserCreated](ctx, "user.created", func(decode c
 if err != nil {
 	return
 }
-defer unsubscribe()
+defer func() { _ = unsubscribe() }()
 
-_ = ev.Publish(ctx, "user.created", UserCreated{ID: 42})
+_ = publisher.Publish(ctx, "user.created", UserCreated{ID: 42})
 ```
 
 For complete framework subpackage coverage, load

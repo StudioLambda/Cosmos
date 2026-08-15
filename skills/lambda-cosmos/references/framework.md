@@ -100,7 +100,7 @@ app.Use(middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(slog.De
 app.Use(middleware.CSRF(middleware.CSRFConfig{TrustedOrigins: []string{"https://example.com"}}))
 app.Use(middleware.CORS(middleware.CORSConfig{}))
 app.Use(middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig))
-app.Use(middleware.RateLimit(contract.NewCache(cache.NewMemory(cache.MemoryConfig{})), middleware.RateLimitConfig{}))
+app.Use(middleware.RateLimit(contract.NewCache(memory.NewMemory(memory.MemoryConfig{})), middleware.RateLimitConfig{}))
 
 // Rate limiting uses cache-backed fixed-window counters.
 app.Use(middleware.Provide("db", db))
@@ -114,10 +114,8 @@ Recommended order near the top: Recover, Logger.
 ## Correlation package
 
 ```go
-app.Use(correlation.Middleware())
-logger := slog.New(correlation.Handler(baseHandler))
-id := correlation.From(r)
-_ = logger
+app.Use(middleware.Correlation(middleware.DefaultCorrelationConfig))
+id := request.CorrelationID(r)
 _ = id
 ```
 
@@ -125,27 +123,27 @@ _ = id
 
 ## Session package
 
-`session.Middleware` requires a `contract.SessionDriver`.
+`middleware.Session` requires a `contract.SessionDriver`.
 
 ### Cache-backed session driver setup
 
 ```go
-cacheDriver := cache.NewMemory(5*time.Minute, 10*time.Minute)
+cacheDriver := memory.NewMemory(memory.MemoryConfig{})
 typedCache := contract.NewCache(cacheDriver)
-sessionDriver := session.NewCacheDriver(typedCache)
+sessionDriver := session.NewCacheDriver(typedCache, session.CacheDriverConfig{})
 
-app.Use(session.Middleware(sessionDriver))
+app.Use(middleware.Session(sessionDriver, middleware.DefaultSessionConfig))
 ```
 
 Custom middleware options:
 
 ```go
-app.Use(session.MiddlewareWith(sessionDriver, session.MiddlewareConfig{
+app.Use(middleware.Session(sessionDriver, middleware.SessionConfig{
 	Name:            "my_session",
 	Path:            "/",
 	Domain:          "example.com",
 	Secure:          true,
-	SameSite:        http.SameSiteLaxMode,
+	SameSite:        "lax",
 	Partitioned:     false,
 	TTL:             24 * time.Hour,
 	MaxLifetime:     24 * time.Hour,
@@ -155,10 +153,10 @@ app.Use(session.MiddlewareWith(sessionDriver, session.MiddlewareConfig{
 
 Default constants:
 
-- `session.DefaultCookie`
-- `session.DefaultTTL`
-- `session.DefaultMaxLifetime`
-- `session.DefaultExpirationDelta`
+- `middleware.DefaultSessionCookie`
+- `middleware.DefaultSessionTTL`
+- `middleware.DefaultSessionMaxLifetime`
+- `middleware.DefaultSessionExpirationDelta`
 
 ---
 
@@ -168,8 +166,8 @@ Cache backends implement `contract.CacheDriver` (and counters when supported).
 Wrap with `contract.NewCache` for typed API.
 
 ```go
-memDriver := cache.NewMemory(5*time.Minute, 10*time.Minute)
-redisDriver := cache.NewRedis(&cache.RedisConfig{Addr: "localhost:6379"})
+memDriver := memory.NewMemory(memory.MemoryConfig{})
+redisDriver := redis.NewRedis(redis.RedisConfig{Addr: "localhost:6379"})
 
 c := contract.NewCache(memDriver)
 value, err := c.Remember(ctx, "key", time.Minute, func() (string, error) {
@@ -188,7 +186,7 @@ _ = value
 ## Crypto package
 
 ```go
-aes, err := crypto.NewAES(key)      // key: 16/24/32 bytes
+aes, err := aes.NewAES(aes.AESConfig{Key: key}) // key: 16/24/32 bytes
 if err != nil {
 	return err
 }
@@ -201,7 +199,7 @@ if err != nil {
 	return err
 }
 
-cc, err := crypto.NewChaCha20(chachaKey) // key: 32 bytes
+cc, err := chacha20.NewChaCha20(chacha20.ChaCha20Config{Key: chachaKey}) // key: 32 bytes
 if err != nil {
 	return err
 }
@@ -216,8 +214,8 @@ _ = cc
 ## Hash package
 
 ```go
-argon := hash.NewArgon2()
-bcryptHasher := hash.NewBcrypt() // default cost = hash.DefaultBcryptCost (12)
+argon := argon2.NewArgon2(argon2.DefaultArgon2Config())
+bcryptHasher := bcrypt.NewBcrypt(bcrypt.DefaultBcryptConfig) // default cost = bcrypt.DefaultBcryptCost (12)
 
 hashed, err := argon.Hash(password)
 if err != nil {
@@ -249,7 +247,7 @@ _ = ok
 Use `contract.NewDatabase` for typed convenience.
 
 ```go
-sqlDriver, err := database.NewSQL("postgres", dsn)
+sqlDriver, err := postgres.New(postgres.Config{DSN: dsn})
 if err != nil {
 	return err
 }
@@ -275,21 +273,24 @@ _ = user
 
 ## Event package
 
-Brokers in `framework/event` implement `contract.EventDriver`:
+Brokers in `framework/event` implement `contract.EventPublisherDriver` and
+`contract.EventSubscriberDriver`:
 
-- Memory: `event.NewMemoryBroker()`
-- Redis: `event.NewRedisBroker(...)`
-- NATS: `event.NewNATSBroker(...)`
-- AMQP: `event.NewAMQPBroker(...)`
-- MQTT: `event.NewMQTTBroker(...)`
+- Memory: `memory.NewMemoryBroker(memory.MemoryBrokerConfig{})`
+- Redis: `redis.NewRedisBroker(redis.RedisBrokerConfig{})`
+- NATS: `nats.NewNATSBroker(nats.NATSBrokerConfig{})`
+- AMQP: `amqp.NewAMQPBroker(amqp.AMQPBrokerConfig{})`
+- MQTT: `mqtt.NewMQTTBroker(mqtt.MQTTBrokerConfig{})`
 
-Use `contract.NewEvents` for typed JSON publish/subscribe:
+Use `contract.NewEventPublisher` and `contract.NewEventSubscriber` for typed
+JSON publish/subscribe:
 
 ```go
-driver := event.NewMemoryBroker()
-ev := contract.NewEvents(driver)
+driver := memory.NewMemoryBroker(memory.MemoryBrokerConfig{})
+publisher := contract.NewEventPublisher(driver)
+subscriber := contract.NewEventSubscriber(driver)
 
-ack, err := ev.Subscribe[UserCreated](ctx, "user.created", func(decode contract.EventDecoder[UserCreated]) {
+ack, err := subscriber.Subscribe[UserCreated](ctx, "user.created", func(decode contract.EventDecoder[UserCreated]) {
 	msg, err := decode()
 	if err != nil {
 		return
@@ -299,9 +300,9 @@ ack, err := ev.Subscribe[UserCreated](ctx, "user.created", func(decode contract.
 if err != nil {
 	return err
 }
-defer ack()
+defer func() { _ = ack() }()
 
-if err := ev.Publish(ctx, "user.created", UserCreated{ID: 42}); err != nil {
+if err := publisher.Publish(ctx, "user.created", UserCreated{ID: 42}); err != nil {
 	return err
 }
 ```
@@ -310,7 +311,7 @@ if err := ev.Publish(ctx, "user.created", UserCreated{ID: 42}); err != nil {
 
 ## Gotchas
 
-- `session.NewCacheDriver` expects `*contract.Cache`, not a raw cache driver.
+- `session.NewCacheDriver` expects `*contract.Cache` and a `session.CacheDriverConfig`.
 - `contract.Database.WithTransaction` callback receives `*contract.Database`.
 - Framework handlers must return errors for centralized handling.
 - If a handler writes partial response and then errors, framework logs the error (cannot safely re-render response).

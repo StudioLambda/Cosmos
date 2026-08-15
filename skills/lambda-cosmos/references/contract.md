@@ -14,12 +14,12 @@ There are two layers:
 1. **Driver interfaces** for backend adapters:
    - `CacheDriver`
    - `DatabaseDriver`
-   - `EventDriver`
+   - `EventPublisherDriver` / `EventSubscriberDriver`
    - `SessionDriver`
 2. **Typed wrappers** over drivers:
    - `*contract.Cache`
    - `*contract.Database`
-   - `*contract.Events`
+   - `*contract.EventPublisher` / `*contract.EventSubscriber`
 
 Plus shared abstractions:
 
@@ -40,23 +40,25 @@ type CacheDriver interface {
 	Put(ctx context.Context, key string, value []byte, ttl time.Duration) error
 	Delete(ctx context.Context, key string) error
 	Has(ctx context.Context, key string) (bool, error)
-	Ping(ctx context.Context) error
+	Add(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error)
+	Increment(ctx context.Context, key string, delta int64) (int64, error)
+	Decrement(ctx context.Context, key string, delta int64) (int64, error)
+	TTL(ctx context.Context, key string) (time.Duration, error)
 }
 ```
 
-Optional atomic counters:
+Optional atomic increment with TTL:
 
 ```go
-type CacheCounter interface {
-	Increment(ctx context.Context, key string, delta int64) (int64, error)
-	Decrement(ctx context.Context, key string, delta int64) (int64, error)
+type CacheCounterWithTTL interface {
+	IncrementWithTTL(ctx context.Context, key string, delta int64, ttl time.Duration) (int64, time.Duration, error)
 }
 ```
 
 ### Typed wrapper
 
 ```go
-driver := cache.NewMemory(5*time.Minute, 10*time.Minute)
+driver := memory.NewMemory(memory.MemoryConfig{})
 c := contract.NewCache(driver)
 
 if err := c.Put(ctx, "users:1", User{ID: 1}, time.Minute); err != nil {
@@ -92,12 +94,12 @@ Sentinel errors:
 
 ```go
 type DatabaseDriver interface {
-	Close() error
-	Ping(ctx context.Context) error
 	Exec(ctx context.Context, query string, args ...any) (int64, error)
 	ExecNamed(ctx context.Context, query string, arg any) (int64, error)
 	Select(ctx context.Context, query string, dest any, args ...any) error
 	SelectNamed(ctx context.Context, query string, dest any, arg any) error
+	Query(ctx context.Context, query string, args ...any) (DatabaseRows, error)
+	QueryNamed(ctx context.Context, query string, arg any) (DatabaseRows, error)
 	Find(ctx context.Context, query string, dest any, args ...any) error
 	FindNamed(ctx context.Context, query string, dest any, arg any) error
 	WithTransaction(ctx context.Context, fn func(tx DatabaseDriver) error) error
@@ -107,7 +109,7 @@ type DatabaseDriver interface {
 ### Typed wrapper
 
 ```go
-driver, err := database.NewSQL("postgres", dsn)
+driver, err := postgres.New(postgres.Config{DSN: dsn})
 if err != nil {
 	return err
 }
@@ -119,7 +121,7 @@ if err != nil {
 	return err
 }
 
-users, err := db.Select[[]User](ctx, "SELECT * FROM users WHERE active = $1", true)
+users, err := db.Select[User](ctx, "SELECT * FROM users WHERE active = $1", true)
 if err != nil {
 	return err
 }
@@ -151,20 +153,23 @@ type EventHandler = func(payload []byte)
 type EventUnsubscribeFunc = func() error
 type EventDecoder[T any] = func() (T, error)
 
-type EventDriver interface {
+type EventPublisherDriver interface {
 	Publish(ctx context.Context, event string, payload []byte) error
+}
+
+type EventSubscriberDriver interface {
 	Subscribe(ctx context.Context, event string, handler EventHandler) (EventUnsubscribeFunc, error)
-	Close() error
 }
 ```
 
 ### Typed wrapper
 
 ```go
-driver := event.NewMemoryBroker()
-ev := contract.NewEvents(driver)
+driver := memory.NewMemoryBroker(memory.MemoryBrokerConfig{})
+publisher := contract.NewEventPublisher(driver)
+subscriber := contract.NewEventSubscriber(driver)
 
-unsubscribe, err := ev.Subscribe[UserCreated](ctx, "users.created", func(decode contract.EventDecoder[UserCreated]) {
+unsubscribe, err := subscriber.Subscribe[UserCreated](ctx, "users.created", func(decode contract.EventDecoder[UserCreated]) {
 	msg, err := decode()
 	if err != nil {
 		return
@@ -174,9 +179,9 @@ unsubscribe, err := ev.Subscribe[UserCreated](ctx, "users.created", func(decode 
 if err != nil {
 	return err
 }
-defer unsubscribe()
+defer func() { _ = unsubscribe() }()
 
-if err := ev.Publish(ctx, "users.created", UserCreated{ID: 1}); err != nil {
+if err := publisher.Publish(ctx, "users.created", UserCreated{ID: 1}); err != nil {
 	return err
 }
 ```
@@ -211,9 +216,7 @@ if err != nil {
 	return err
 }
 
-if err := session.Regenerate(); err != nil {
-	return err
-}
+session.Regenerate()
 
 _ = userID
 ```
@@ -225,13 +228,12 @@ Use `Regenerate()` after auth state changes.
 ## Crypto / Hash interfaces
 
 ```go
-type Encrypter interface {
+type EncrypterDriver interface {
 	Encrypt(value []byte) ([]byte, error)
 	Decrypt(value []byte) ([]byte, error)
-	Close() error
 }
 
-type Hasher interface {
+type HasherDriver interface {
 	Hash(value []byte) ([]byte, error)
 	Check(value []byte, hash []byte) (bool, error)
 }
@@ -241,8 +243,9 @@ type Rehashable interface {
 }
 ```
 
-`contract.ErrEncrypterClosed` is returned when `Encrypt` or `Decrypt` is
-called after `Close`.
+`contract.Encrypter` and `contract.Hasher` provide typed JSON operations over
+these drivers. Concrete encrypters also implement `Close`; after closing,
+`Encrypt` and `Decrypt` return `contract.ErrEncrypterClosed`.
 
 ---
 
@@ -326,7 +329,7 @@ Prefer `response.SafeRedirect` for user-influenced redirect targets.
 
 ## Gotchas
 
-- Use wrappers (`contract.NewCache`, `contract.NewDatabase`, `contract.NewEvents`) when you want typed generic operations.
+- Use wrappers (`contract.NewCache`, `contract.NewDatabase`, `contract.NewEventPublisher`, `contract.NewEventSubscriber`) when you want typed generic operations.
 - `request.MustSession` and `request.Hooks` panic if middleware/context is missing.
 - Session `Get[T]` returns `(T, error)`, not `(any, bool)`.
 - `response.JSON` uses `json.Encoder`, so output ends with a trailing newline.
