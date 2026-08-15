@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/contract/request"
 	"github.com/studiolambda/cosmos/framework"
 
@@ -53,4 +54,20 @@ func TestHandlerDoesNotPanicWhenAfterResponseHookPanics(t *testing.T) {
 	require.NotPanics(t, func() {
 		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
 	})
+}
+
+func TestHandlerInitializesRequestLogger(t *testing.T) {
+	t.Parallel()
+
+	handler := framework.Handler(func(_ http.ResponseWriter, r *http.Request) error {
+		logger := contract.NewLogger(nil)
+
+		request.SetLogger(r, logger)
+
+		require.Same(t, logger, request.Logger(r))
+
+		return nil
+	})
+
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
 }

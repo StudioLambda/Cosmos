@@ -25,6 +25,19 @@ func TestLoggerReturnsValueFromContext(t *testing.T) {
 	require.Same(t, logger, request.Logger(req))
 }
 
+func TestLoggerReturnsDiscardLoggerWhenContextMissing(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	logger := request.Logger(req)
+
+	require.NotNil(t, logger)
+	require.NotPanics(t, func() {
+		logger.InfoContext(req.Context(), "ignored")
+	})
+}
+
 func TestSetLoggerReplacesContextLogger(t *testing.T) {
 	t.Parallel()
 
