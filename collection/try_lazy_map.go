@@ -360,7 +360,7 @@ func (tryLazyMap TryLazyMap[K, V]) MapKeys[J comparable](f func(K, V) (J, error)
 	})
 }
 
-// LazyKeys returns a [TryLazySlice] yielding all keys.
+// LazyKeys returns an iterator yielding all keys and errors.
 func (tryLazyMap TryLazyMap[K, V]) LazyKeys() iter.Seq2[K, error] {
 	return func(yield func(K, error) bool) {
 		for entry, err := range tryLazyMap {
@@ -379,7 +379,7 @@ func (tryLazyMap TryLazyMap[K, V]) LazyKeys() iter.Seq2[K, error] {
 	}
 }
 
-// LazyValues returns a [TryLazySlice] yielding all values.
+// LazyValues returns an iterator yielding all values and errors.
 func (tryLazyMap TryLazyMap[K, V]) LazyValues() iter.Seq2[V, error] {
 	return func(yield func(V, error) bool) {
 		for entry, err := range tryLazyMap {
