@@ -63,7 +63,7 @@ type Middleware = router.Middleware[Handler] // func(Handler) Handler
 When a `framework.Handler` returns an error:
 
 1. `context.Canceled` / `context.DeadlineExceeded` -> status `499`.
-2. If error implements `framework.HTTPStatus` -> uses `HTTPStatus()`.
+2. If error implements `framework.HTTPStatusError` -> uses `HTTPStatus()`.
 3. If error implements `http.Handler` -> error renders itself.
 4. Otherwise -> `problem.NewDetails(err, status).ServeHTTP(...)`.
 

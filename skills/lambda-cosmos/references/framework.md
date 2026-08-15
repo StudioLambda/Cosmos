@@ -22,7 +22,7 @@ type Middleware = router.Middleware[Handler]
 For a returned error:
 
 1. `context.Canceled` / `context.DeadlineExceeded` -> status `499`.
-2. If error implements `framework.HTTPStatus` -> use that status.
+2. If error implements `framework.HTTPStatusError` -> use that status.
 3. If error implements `http.Handler` -> call `ServeHTTP` on the error.
 4. Else -> `problem.NewDetails(err, status)` and serve.
 
