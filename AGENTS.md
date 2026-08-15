@@ -152,11 +152,10 @@ Available in `framework/middleware`:
 - `Provide(key, value)` / `ProvideWith(fn)` — context injection
 - `HTTP(func(http.Handler) http.Handler)` — stdlib middleware adapter
 
-Correlation ID in `framework/correlation`:
+Correlation ID middleware in `framework/middleware`:
 
-- `Middleware()` / `MiddlewareWith(opts)` — ensures every request has a correlation ID (W3C traceparent, header, or generated)
-- `Handler(next)` — slog handler decorator that injects correlation ID into log records
-- `From(r)` — retrieves correlation ID from request context
+- `Correlation(config)` / `CorrelationWith(config, generate)` — ensures every request has a correlation ID (W3C traceparent, header, or generated)
+- `request.CorrelationID(r)` — retrieves the correlation ID from the request context
 
 Session middleware in `framework/session`:
 
@@ -228,7 +227,7 @@ Session middleware in `framework/session`:
 - Framework hooks: framework/hooks.go, framework/hooks_writer.go
 - Router: router/router.go
 - Problem: problem/problem.go
-- Correlation: framework/correlation/middleware.go, framework/correlation/handler.go
+- Correlation: framework/middleware/correlation.go, contract/request/correlation_id.go
 - Middleware: framework/middleware/\*.go
 - Session: framework/session/\*.go
 - Cache: framework/cache/memory.go, framework/cache/redis.go
