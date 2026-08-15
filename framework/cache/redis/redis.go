@@ -34,10 +34,12 @@ type RedisConfig struct {
 // using Redis as the backing store.
 type RedisClient redis.Client
 
-// DefaultRedisConfig holds the default Redis cache configuration.
-var DefaultRedisConfig = RedisConfig{
-	Network: "tcp",
-	Addr:    "localhost:6379",
+// DefaultRedisConfig returns the default Redis cache configuration.
+func DefaultRedisConfig() RedisConfig {
+	return RedisConfig{
+		Network: "tcp",
+		Addr:    "localhost:6379",
+	}
 }
 
 // NewRedis creates a RedisClient from the given connection configuration.
@@ -55,11 +57,11 @@ func NewRedis(config RedisConfig) *RedisClient {
 
 func (config RedisConfig) withDefaults() RedisConfig {
 	if config.Network == "" {
-		config.Network = DefaultRedisConfig.Network
+		config.Network = DefaultRedisConfig().Network
 	}
 
 	if config.Addr == "" {
-		config.Addr = DefaultRedisConfig.Addr
+		config.Addr = DefaultRedisConfig().Addr
 	}
 
 	return config

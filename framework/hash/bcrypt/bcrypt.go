@@ -31,9 +31,9 @@ type BcryptConfig struct {
 // to provide adequate resistance against brute-force attacks.
 const DefaultBcryptCost = 12
 
-// DefaultBcryptConfig holds the default bcrypt hasher configuration.
-var DefaultBcryptConfig = BcryptConfig{
-	Cost: DefaultBcryptCost,
+// DefaultBcryptConfig returns the default bcrypt hasher configuration.
+func DefaultBcryptConfig() BcryptConfig {
+	return BcryptConfig{Cost: DefaultBcryptCost}
 }
 
 // NewBcrypt creates a Bcrypt hasher with the given configuration,

@@ -97,7 +97,7 @@ func TestCORSNoOriginHeaderPassesThrough(t *testing.T) {
 
 	called := false
 	handler := middleware.CORS(
-		middleware.DefaultCORSConfig,
+		middleware.DefaultCORSConfig(),
 	)(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
@@ -112,6 +112,20 @@ func TestCORSNoOriginHeaderPassesThrough(t *testing.T) {
 
 	require.True(t, called)
 	require.Empty(t, res.Header.Get("Access-Control-Allow-Origin"))
+}
+
+func TestDefaultCORSConfigReturnsIndependentSlices(t *testing.T) {
+	t.Parallel()
+
+	first := middleware.DefaultCORSConfig()
+	second := middleware.DefaultCORSConfig()
+	first.AllowedOrigins[0] = "https://example.com"
+	first.AllowedMethods[0] = http.MethodDelete
+	first.AllowedHeaders[0] = "Authorization"
+
+	require.Equal(t, "*", second.AllowedOrigins[0])
+	require.Equal(t, http.MethodGet, second.AllowedMethods[0])
+	require.Equal(t, "Accept", second.AllowedHeaders[0])
 }
 
 func TestCORSWildcardOriginSetsStarHeader(t *testing.T) {

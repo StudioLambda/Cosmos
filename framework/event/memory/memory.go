@@ -28,10 +28,9 @@ type MemoryBrokerConfig struct {
 	Logger *contract.Logger
 }
 
-// DefaultMemoryBrokerConfig holds the default in-memory event broker
-// configuration.
-var DefaultMemoryBrokerConfig = MemoryBrokerConfig{
-	MaxConcurrentDeliveries: DefaultMaxConcurrentDeliveries,
+// DefaultMemoryBrokerConfig returns the default in-memory event broker configuration.
+func DefaultMemoryBrokerConfig() MemoryBrokerConfig {
+	return MemoryBrokerConfig{MaxConcurrentDeliveries: DefaultMaxConcurrentDeliveries}
 }
 
 // FromConfiguration populates the memory-broker configuration from configuration.
@@ -61,7 +60,7 @@ type MemoryBroker struct {
 // NewMemoryBroker creates a new in-memory event broker.
 func NewMemoryBroker(config MemoryBrokerConfig) *MemoryBroker {
 	if config.MaxConcurrentDeliveries == 0 {
-		config.MaxConcurrentDeliveries = DefaultMemoryBrokerConfig.MaxConcurrentDeliveries
+		config.MaxConcurrentDeliveries = DefaultMemoryBrokerConfig().MaxConcurrentDeliveries
 	}
 
 	if config.Logger == nil {

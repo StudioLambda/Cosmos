@@ -184,7 +184,7 @@ Session middleware in `framework/session`:
 
 - Use `framework.NewServer()` instead of `http.ListenAndServe` (timeout defaults)
 - Use `middleware.CSRF()` for state-changing endpoints
-- Use `middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig)` for all applications
+- Use `middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig())` for all applications
 - Use `middleware.RateLimit(cache)` to prevent abuse
 - Use `middleware.CORS()` for cross-origin APIs
 - Use `request.LimitedJSON` / `LimitedBytes` instead of unlimited variants

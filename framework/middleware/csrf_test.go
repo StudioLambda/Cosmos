@@ -17,7 +17,7 @@ func TestCSRFAllowsSameOriginRequest(t *testing.T) {
 	t.Parallel()
 
 	called := false
-	handler := middleware.CSRF(middleware.DefaultCSRFConfig)(framework.Handler(func(
+	handler := middleware.CSRF(middleware.DefaultCSRFConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -37,7 +37,7 @@ func TestCSRFAllowsSameOriginRequest(t *testing.T) {
 func TestCSRFBlocksCrossOriginPost(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.CSRF(middleware.DefaultCSRFConfig)(framework.Handler(func(
+	handler := middleware.CSRF(middleware.DefaultCSRFConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -64,7 +64,7 @@ func TestCSRFWithCustomError(t *testing.T) {
 
 	csrf := http.NewCrossOriginProtection()
 	handler := middleware.CSRFWith(
-		middleware.DefaultCSRFConfig, csrf, customErr,
+		middleware.DefaultCSRFConfig(), csrf, customErr,
 	)(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
@@ -109,7 +109,7 @@ func TestCSRFBlockedErrorWrapsOriginal(t *testing.T) {
 	t.Parallel()
 
 	var captured error
-	handler := middleware.CSRF(middleware.DefaultCSRFConfig)(func(
+	handler := middleware.CSRF(middleware.DefaultCSRFConfig())(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {

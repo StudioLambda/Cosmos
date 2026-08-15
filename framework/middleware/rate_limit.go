@@ -50,13 +50,15 @@ type RateLimitConfig struct {
 // Returning ok=false skips rate limiting for the current request.
 type RateLimitKeyFunc = func(r *http.Request) (key string, ok bool)
 
-// DefaultRateLimitConfig holds sensible defaults for error response
+// DefaultRateLimitConfig returns sensible defaults for error response
 // and the default policy name.
-var DefaultRateLimitConfig = RateLimitConfig{
-	Name:          "default",
-	Limit:         15,
-	Window:        time.Second,
-	ErrorResponse: ErrRateLimited,
+func DefaultRateLimitConfig() RateLimitConfig {
+	return RateLimitConfig{
+		Name:          "default",
+		Limit:         15,
+		Window:        time.Second,
+		ErrorResponse: ErrRateLimited,
+	}
 }
 
 func DefaultRateLimitKeyFunc(r *http.Request) (string, bool) {
@@ -75,20 +77,22 @@ func DefaultRateLimitKeyFunc(r *http.Request) (string, bool) {
 // withDefaults returns a copy of the config with zero values
 // replaced by the corresponding [DefaultRateLimitConfig] fields.
 func (config RateLimitConfig) withDefaults() RateLimitConfig {
+	defaults := DefaultRateLimitConfig()
+
 	if config.Name == "" {
-		config.Name = DefaultRateLimitConfig.Name
+		config.Name = defaults.Name
 	}
 
 	if config.Limit == 0 {
-		config.Limit = DefaultRateLimitConfig.Limit
+		config.Limit = defaults.Limit
 	}
 
 	if config.Window == 0 {
-		config.Window = DefaultRateLimitConfig.Window
+		config.Window = defaults.Window
 	}
 
 	if config.ErrorResponse.Status == 0 {
-		config.ErrorResponse = DefaultRateLimitConfig.ErrorResponse
+		config.ErrorResponse = defaults.ErrorResponse
 	}
 
 	return config

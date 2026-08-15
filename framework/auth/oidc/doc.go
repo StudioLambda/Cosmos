@@ -18,7 +18,7 @@
 //	if err != nil {
 //		return err
 //	}
-//	app.Use(middleware.Session(driver, middleware.DefaultSessionConfig))
+//	app.Use(middleware.Session(driver, middleware.DefaultSessionConfig()))
 //	app.Get("/login", client.Login())
 //	app.Get("/oidc/callback", client.Callback())
 //	app.With(client.RequireAuthentication()).Get("/me", handler)

@@ -12,9 +12,9 @@
 //	}))
 //	driver := session.NewCacheDriver(
 //		cache,
-//		session.DefaultCacheDriverConfig,
+//		session.DefaultCacheDriverConfig(),
 //	)
-//	app.Use(middleware.Session(driver, middleware.DefaultSessionConfig))
+//	app.Use(middleware.Session(driver, middleware.DefaultSessionConfig()))
 //
 //	app.Post("/login", func(w http.ResponseWriter, r *http.Request) error {
 //		sess := request.MustSession(r)

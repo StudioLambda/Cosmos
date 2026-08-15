@@ -45,10 +45,12 @@ type RedisBrokerConfig struct {
 	Logger *contract.Logger
 }
 
-// DefaultRedisBrokerConfig holds the default Redis event broker configuration.
-var DefaultRedisBrokerConfig = RedisBrokerConfig{
-	Network: "tcp",
-	Addr:    "localhost:6379",
+// DefaultRedisBrokerConfig returns the default Redis event broker configuration.
+func DefaultRedisBrokerConfig() RedisBrokerConfig {
+	return RedisBrokerConfig{
+		Network: "tcp",
+		Addr:    "localhost:6379",
+	}
 }
 
 // NewRedisBroker creates a RedisBroker by connecting to Redis
@@ -69,11 +71,11 @@ func NewRedisBroker(config RedisBrokerConfig) *RedisBroker {
 
 func (config RedisBrokerConfig) withDefaults() RedisBrokerConfig {
 	if config.Network == "" {
-		config.Network = DefaultRedisBrokerConfig.Network
+		config.Network = DefaultRedisBrokerConfig().Network
 	}
 
 	if config.Addr == "" {
-		config.Addr = DefaultRedisBrokerConfig.Addr
+		config.Addr = DefaultRedisBrokerConfig().Addr
 	}
 
 	return config

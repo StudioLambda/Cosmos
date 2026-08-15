@@ -29,10 +29,9 @@ type CacheDriverConfig struct {
 	Prefix string
 }
 
-// DefaultCacheDriverConfig holds the default session cache driver
-// configuration.
-var DefaultCacheDriverConfig = CacheDriverConfig{
-	Prefix: "cosmos:sessions",
+// DefaultCacheDriverConfig returns the default session cache driver configuration.
+func DefaultCacheDriverConfig() CacheDriverConfig {
+	return CacheDriverConfig{Prefix: "cosmos:sessions"}
 }
 
 // sessionData is the serializable representation of a session for
@@ -48,7 +47,7 @@ type sessionData struct {
 // and configuration.
 func NewCacheDriver(cache *contract.Cache, config CacheDriverConfig) *CacheDriver {
 	if config.Prefix == "" {
-		config.Prefix = DefaultCacheDriverConfig.Prefix
+		config.Prefix = DefaultCacheDriverConfig().Prefix
 	}
 
 	return &CacheDriver{

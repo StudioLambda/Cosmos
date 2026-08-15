@@ -29,7 +29,7 @@ func TestMiddlewareCookieExists(t *testing.T) {
 
 	cache.On("Save", tmock.Anything, tmock.Anything, tmock.Anything).Return(nil).Once()
 
-	handlerWithSessions := sessionmiddleware.Session(cache, sessionmiddleware.DefaultSessionConfig)(handler)
+	handlerWithSessions := sessionmiddleware.Session(cache, sessionmiddleware.DefaultSessionConfig())(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	res := handlerWithSessions.Record(req)
@@ -80,7 +80,7 @@ func TestMiddlewareLoadsExistingSession(t *testing.T) {
 		},
 	)
 
-	handlerWithSessions := sessionmiddleware.Session(driver, sessionmiddleware.DefaultSessionConfig)(handler)
+	handlerWithSessions := sessionmiddleware.Session(driver, sessionmiddleware.DefaultSessionConfig())(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
@@ -111,7 +111,7 @@ func TestMiddlewareCreatesNewSessionForInvalidCookieID(t *testing.T) {
 		},
 	)
 
-	handlerWithSessions := sessionmiddleware.Session(driver, sessionmiddleware.DefaultSessionConfig)(handler)
+	handlerWithSessions := sessionmiddleware.Session(driver, sessionmiddleware.DefaultSessionConfig())(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
@@ -146,7 +146,7 @@ func TestMiddlewareCreatesNewSessionWhenDriverFails(t *testing.T) {
 		},
 	)
 
-	handlerWithSessions := sessionmiddleware.Session(driver, sessionmiddleware.DefaultSessionConfig)(handler)
+	handlerWithSessions := sessionmiddleware.Session(driver, sessionmiddleware.DefaultSessionConfig())(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
@@ -188,7 +188,7 @@ func TestMiddlewareWithExpiredSessionRegenerates(t *testing.T) {
 		},
 	)
 
-	handlerWithSessions := sessionmiddleware.Session(driver, sessionmiddleware.DefaultSessionConfig)(handler)
+	handlerWithSessions := sessionmiddleware.Session(driver, sessionmiddleware.DefaultSessionConfig())(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
@@ -263,7 +263,7 @@ func TestMiddlewareWithDefaultShortcutUsesDefaults(t *testing.T) {
 		},
 	)
 
-	handlerWithSessions := sessionmiddleware.Session(driver, sessionmiddleware.DefaultSessionConfig)(handler)
+	handlerWithSessions := sessionmiddleware.Session(driver, sessionmiddleware.DefaultSessionConfig())(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	res := handlerWithSessions.Record(req)
@@ -296,7 +296,7 @@ func TestMiddlewareErrorHandlerCalledOnSaveError(t *testing.T) {
 	)
 
 	handlerWithSessions := sessionmiddleware.SessionWith(
-		driver, sessionmiddleware.DefaultSessionConfig, sessionmiddleware.SessionRuntime{
+		driver, sessionmiddleware.DefaultSessionConfig(), sessionmiddleware.SessionRuntime{
 			ErrorHandler: func(err error) {
 				capturedErr = err
 			},
@@ -369,7 +369,7 @@ func TestMiddlewareDoesNotSetCookieWhenSaveFails(t *testing.T) {
 	)
 
 	handlerWithSessions := sessionmiddleware.SessionWith(
-		driver, sessionmiddleware.DefaultSessionConfig, sessionmiddleware.SessionRuntime{
+		driver, sessionmiddleware.DefaultSessionConfig(), sessionmiddleware.SessionRuntime{
 			ErrorHandler: func(err error) {
 				capturedErr = err
 			},
@@ -417,7 +417,7 @@ func TestMiddlewareRegenerateDeletesOldSession(t *testing.T) {
 		},
 	)
 
-	handlerWithSessions := sessionmiddleware.Session(driver, sessionmiddleware.DefaultSessionConfig)(handler)
+	handlerWithSessions := sessionmiddleware.Session(driver, sessionmiddleware.DefaultSessionConfig())(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{
@@ -469,7 +469,7 @@ func TestMiddlewareCreatesNewSessionWhenExpired(t *testing.T) {
 		},
 	)
 
-	handlerWithSessions := sessionmiddleware.Session(driver, sessionmiddleware.DefaultSessionConfig)(handler)
+	handlerWithSessions := sessionmiddleware.Session(driver, sessionmiddleware.DefaultSessionConfig())(handler)
 
 	req := httptest.NewRequest("GET", "/", nil)
 	req.AddCookie(&http.Cookie{
@@ -583,7 +583,7 @@ func TestMiddlewareBoundsSessionPersistence(t *testing.T) {
 	t.Parallel()
 
 	driver := &blockingSessionDriver{}
-	handler := sessionmiddleware.SessionWith(driver, sessionmiddleware.DefaultSessionConfig, sessionmiddleware.SessionRuntime{
+	handler := sessionmiddleware.SessionWith(driver, sessionmiddleware.DefaultSessionConfig(), sessionmiddleware.SessionRuntime{
 		PersistenceTimeout: 10 * time.Millisecond,
 	})(framework.Handler(func(w http.ResponseWriter, r *http.Request) error {
 		return nil

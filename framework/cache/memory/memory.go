@@ -32,8 +32,10 @@ type MemoryConfig struct {
 	Cleanup time.Duration
 }
 
-// DefaultMemoryConfig holds the default in-memory cache configuration.
-var DefaultMemoryConfig = MemoryConfig{}
+// DefaultMemoryConfig returns the default in-memory cache configuration.
+func DefaultMemoryConfig() MemoryConfig {
+	return MemoryConfig{}
+}
 
 // FromConfiguration populates the memory-cache configuration from configuration.
 func (config *MemoryConfig) FromConfiguration(configuration *contract.Configuration) {

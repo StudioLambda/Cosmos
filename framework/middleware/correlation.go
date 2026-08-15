@@ -35,11 +35,12 @@ type CorrelationConfig struct {
 	ProblemKey string
 }
 
-// DefaultCorrelationConfig holds the default correlation middleware
-// configuration.
-var DefaultCorrelationConfig = CorrelationConfig{
-	Header:     DefaultHeader,
-	ProblemKey: "correlation_id",
+// DefaultCorrelationConfig returns the default correlation middleware configuration.
+func DefaultCorrelationConfig() CorrelationConfig {
+	return CorrelationConfig{
+		Header:     DefaultHeader,
+		ProblemKey: "correlation_id",
+	}
 }
 
 // Correlation returns middleware that ensures every request has
@@ -60,7 +61,7 @@ var DefaultCorrelationConfig = CorrelationConfig{
 //
 // Example usage:
 //
-//	app.Use(middleware.Correlation(middleware.DefaultCorrelationConfig))
+//	app.Use(middleware.Correlation(middleware.DefaultCorrelationConfig()))
 func Correlation(config CorrelationConfig) framework.Middleware {
 	return CorrelationWith(config, nil)
 }
@@ -116,13 +117,14 @@ func CorrelationWith(config CorrelationConfig, generate Generator) framework.Mid
 }
 
 func (config *CorrelationConfig) FromConfiguration(configuration *contract.Configuration) {
-	config.Header = configuration.GetOr("header", DefaultCorrelationConfig.Header)
-	config.ProblemKey = configuration.GetOr("problem_key", DefaultCorrelationConfig.ProblemKey)
+	defaults := DefaultCorrelationConfig()
+	config.Header = configuration.GetOr("header", defaults.Header)
+	config.ProblemKey = configuration.GetOr("problem_key", defaults.ProblemKey)
 }
 
 func (config CorrelationConfig) withDefaults() CorrelationConfig {
 	if config.Header == "" {
-		config.Header = DefaultCorrelationConfig.Header
+		config.Header = DefaultCorrelationConfig().Header
 	}
 
 	return config

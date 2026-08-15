@@ -53,7 +53,7 @@ func TestOpenTelemetryAndCorrelationShareTraceID(t *testing.T) {
 	app := framework.New()
 	app.Use(
 		middleware.OpenTelemetry(middleware.OpenTelemetryConfig{TracerProvider: provider}),
-		middleware.Correlation(middleware.DefaultCorrelationConfig),
+		middleware.Correlation(middleware.DefaultCorrelationConfig()),
 	)
 	app.Get("/", func(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusNoContent)

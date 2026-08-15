@@ -57,7 +57,7 @@ type OpenTelemetryConfig struct {
 //		middleware.OpenTelemetry(middleware.OpenTelemetryConfig{
 //			TracerProvider: provider,
 //		}),
-//		middleware.Correlation(middleware.DefaultCorrelationConfig),
+//		middleware.Correlation(middleware.DefaultCorrelationConfig()),
 //	)
 func OpenTelemetry(config OpenTelemetryConfig) framework.Middleware {
 	config = config.withDefaults()

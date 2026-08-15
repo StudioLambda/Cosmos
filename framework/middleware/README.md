@@ -42,7 +42,7 @@ app.Use(
     middleware.OpenTelemetry(middleware.OpenTelemetryConfig{
         TracerProvider: provider,
     }),
-    middleware.Correlation(middleware.DefaultCorrelationConfig),
+     middleware.Correlation(middleware.DefaultCorrelationConfig()),
 )
 ```
 

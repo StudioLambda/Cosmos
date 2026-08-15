@@ -35,7 +35,7 @@ func (driver loggerDriver) With(...any) contract.LoggerDriver {
 func TestMemoryDriverDispatchDeliversClonedMessageWithMetadata(t *testing.T) {
 	t.Parallel()
 
-	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig)
+	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig())
 	t.Cleanup(func() { require.NoError(t, driver.Close()) })
 	payload := []byte(`{"id":"first"}`)
 	received := make(chan contract.JobMessage, 1)
@@ -62,7 +62,7 @@ func TestMemoryDriverDispatchDeliversClonedMessageWithMetadata(t *testing.T) {
 func TestMemoryDriverConsumersCompeteForEachMessage(t *testing.T) {
 	t.Parallel()
 
-	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig)
+	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig())
 	t.Cleanup(func() { require.NoError(t, driver.Close()) })
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -91,7 +91,7 @@ func TestMemoryDriverConsumersCompeteForEachMessage(t *testing.T) {
 func TestMemoryDriverIsolatesQueues(t *testing.T) {
 	t.Parallel()
 
-	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig)
+	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig())
 	t.Cleanup(func() { require.NoError(t, driver.Close()) })
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -113,7 +113,7 @@ func TestMemoryDriverIsolatesQueues(t *testing.T) {
 func TestMemoryDriverRetryDelaysRedelivery(t *testing.T) {
 	t.Parallel()
 
-	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig)
+	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig())
 	t.Cleanup(func() { require.NoError(t, driver.Close()) })
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -142,7 +142,7 @@ func TestMemoryDriverRetryDelaysRedelivery(t *testing.T) {
 func TestMemoryDriverIntegratesWithWorkerMaxAttempts(t *testing.T) {
 	t.Parallel()
 
-	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig)
+	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig())
 	t.Cleanup(func() { require.NoError(t, driver.Close()) })
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -163,7 +163,7 @@ func TestMemoryDriverIntegratesWithWorkerMaxAttempts(t *testing.T) {
 func TestMemoryDriverSettlementIsExactlyOnce(t *testing.T) {
 	t.Parallel()
 
-	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig)
+	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig())
 	t.Cleanup(func() { require.NoError(t, driver.Close()) })
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -194,7 +194,7 @@ func TestMemoryDriverSettlementIsExactlyOnce(t *testing.T) {
 func TestMemoryDriverRecoversHandlerPanic(t *testing.T) {
 	t.Parallel()
 
-	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig)
+	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig())
 	t.Cleanup(func() { require.NoError(t, driver.Close()) })
 	consumer := make(chan error, 1)
 	go func() {
@@ -230,7 +230,7 @@ func TestMemoryDriverLogsRecoveredHandlerPanicToConfiguredLogger(t *testing.T) {
 func TestMemoryDriverRespectsCanceledContexts(t *testing.T) {
 	t.Parallel()
 
-	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig)
+	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig())
 	t.Cleanup(func() { require.NoError(t, driver.Close()) })
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -241,7 +241,7 @@ func TestMemoryDriverRespectsCanceledContexts(t *testing.T) {
 func TestMemoryDriverShutdownRejectsAdmissionsAndDiscardsDelayedJobs(t *testing.T) {
 	t.Parallel()
 
-	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig)
+	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig())
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	started := make(chan struct{})
@@ -269,7 +269,7 @@ func TestMemoryDriverShutdownRejectsAdmissionsAndDiscardsDelayedJobs(t *testing.
 func TestMemoryDriverShutdownHonorsDeadline(t *testing.T) {
 	t.Parallel()
 
-	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig)
+	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig())
 	started := make(chan struct{})
 	release := make(chan struct{})
 	consumer := make(chan error, 1)
@@ -293,7 +293,7 @@ func TestMemoryDriverShutdownHonorsDeadline(t *testing.T) {
 func TestMemoryDriverShutdownDiscardsScheduledRetry(t *testing.T) {
 	t.Parallel()
 
-	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig)
+	driver := job.NewMemoryDriver(job.DefaultMemoryDriverConfig())
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	scheduled := make(chan struct{})

@@ -28,7 +28,7 @@ func TestCacheDriverGetReturnsSession(t *testing.T) {
 	).Return([]byte(`{"id":"abc123","created_at":"2025-01-01T00:00:00Z","expires_at":"2025-01-01T01:00:00Z","storage":{"user":"test"}}`), nil).Once()
 
 	cache := contract.NewCache(cacheMock)
-	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig)
+	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig())
 	result, err := driver.Get(ctx, "abc123")
 
 	require.NoError(t, err)
@@ -50,7 +50,7 @@ func TestCacheDriverGetRestoresNumericSessionValue(t *testing.T) {
 		"Get", tmock.Anything, "cosmos:sessions:abc123",
 	).Return([]byte(`{"id":"abc123","created_at":"2025-01-01T00:00:00Z","expires_at":"2025-01-01T01:00:00Z","storage":{"user_id":42}}`), nil).Once()
 
-	driver := session.NewCacheDriver(contract.NewCache(cacheMock), session.DefaultCacheDriverConfig)
+	driver := session.NewCacheDriver(contract.NewCache(cacheMock), session.DefaultCacheDriverConfig())
 	result, err := driver.Get(ctx, "abc123")
 
 	require.NoError(t, err)
@@ -71,7 +71,7 @@ func TestCacheDriverGetReturnsErrorWhenCacheFails(t *testing.T) {
 	).Return([]byte(nil), cacheErr).Once()
 
 	cache := contract.NewCache(cacheMock)
-	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig)
+	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig())
 	_, err := driver.Get(ctx, "abc123")
 
 	require.ErrorIs(t, err, cacheErr)
@@ -88,7 +88,7 @@ func TestCacheDriverGetReturnsErrorForInvalidJSON(t *testing.T) {
 	).Return([]byte("not-json"), nil).Once()
 
 	cache := contract.NewCache(cacheMock)
-	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig)
+	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig())
 	_, err := driver.Get(ctx, "abc123")
 
 	require.Error(t, err)
@@ -112,7 +112,7 @@ func TestCacheDriverSavePersistsSession(t *testing.T) {
 	).Return(nil).Once()
 
 	cache := contract.NewCache(cacheMock)
-	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig)
+	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig())
 	err := driver.Save(ctx, sess, ttl)
 
 	require.NoError(t, err)
@@ -129,7 +129,7 @@ func TestCacheDriverDeleteRemovesSession(t *testing.T) {
 	).Return(nil).Once()
 
 	cache := contract.NewCache(cacheMock)
-	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig)
+	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig())
 	err := driver.Delete(ctx, "abc123")
 
 	require.NoError(t, err)
@@ -164,7 +164,7 @@ func TestCacheDriverGetReturnsNotFoundError(t *testing.T) {
 	).Return([]byte(nil), contract.ErrCacheKeyNotFound).Once()
 
 	cache := contract.NewCache(cacheMock)
-	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig)
+	driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig())
 	_, err := driver.Get(ctx, "missing")
 
 	require.ErrorIs(t, err, contract.ErrCacheKeyNotFound)

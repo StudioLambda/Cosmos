@@ -176,7 +176,7 @@ func TestLoggerIncludesCorrelationID(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
 
-	handler := middleware.Correlation(middleware.DefaultCorrelationConfig)(
+	handler := middleware.Correlation(middleware.DefaultCorrelationConfig())(
 		middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(logger)))(framework.Handler(func(
 			w http.ResponseWriter,
 			r *http.Request,

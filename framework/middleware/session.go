@@ -68,18 +68,17 @@ type SessionRuntime struct {
 	PersistenceTimeout time.Duration
 }
 
-// DefaultSessionConfig holds the default session middleware
-// configuration.
-var DefaultSessionConfig = SessionConfig{
-	Name:            DefaultSessionCookie,
-	Path:            "/",
-	Domain:          "",
-	Secure:          true,
-	SameSite:        "lax",
-	Partitioned:     false,
-	TTL:             DefaultSessionTTL,
-	MaxLifetime:     DefaultSessionMaxLifetime,
-	ExpirationDelta: DefaultSessionExpirationDelta,
+// DefaultSessionConfig returns the default session middleware configuration.
+func DefaultSessionConfig() SessionConfig {
+	return SessionConfig{
+		Name:            DefaultSessionCookie,
+		Path:            "/",
+		Secure:          true,
+		SameSite:        "lax",
+		TTL:             DefaultSessionTTL,
+		MaxLifetime:     DefaultSessionMaxLifetime,
+		ExpirationDelta: DefaultSessionExpirationDelta,
+	}
 }
 
 // DefaultSessionRuntime holds the default runtime settings for the
@@ -161,7 +160,7 @@ func (config SessionConfig) withDefaults() SessionConfig {
 	}
 
 	if config.SameSite == "" {
-		config.SameSite = DefaultSessionConfig.SameSite
+		config.SameSite = DefaultSessionConfig().SameSite
 	}
 
 	if config.TTL == 0 {

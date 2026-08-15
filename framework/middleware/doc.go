@@ -13,9 +13,9 @@
 //
 //	app.Use(middleware.Recover())
 //	app.Use(middleware.Logger(contract.NewLogger(logger.NewSlogFrom(slog.Default()))))
-//	app.Use(middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig))
+//	app.Use(middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig()))
 //	app.Use(middleware.RateLimit(
 //		contract.NewCache(cache.NewMemory(cache.MemoryConfig{Expiration: time.Second, Cleanup: time.Minute})),
-//		middleware.DefaultRateLimitConfig,
+//		middleware.DefaultRateLimitConfig(),
 //	))
 package middleware

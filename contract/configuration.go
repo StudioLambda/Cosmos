@@ -55,14 +55,14 @@ type ConfigurationConfig struct {
 	prefix string
 }
 
-// DefaultConfigurationConfig holds the default unprefixed view settings.
-var DefaultConfigurationConfig = ConfigurationConfig{
-	prefix: "",
+// DefaultConfigurationConfig returns the default unprefixed view settings.
+func DefaultConfigurationConfig() ConfigurationConfig {
+	return ConfigurationConfig{}
 }
 
 // NewConfigurationWith creates a [Configuration] with the supplied view settings.
 func NewConfiguration(driver ConfigurationDriver) *Configuration {
-	return NewConfigurationWith(driver, DefaultConfigurationConfig)
+	return NewConfigurationWith(driver, DefaultConfigurationConfig())
 }
 
 // NewConfiguration creates a new [Configuration] that delegates to the given driver.

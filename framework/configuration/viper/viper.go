@@ -20,19 +20,21 @@ type Config struct {
 	TimeLayout string
 }
 
-// DefaultConfig holds the default Viper configuration.
-var DefaultConfig = Config{
-	Delimiter:  ".",
-	TimeLayout: time.RFC3339,
+// DefaultConfig returns the default Viper configuration.
+func DefaultConfig() Config {
+	return Config{
+		Delimiter:  ".",
+		TimeLayout: time.RFC3339,
+	}
 }
 
 func (config Config) withDefaults() Config {
 	if config.Delimiter == "" {
-		config.Delimiter = DefaultConfig.Delimiter
+		config.Delimiter = DefaultConfig().Delimiter
 	}
 
 	if config.TimeLayout == "" {
-		config.TimeLayout = DefaultConfig.TimeLayout
+		config.TimeLayout = DefaultConfig().TimeLayout
 	}
 
 	return config
@@ -46,7 +48,7 @@ type Viper struct {
 
 // New creates a Viper-backed configuration driver from providers.
 func New(providers ...frameworkconfiguration.Provider) (*Viper, error) {
-	return NewWith(DefaultConfig, providers...)
+	return NewWith(DefaultConfig(), providers...)
 }
 
 // NewWith creates a Viper-backed configuration driver from providers using config.
@@ -81,7 +83,7 @@ func (configuration *Viper) Extend(providers ...contract.ConfigurationProvider) 
 // Due to a limitation in viper, you need to supply the delimiter
 // used when creating the viper instance.
 func NewViperFrom(instance *viper.Viper, delimiter string) *Viper {
-	config := DefaultConfig
+	config := DefaultConfig()
 	config.Delimiter = delimiter
 
 	return &Viper{

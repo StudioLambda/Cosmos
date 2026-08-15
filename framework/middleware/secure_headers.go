@@ -58,14 +58,16 @@ func (config *SecureHeadersConfig) FromConfiguration(configuration *contract.Con
 	config.PermissionsPolicy = configuration.GetOr("permissions_policy", "")
 }
 
-// DefaultSecureHeadersConfig holds safe default values for
+// DefaultSecureHeadersConfig returns safe default values for
 // all commonly recommended security headers.
-var DefaultSecureHeadersConfig = SecureHeadersConfig{
-	ContentTypeOptions:      "nosniff",
-	FrameOptions:            "DENY",
-	ReferrerPolicy:          "strict-origin-when-cross-origin",
-	XSSProtection:           "0",
-	StrictTransportSecurity: "max-age=63072000; includeSubDomains",
+func DefaultSecureHeadersConfig() SecureHeadersConfig {
+	return SecureHeadersConfig{
+		ContentTypeOptions:      "nosniff",
+		FrameOptions:            "DENY",
+		ReferrerPolicy:          "strict-origin-when-cross-origin",
+		XSSProtection:           "0",
+		StrictTransportSecurity: "max-age=63072000; includeSubDomains",
+	}
 }
 
 // SecureHeaders returns middleware that sets HTTP security response

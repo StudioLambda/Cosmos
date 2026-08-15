@@ -49,7 +49,7 @@ import (
 func main() {
 	app := framework.New()
 	app.Use(middleware.Recover())
-	app.Use(middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig))
+	app.Use(middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig()))
 	app.Get("/health", func(w http.ResponseWriter, r *http.Request) error {
 		return response.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})

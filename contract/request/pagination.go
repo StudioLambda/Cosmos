@@ -15,17 +15,21 @@ type CursorPaginationConfig struct {
 	MaxPerPage     int
 }
 
-// DefaultPaginationConfig holds the default offset pagination settings.
-var DefaultPaginationConfig = PaginationConfig{
-	DefaultPage:    1,
-	DefaultPerPage: 25,
-	MaxPerPage:     100,
+// DefaultPaginationConfig returns the default offset pagination settings.
+func DefaultPaginationConfig() PaginationConfig {
+	return PaginationConfig{
+		DefaultPage:    1,
+		DefaultPerPage: 25,
+		MaxPerPage:     100,
+	}
 }
 
-// DefaultCursorPaginationConfig holds the default cursor pagination settings.
-var DefaultCursorPaginationConfig = CursorPaginationConfig{
-	DefaultPerPage: 25,
-	MaxPerPage:     100,
+// DefaultCursorPaginationConfig returns the default cursor pagination settings.
+func DefaultCursorPaginationConfig() CursorPaginationConfig {
+	return CursorPaginationConfig{
+		DefaultPerPage: 25,
+		MaxPerPage:     100,
+	}
 }
 
 // Pagination extracts the page number and per-page count from the

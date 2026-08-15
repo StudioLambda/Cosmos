@@ -19,7 +19,7 @@ func TestMiddlewareGeneratesNewID(t *testing.T) {
 
 	var captured string
 
-	handler := correlation.Correlation(correlation.DefaultCorrelationConfig)(framework.Handler(func(
+	handler := correlation.Correlation(correlation.DefaultCorrelationConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -42,7 +42,7 @@ func TestMiddlewareUsesExistingHeader(t *testing.T) {
 
 	var captured string
 
-	handler := correlation.Correlation(correlation.DefaultCorrelationConfig)(framework.Handler(func(
+	handler := correlation.Correlation(correlation.DefaultCorrelationConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -65,7 +65,7 @@ func TestMiddlewareExtractsFromTraceparent(t *testing.T) {
 
 	var captured string
 
-	handler := correlation.Correlation(correlation.DefaultCorrelationConfig)(framework.Handler(func(
+	handler := correlation.Correlation(correlation.DefaultCorrelationConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -88,7 +88,7 @@ func TestMiddlewareTraceparentTakesPrecedenceOverHeader(t *testing.T) {
 
 	var captured string
 
-	handler := correlation.Correlation(correlation.DefaultCorrelationConfig)(framework.Handler(func(
+	handler := correlation.Correlation(correlation.DefaultCorrelationConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -111,7 +111,7 @@ func TestMiddlewareIgnoresInvalidTraceparent(t *testing.T) {
 
 	var captured string
 
-	handler := correlation.Correlation(correlation.DefaultCorrelationConfig)(framework.Handler(func(
+	handler := correlation.Correlation(correlation.DefaultCorrelationConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -134,7 +134,7 @@ func TestMiddlewareIgnoresAllZerosTraceID(t *testing.T) {
 
 	var captured string
 
-	handler := correlation.Correlation(correlation.DefaultCorrelationConfig)(framework.Handler(func(
+	handler := correlation.Correlation(correlation.DefaultCorrelationConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -277,7 +277,7 @@ func TestCorrelationStoresIDInRequestContext(t *testing.T) {
 	t.Parallel()
 
 	var fromHelper string
-	handler := correlation.Correlation(correlation.DefaultCorrelationConfig)(framework.Handler(func(
+	handler := correlation.Correlation(correlation.DefaultCorrelationConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -296,7 +296,7 @@ func TestCorrelationStoresIDInRequestContext(t *testing.T) {
 func TestMiddlewareAddsCorrelationIDToProblemDetailsByDefault(t *testing.T) {
 	t.Parallel()
 
-	handler := correlation.Correlation(correlation.DefaultCorrelationConfig)(framework.Handler(func(
+	handler := correlation.Correlation(correlation.DefaultCorrelationConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {

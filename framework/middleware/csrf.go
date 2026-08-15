@@ -29,8 +29,10 @@ type CSRFConfig struct {
 	TrustedOrigins []string
 }
 
-// DefaultCSRFConfig holds the default CSRF middleware configuration.
-var DefaultCSRFConfig = CSRFConfig{}
+// DefaultCSRFConfig returns the default CSRF middleware configuration.
+func DefaultCSRFConfig() CSRFConfig {
+	return CSRFConfig{}
+}
 
 // CSRF returns a middleware that protects against Cross-Site Request
 // Forgery attacks using Go's built-in http.CrossOriginProtection.

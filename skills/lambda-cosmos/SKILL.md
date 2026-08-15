@@ -174,7 +174,7 @@ middleware.Recover()
 middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(slog.Default())))
 middleware.CSRF(middleware.CSRFConfig{TrustedOrigins: []string{"https://example.com"}})
 middleware.CORS(middleware.CORSConfig{})
-middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig)
+middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig())
 middleware.RateLimit(contract.NewCache(memory.NewMemory(memory.MemoryConfig{})), middleware.RateLimitConfig{})
 
 // Uses cache-backed fixed-window counters. Provide a custom cache
@@ -191,7 +191,7 @@ middleware before any code that reads sessions.
 ### Correlation
 
 ```go
-app.Use(middleware.Correlation(middleware.DefaultCorrelationConfig))
+app.Use(middleware.Correlation(middleware.DefaultCorrelationConfig()))
 id := request.CorrelationID(r)
 _ = id
 ```
@@ -201,7 +201,7 @@ _ = id
 ```go
 cacheDriver := memory.NewMemory(memory.MemoryConfig{})
 driver := session.NewCacheDriver(contract.NewCache(cacheDriver), session.CacheDriverConfig{})
-app.Use(middleware.Session(driver, middleware.DefaultSessionConfig))
+app.Use(middleware.Session(driver, middleware.DefaultSessionConfig()))
 ```
 
 ### Cache
@@ -230,7 +230,7 @@ _ = ciphertext
 
 ```go
 argon := argon2.NewArgon2(argon2.DefaultArgon2Config()) // recommended
-bcrypt := bcrypt.NewBcrypt(bcrypt.DefaultBcryptConfig)  // compatibility
+bcrypt := bcrypt.NewBcrypt(bcrypt.DefaultBcryptConfig()) // compatibility
 hashed, err := argon.Hash(password)
 ok, err := argon.Check(password, hashed)
 _ = bcrypt

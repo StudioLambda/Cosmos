@@ -55,21 +55,21 @@ func (config *CORSConfig) FromConfiguration(configuration *contract.Configuratio
 	config.MaxAge = configuration.GetOr("max_age", 0)
 }
 
-// DefaultCORSConfig provides sensible CORS defaults that allow
+// DefaultCORSConfig returns sensible CORS defaults that allow
 // common JSON API usage from any origin without credentials. The
 // defaults permit GET, POST, and HEAD with standard headers and
 // a 5-minute preflight cache.
-var DefaultCORSConfig = CORSConfig{
-	AllowedOrigins: []string{"*"},
-	AllowedMethods: []string{
-		http.MethodGet,
-		http.MethodPost,
-		http.MethodHead,
-	},
-	AllowedHeaders:   []string{"Accept", "Content-Type"},
-	ExposedHeaders:   nil,
-	AllowCredentials: false,
-	MaxAge:           300,
+func DefaultCORSConfig() CORSConfig {
+	return CORSConfig{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodHead,
+		},
+		AllowedHeaders: []string{"Accept", "Content-Type"},
+		MaxAge:         300,
+	}
 }
 
 // CORS creates a Cross-Origin Resource Sharing middleware with
@@ -77,7 +77,7 @@ var DefaultCORSConfig = CORSConfig{
 // response and handles preflight OPTIONS requests by responding
 // with a 204 No Content after setting the required headers.
 //
-// For the default configuration, pass [DefaultCORSConfig].
+// For the default configuration, call [DefaultCORSConfig].
 func CORS(config CORSConfig) framework.Middleware {
 	if config.AllowCredentials {
 		for _, origin := range config.AllowedOrigins {

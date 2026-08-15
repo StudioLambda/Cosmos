@@ -14,7 +14,7 @@ import (
 func TestSecureHeadersDefault(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig)(framework.Handler(func(
+	handler := middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -167,7 +167,7 @@ func TestSecureHeadersCallsNextHandler(t *testing.T) {
 	t.Parallel()
 
 	called := false
-	handler := middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig)(framework.Handler(func(
+	handler := middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -185,7 +185,7 @@ func TestSecureHeadersCallsNextHandler(t *testing.T) {
 func TestSecureHeadersDefaultXSSProtectionIsZero(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig)(framework.Handler(func(
+	handler := middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {

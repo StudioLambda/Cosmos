@@ -26,7 +26,7 @@ func TestWithDefaultsFillsName(t *testing.T) {
 
 	config := RateLimitConfig{}.withDefaults()
 
-	require.Equal(t, DefaultRateLimitConfig.Name, config.Name)
+	require.Equal(t, DefaultRateLimitConfig().Name, config.Name)
 }
 
 func TestWithDefaultsFillsLimit(t *testing.T) {
@@ -34,7 +34,7 @@ func TestWithDefaultsFillsLimit(t *testing.T) {
 
 	config := RateLimitConfig{}.withDefaults()
 
-	require.Equal(t, DefaultRateLimitConfig.Limit, config.Limit)
+	require.Equal(t, DefaultRateLimitConfig().Limit, config.Limit)
 }
 
 func TestWithDefaultsFillsWindow(t *testing.T) {
@@ -42,7 +42,7 @@ func TestWithDefaultsFillsWindow(t *testing.T) {
 
 	config := RateLimitConfig{}.withDefaults()
 
-	require.Equal(t, DefaultRateLimitConfig.Window, config.Window)
+	require.Equal(t, DefaultRateLimitConfig().Window, config.Window)
 }
 
 func TestRateLimitWithPanicsWithoutCache(t *testing.T) {

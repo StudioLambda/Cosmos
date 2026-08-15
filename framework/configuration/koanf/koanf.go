@@ -22,14 +22,16 @@ type Config struct {
 	TimeLayout string
 }
 
-// DefaultConfig holds the default Koanf configuration.
-var DefaultConfig = Config{
-	Delimiter:  ".",
-	TimeLayout: time.RFC3339,
+// DefaultConfig returns the default Koanf configuration.
+func DefaultConfig() Config {
+	return Config{
+		Delimiter:  ".",
+		TimeLayout: time.RFC3339,
+	}
 }
 
 func (config Config) withDefaults() Config {
-	defaults := DefaultConfig
+	defaults := DefaultConfig()
 
 	if config.TimeLayout == "" {
 		config.TimeLayout = defaults.TimeLayout
@@ -50,7 +52,7 @@ type Koanf struct {
 
 // New creates a Koanf-backed configuration driver from providers.
 func New(providers ...frameworkconfiguration.Provider) (*Koanf, error) {
-	return NewWith(DefaultConfig, providers...)
+	return NewWith(DefaultConfig(), providers...)
 }
 
 // NewWith creates a Koanf-backed configuration driver from providers using config.
@@ -88,7 +90,7 @@ func (configuration *Koanf) Extend(providers ...contract.ConfigurationProvider) 
 func NewKoanfFrom(instance *koanf.Koanf) *Koanf {
 	return &Koanf{
 		koanf:  instance,
-		config: DefaultConfig,
+		config: DefaultConfig(),
 	}
 }
 

@@ -99,7 +99,7 @@ app.Use(middleware.Recover())
 app.Use(middleware.Logger(contract.NewLogger(frameworklogger.NewSlogFrom(slog.Default()))))
 app.Use(middleware.CSRF(middleware.CSRFConfig{TrustedOrigins: []string{"https://example.com"}}))
 app.Use(middleware.CORS(middleware.CORSConfig{}))
-app.Use(middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig))
+app.Use(middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig()))
 app.Use(middleware.RateLimit(contract.NewCache(memory.NewMemory(memory.MemoryConfig{})), middleware.RateLimitConfig{}))
 
 // Rate limiting uses cache-backed fixed-window counters.
@@ -114,7 +114,7 @@ Recommended order near the top: Recover, Logger.
 ## Correlation package
 
 ```go
-app.Use(middleware.Correlation(middleware.DefaultCorrelationConfig))
+app.Use(middleware.Correlation(middleware.DefaultCorrelationConfig()))
 id := request.CorrelationID(r)
 _ = id
 ```
@@ -132,7 +132,7 @@ cacheDriver := memory.NewMemory(memory.MemoryConfig{})
 typedCache := contract.NewCache(cacheDriver)
 sessionDriver := session.NewCacheDriver(typedCache, session.CacheDriverConfig{})
 
-app.Use(middleware.Session(sessionDriver, middleware.DefaultSessionConfig))
+app.Use(middleware.Session(sessionDriver, middleware.DefaultSessionConfig()))
 ```
 
 Custom middleware options:
@@ -215,7 +215,7 @@ _ = cc
 
 ```go
 argon := argon2.NewArgon2(argon2.DefaultArgon2Config())
-bcryptHasher := bcrypt.NewBcrypt(bcrypt.DefaultBcryptConfig) // default cost = bcrypt.DefaultBcryptCost (12)
+bcryptHasher := bcrypt.NewBcrypt(bcrypt.DefaultBcryptConfig()) // default cost = bcrypt.DefaultBcryptCost (12)
 
 hashed, err := argon.Hash(password)
 if err != nil {

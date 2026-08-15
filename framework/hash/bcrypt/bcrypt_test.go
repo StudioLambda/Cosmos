@@ -13,7 +13,7 @@ import (
 func TestBcryptHashProducesOutput(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewBcrypt(hash.DefaultBcryptConfig)
+	hasher := hash.NewBcrypt(hash.DefaultBcryptConfig())
 	content := []byte("hello, world")
 
 	hashed, err := hasher.Hash(content)
@@ -25,7 +25,7 @@ func TestBcryptHashProducesOutput(t *testing.T) {
 func TestBcryptCheckMatchesCorrectPassword(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewBcrypt(hash.DefaultBcryptConfig)
+	hasher := hash.NewBcrypt(hash.DefaultBcryptConfig())
 
 	hashed, err := hasher.Hash([]byte("hello, world"))
 
@@ -56,7 +56,7 @@ func TestBcryptWithDefaultConfig(t *testing.T) {
 func TestBcryptCheckWrongPasswordReturnsFalse(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewBcrypt(hash.DefaultBcryptConfig)
+	hasher := hash.NewBcrypt(hash.DefaultBcryptConfig())
 
 	hashed, err := hasher.Hash([]byte("correct-password"))
 
@@ -71,7 +71,7 @@ func TestBcryptCheckWrongPasswordReturnsFalse(t *testing.T) {
 func TestBcryptCheckCorruptedHashReturnsError(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewBcrypt(hash.DefaultBcryptConfig)
+	hasher := hash.NewBcrypt(hash.DefaultBcryptConfig())
 
 	ok, err := hasher.Check([]byte("password"), []byte("not-a-hash"))
 
@@ -82,7 +82,7 @@ func TestBcryptCheckCorruptedHashReturnsError(t *testing.T) {
 func TestBcryptHashZerosInputPassword(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewBcrypt(hash.DefaultBcryptConfig)
+	hasher := hash.NewBcrypt(hash.DefaultBcryptConfig())
 	password := []byte("sensitive-data")
 
 	_, err := hasher.Hash(password)
@@ -94,7 +94,7 @@ func TestBcryptHashZerosInputPassword(t *testing.T) {
 func TestBcryptCheckZerosInputPassword(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewBcrypt(hash.DefaultBcryptConfig)
+	hasher := hash.NewBcrypt(hash.DefaultBcryptConfig())
 
 	hashed, err := hasher.Hash([]byte("hello"))
 
@@ -149,7 +149,7 @@ func TestBcryptNeedsRehashReturnsFalseForSameCost(t *testing.T) {
 func TestBcryptNeedsRehashReturnsTrueForInvalidHash(t *testing.T) {
 	t.Parallel()
 
-	hasher := hash.NewBcrypt(hash.DefaultBcryptConfig)
+	hasher := hash.NewBcrypt(hash.DefaultBcryptConfig())
 
 	require.True(t, hasher.NeedsRehash([]byte("not-a-valid-hash")))
 }

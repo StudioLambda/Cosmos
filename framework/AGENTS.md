@@ -66,7 +66,7 @@ func MyMiddleware() framework.Middleware {
 Sessions:
 ```go
 driver := session.NewCache(cache, 24*time.Hour)
-app.Use(middleware.Session(driver, middleware.DefaultSessionConfig))
+app.Use(middleware.Session(driver, middleware.DefaultSessionConfig()))
 
 sess := request.Session(r)
 sess.Put("user_id", 123)

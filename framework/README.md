@@ -33,9 +33,9 @@ Built-ins include recovery, structured logging, CORS, CSRF, secure headers, rate
 Create a cache facade and pass it to the cache session driver, then install the session middleware:
 
 ```go
-cache := contract.NewCache(memory.NewMemory(memory.DefaultMemoryConfig))
-driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig)
-app.Use(middleware.Session(driver, middleware.DefaultSessionConfig))
+cache := contract.NewCache(memory.NewMemory(memory.DefaultMemoryConfig()))
+driver := session.NewCacheDriver(cache, session.DefaultCacheDriverConfig())
+app.Use(middleware.Session(driver, middleware.DefaultSessionConfig()))
 ```
 
 In handlers, `request.Session(r)` returns `(*contract.Session, bool)` and `request.MustSession(r)` panics if absent. Store values with `Put`, retrieve them with `Get[T]`, and call `Regenerate()` after authentication or a privilege change.

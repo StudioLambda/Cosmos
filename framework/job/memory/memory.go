@@ -39,8 +39,10 @@ type MemoryDriverConfig struct {
 	Logger *contract.Logger
 }
 
-// DefaultMemoryDriverConfig holds the default in-memory job driver configuration.
-var DefaultMemoryDriverConfig = MemoryDriverConfig{}
+// DefaultMemoryDriverConfig returns the default in-memory job driver configuration.
+func DefaultMemoryDriverConfig() MemoryDriverConfig {
+	return MemoryDriverConfig{}
+}
 
 // MemoryDriver implements [contract.JobDispatcherDriver],
 // [contract.JobConsumerDriver], and [contract.Shutdowner] with in-memory data
