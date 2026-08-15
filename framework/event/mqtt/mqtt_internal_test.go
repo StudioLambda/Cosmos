@@ -14,6 +14,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type loggerDriver struct {
+	errors chan string
+}
+
+func (driver loggerDriver) DebugContext(context.Context, string, ...any) {}
+
+func (driver loggerDriver) InfoContext(context.Context, string, ...any) {}
+
+func (driver loggerDriver) WarnContext(context.Context, string, ...any) {}
+
+func (driver loggerDriver) ErrorContext(_ context.Context, message string, _ ...any) {
+	driver.errors <- message
+}
+
+func (driver loggerDriver) With(...any) contract.LoggerDriver {
+	return driver
+}
+
+func TestMQTTBrokerLogsRecoveredHandlerPanicToConfiguredLogger(t *testing.T) {
+	t.Parallel()
+
+	logs := make(chan string, 1)
+	broker, err := NewMQTTBroker(MQTTBrokerConfig{
+		URLs:   []string{"mqtt://localhost:1883"},
+		Logger: contract.NewLogger(loggerDriver{errors: logs}),
+	})
+	require.NoError(t, err)
+
+	broker.handlers["events/panic"] = map[string]contract.EventHandler{
+		"1": func([]byte) { panic("unexpected") },
+	}
+	broker.route(&paho.Publish{Topic: "events/panic"})
+	broker.routeWg.Wait()
+
+	require.Equal(t, "event handler panicked", <-logs)
+}
+
 func TestConvertTopicDotsToSlashes(t *testing.T) {
 	t.Parallel()
 

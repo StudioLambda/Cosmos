@@ -14,6 +14,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type loggerDriver struct {
+	errors chan string
+}
+
+func (driver loggerDriver) DebugContext(context.Context, string, ...any) {}
+
+func (driver loggerDriver) InfoContext(context.Context, string, ...any) {}
+
+func (driver loggerDriver) WarnContext(context.Context, string, ...any) {}
+
+func (driver loggerDriver) ErrorContext(_ context.Context, message string, _ ...any) {
+	driver.errors <- message
+}
+
+func (driver loggerDriver) With(...any) contract.LoggerDriver {
+	return driver
+}
+
 func TestMemoryDriverDispatchDeliversClonedMessageWithMetadata(t *testing.T) {
 	t.Parallel()
 
@@ -187,6 +205,26 @@ func TestMemoryDriverRecoversHandlerPanic(t *testing.T) {
 
 	require.NoError(t, driver.Dispatch(context.Background(), contract.JobMessage{Queue: "work"}))
 	require.Error(t, <-consumer)
+}
+
+func TestMemoryDriverLogsRecoveredHandlerPanicToConfiguredLogger(t *testing.T) {
+	t.Parallel()
+
+	logs := make(chan string, 3)
+	driver := job.NewMemoryDriver(job.MemoryDriverConfig{
+		Logger: contract.NewLogger(loggerDriver{errors: logs}),
+	})
+	t.Cleanup(func() { require.NoError(t, driver.Close()) })
+	consumer := make(chan error, 1)
+	go func() {
+		consumer <- driver.Consume(context.Background(), "work", func(context.Context, contract.JobDelivery) error {
+			panic("unexpected")
+		})
+	}()
+
+	require.NoError(t, driver.Dispatch(context.Background(), contract.JobMessage{Queue: "work"}))
+	require.Error(t, <-consumer)
+	require.Equal(t, "job delivery handler panicked", <-logs)
 }
 
 func TestMemoryDriverRespectsCanceledContexts(t *testing.T) {

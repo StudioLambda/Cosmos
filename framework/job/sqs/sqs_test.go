@@ -16,6 +16,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type loggerDriver struct {
+	errors chan string
+}
+
+func (driver loggerDriver) DebugContext(context.Context, string, ...any) {}
+
+func (driver loggerDriver) InfoContext(context.Context, string, ...any) {}
+
+func (driver loggerDriver) WarnContext(context.Context, string, ...any) {}
+
+func (driver loggerDriver) ErrorContext(_ context.Context, message string, _ ...any) {
+	driver.errors <- message
+}
+
+func (driver loggerDriver) With(...any) contract.LoggerDriver {
+	return driver
+}
+
 func TestDriverDispatchSendsJSONMessageToMappedQueue(t *testing.T) {
 	t.Parallel()
 
@@ -140,6 +158,25 @@ func TestDriverConsumeLeavesDeliveryWhenHandlerReturnsError(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 	require.Empty(t, client.deleteInputs())
 	require.Empty(t, client.visibilityInputs())
+}
+
+func TestDriverLogsHandlerFailureToConfiguredLogger(t *testing.T) {
+	t.Parallel()
+
+	logs := make(chan string, 1)
+	client := receivedClient(t)
+	config := DefaultSQSDriverConfig()
+	config.Queues = map[string]string{"work": "https://sqs.example/work"}
+	config.Logger = contract.NewLogger(loggerDriver{errors: logs})
+	driver, err := newFrom(client, config)
+	require.NoError(t, err)
+
+	err = driver.Consume(context.Background(), "work", func(context.Context, contract.JobDelivery) error {
+		return errors.New("unexpected")
+	})
+
+	require.ErrorIs(t, err, context.Canceled)
+	require.Equal(t, "SQS job delivery handler failed", <-logs)
 }
 
 func TestDeliveryFailPublishesFailureThenDeletesMessage(t *testing.T) {
