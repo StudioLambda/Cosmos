@@ -8,6 +8,10 @@ import (
 )
 
 // LazySlice is a lazily-evaluated collection backed by an [iter.Seq].
+//
+// Callbacks receive the index from this slice's source sequence. LazySlice
+// transformations yield dense output indices, starting at zero, even when
+// they filter, expand, reorder, or combine source items.
 // Being a function type, it can be used directly in a for-range loop:
 //
 //	for i, v := range lazySlice { ... }
@@ -91,7 +95,8 @@ func (lazySlice LazySlice[T]) Each(f func(int, T)) {
 	}
 }
 
-// TapEach returns a lazy slice that calls f on each item as it is consumed.
+// TapEach returns a lazy slice that calls f with each source index and item as
+// it is consumed. The returned slice yields dense output indices.
 func (lazySlice LazySlice[T]) TapEach(f func(int, T)) LazySlice[T] {
 	return NewLazySlice(func(yield func(int, T) bool) {
 		index := 0
@@ -109,6 +114,7 @@ func (lazySlice LazySlice[T]) TapEach(f func(int, T)) LazySlice[T] {
 }
 
 // Filter returns a lazy slice containing only items for which f returns true.
+// It calls f with source indices and yields dense output indices.
 func (lazySlice LazySlice[T]) Filter(f func(int, T) bool) LazySlice[T] {
 	return NewLazySlice(func(yield func(int, T) bool) {
 		index := 0
@@ -126,11 +132,13 @@ func (lazySlice LazySlice[T]) Filter(f func(int, T) bool) LazySlice[T] {
 }
 
 // Reject returns a lazy slice containing only items for which f returns false.
+// It calls f with source indices and yields dense output indices.
 func (lazySlice LazySlice[T]) Reject(f func(int, T) bool) LazySlice[T] {
 	return lazySlice.Filter(func(i int, v T) bool { return !f(i, v) })
 }
 
 // Map transforms each item using f and returns a new lazy slice of type K.
+// It calls f with source indices and yields dense output indices.
 func (lazySlice LazySlice[T]) Map[K any](f func(int, T) K) LazySlice[K] {
 	return NewLazySlice(func(yield func(int, K) bool) {
 		index := 0
@@ -146,7 +154,7 @@ func (lazySlice LazySlice[T]) Map[K any](f func(int, T) K) LazySlice[K] {
 }
 
 // FlatMap transforms each item into zero or more items and yields the flattened
-// results lazily.
+// results lazily. It calls f with source indices and yields dense output indices.
 func (lazySlice LazySlice[T]) FlatMap[K any](f func(int, T) []K) LazySlice[K] {
 	return NewLazySlice(func(yield func(int, K) bool) {
 		index := 0
@@ -278,6 +286,7 @@ func (lazySlice LazySlice[T]) Skip(n int) LazySlice[T] {
 }
 
 // TakeWhile returns a lazy slice that yields items until f first returns false.
+// It calls f with source indices and yields dense output indices.
 func (lazySlice LazySlice[T]) TakeWhile(f func(int, T) bool) LazySlice[T] {
 	return NewLazySlice(func(yield func(int, T) bool) {
 		index := 0
@@ -297,7 +306,8 @@ func (lazySlice LazySlice[T]) TakeWhile(f func(int, T) bool) LazySlice[T] {
 }
 
 // SkipWhile returns a lazy slice that skips items until f first returns false,
-// then yields all remaining items.
+// then yields all remaining items. It calls f with source indices and yields
+// dense output indices.
 func (lazySlice LazySlice[T]) SkipWhile(f func(int, T) bool) LazySlice[T] {
 	return NewLazySlice(func(yield func(int, T) bool) {
 		skipping := true
@@ -321,12 +331,14 @@ func (lazySlice LazySlice[T]) SkipWhile(f func(int, T) bool) LazySlice[T] {
 }
 
 // TakeUntil returns a lazy slice that yields items until f first returns true.
+// It calls f with source indices and yields dense output indices.
 func (lazySlice LazySlice[T]) TakeUntil(f func(int, T) bool) LazySlice[T] {
 	return lazySlice.TakeWhile(func(i int, v T) bool { return !f(i, v) })
 }
 
 // SkipUntil returns a lazy slice that skips items until f first returns true,
-// then yields all remaining items.
+// then yields all remaining items. It calls f with source indices and yields
+// dense output indices.
 func (lazySlice LazySlice[T]) SkipUntil(f func(int, T) bool) LazySlice[T] {
 	return lazySlice.SkipWhile(func(i int, v T) bool { return !f(i, v) })
 }
@@ -449,7 +461,8 @@ func (lazySlice LazySlice[T]) Sort(cmp func(T, T) int) LazySlice[T] {
 }
 
 // Unique returns a lazy slice containing only the first occurrence of each
-// item, as determined by the key function.
+// item, as determined by the key function. It calls key with source indices
+// and yields dense output indices.
 func (lazySlice LazySlice[T]) Unique[K comparable](key func(int, T) K) LazySlice[T] {
 	return NewLazySlice(func(yield func(int, T) bool) {
 		seen := make(map[K]struct{})
@@ -473,7 +486,8 @@ func (lazySlice LazySlice[T]) Unique[K comparable](key func(int, T) K) LazySlice
 }
 
 // Partition splits the iterator into two lazy slices: the first contains
-// items for which f returns true, the second contains the rest.
+// items for which f returns true, the second contains the rest. It calls f
+// with source indices; both returned slices yield dense output indices.
 // It fully consumes the sequence to allow both results to be independently iterated.
 func (lazySlice LazySlice[T]) Partition(f func(int, T) bool) (LazySlice[T], LazySlice[T]) {
 	var matching, rest []T

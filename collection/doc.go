@@ -19,6 +19,10 @@
 // when that iterator is replayable; callers must not assume that a traversal
 // can be repeated or that it has no side effects.
 //
+// LazySlice callbacks receive the index from their source sequence. LazySlice
+// transformations yield dense output indices, starting at zero, even when
+// filtering, expanding, reordering, or combining source items.
+//
 // [TryLazySlice] and [TryLazyMap] are the error-aware lazy forms. They yield a
 // value and an error, and a value yielded with a non-nil error must be ignored.
 // Their Items and Eager methods stop at the first error and return values
