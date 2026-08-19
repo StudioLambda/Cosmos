@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework"
@@ -25,15 +26,26 @@ type flusherWriter struct {
 	flushed atomic.Bool
 }
 
+type statusWriter struct {
+	http.ResponseWriter
+	statuses []int
+}
+
 type optionalWriter struct {
 	http.ResponseWriter
-	flushed  atomic.Bool
-	pushed   atomic.Bool
-	hijacked atomic.Bool
+	flushed       atomic.Bool
+	hijacked      atomic.Bool
+	readDeadline  atomic.Bool
+	writeDeadline atomic.Bool
+	fullDuplex    atomic.Bool
 }
 
 func (writer *flusherWriter) Flush() {
 	writer.flushed.Store(true)
+}
+
+func (writer *statusWriter) WriteHeader(status int) {
+	writer.statuses = append(writer.statuses, status)
 }
 
 func (writer *optionalWriter) Flush() {
@@ -49,14 +61,22 @@ func (writer *optionalWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return server, bufio.NewReadWriter(bufio.NewReader(server), bufio.NewWriter(server)), nil
 }
 
-func (writer *optionalWriter) Push(string, *http.PushOptions) error {
-	writer.pushed.Store(true)
+func (writer *optionalWriter) SetReadDeadline(time.Time) error {
+	writer.readDeadline.Store(true)
 
 	return nil
 }
 
-func (writer *optionalWriter) ReadFrom(reader io.Reader) (int64, error) {
-	return io.Copy(writer.ResponseWriter, reader)
+func (writer *optionalWriter) SetWriteDeadline(time.Time) error {
+	writer.writeDeadline.Store(true)
+
+	return nil
+}
+
+func (writer *optionalWriter) EnableFullDuplex() error {
+	writer.fullDuplex.Store(true)
+
+	return nil
 }
 
 func TestNewResponseWriterNonFlusher(t *testing.T) {
@@ -71,7 +91,7 @@ func TestNewResponseWriterNonFlusher(t *testing.T) {
 	require.False(t, isFlusher)
 }
 
-func TestNewResponseWriterFlusher(t *testing.T) {
+func TestNewResponseWriterDoesNotExposeFlusher(t *testing.T) {
 	t.Parallel()
 
 	hooks := contract.NewHooks()
@@ -81,14 +101,12 @@ func TestNewResponseWriterFlusher(t *testing.T) {
 		hooks,
 	)
 
-	flusher, isFlusher := wrapped.(http.Flusher)
+	_, isFlusher := wrapped.(http.Flusher)
 
-	require.True(t, isFlusher)
-
-	flusher.Flush()
+	require.False(t, isFlusher)
 }
 
-func TestNewResponseWriterPreservesOptionalInterfaces(t *testing.T) {
+func TestNewResponseWriterDoesNotExposeOptionalInterfaces(t *testing.T) {
 	t.Parallel()
 
 	hooks := contract.NewHooks()
@@ -96,45 +114,29 @@ func TestNewResponseWriterPreservesOptionalInterfaces(t *testing.T) {
 	writer := &optionalWriter{ResponseWriter: recorder}
 	wrapped := framework.NewResponseWriter(writer, hooks)
 
-	flusher, isFlusher := wrapped.(http.Flusher)
-	hijacker, isHijacker := wrapped.(http.Hijacker)
-	pusher, isPusher := wrapped.(http.Pusher)
-	readerFrom, isReaderFrom := wrapped.(io.ReaderFrom)
+	_, isFlusher := wrapped.(http.Flusher)
+	_, isPusher := wrapped.(http.Pusher)
+	_, isReaderFrom := wrapped.(io.ReaderFrom)
 
-	require.True(t, isFlusher)
-	require.True(t, isHijacker)
-	require.True(t, isPusher)
-	require.True(t, isReaderFrom)
-
-	flusher.Flush()
-	require.NoError(t, pusher.Push("/asset", nil))
-	connection, _, err := hijacker.Hijack()
-	require.NoError(t, err)
-	require.NoError(t, connection.Close())
-
-	_, err = readerFrom.ReadFrom(strings.NewReader("body"))
-	require.NoError(t, err)
-	require.True(t, writer.flushed.Load())
-	require.True(t, writer.hijacked.Load())
-	require.True(t, writer.pushed.Load())
+	require.False(t, isFlusher)
+	require.False(t, isPusher)
+	require.False(t, isReaderFrom)
 }
 
-func TestResponseWriterReaderFromFiresWriteHooks(t *testing.T) {
+func TestResponseWriterCopyFiresWriteHooks(t *testing.T) {
 	t.Parallel()
 
 	hooks := contract.NewHooks()
 	recorder := httptest.NewRecorder()
 	writer := &optionalWriter{ResponseWriter: recorder}
 	wrapped := framework.NewResponseWriter(writer, hooks)
-	readerFrom, ok := wrapped.(io.ReaderFrom)
-	require.True(t, ok)
 	var content []byte
 
 	hooks.BeforeWrite(func(_ http.ResponseWriter, value []byte) {
 		content = append(content, value...)
 	})
 
-	count, err := readerFrom.ReadFrom(strings.NewReader("body"))
+	count, err := io.Copy(wrapped, strings.NewReader("body"))
 
 	require.NoError(t, err)
 	require.Equal(t, int64(4), count)
@@ -343,6 +345,42 @@ func TestResponseControllerFlushThroughWrappedWriter(t *testing.T) {
 
 	require.NoError(t, err)
 	require.True(t, fw.flushed.Load())
+	require.True(t, wrapped.WriteHeaderCalled())
+	require.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestResponseControllerDiscoversUnderlyingCapabilities(t *testing.T) {
+	t.Parallel()
+
+	hooks := contract.NewHooks()
+	recorder := httptest.NewRecorder()
+	writer := &optionalWriter{ResponseWriter: recorder}
+	wrapped := framework.NewResponseWriter(writer, hooks)
+	controller := http.NewResponseController(wrapped)
+
+	require.NoError(t, controller.SetReadDeadline(time.Now()))
+	require.NoError(t, controller.SetWriteDeadline(time.Now()))
+	require.NoError(t, controller.EnableFullDuplex())
+	require.True(t, writer.readDeadline.Load())
+	require.True(t, writer.writeDeadline.Load())
+	require.True(t, writer.fullDuplex.Load())
+}
+
+func TestResponseWriterAllowsInformationalResponsesBeforeFinalResponse(t *testing.T) {
+	t.Parallel()
+
+	hooks := contract.NewHooks()
+	writer := &statusWriter{ResponseWriter: httptest.NewRecorder()}
+	wrapped := framework.NewResponseWriter(writer, hooks)
+
+	wrapped.WriteHeader(http.StatusEarlyHints)
+
+	require.False(t, wrapped.WriteHeaderCalled())
+
+	wrapped.WriteHeader(http.StatusOK)
+
+	require.True(t, wrapped.WriteHeaderCalled())
+	require.Equal(t, []int{http.StatusEarlyHints, http.StatusOK}, writer.statuses)
 }
 
 func TestResponseWriterFlusherUnwrapReturnsUnderlying(t *testing.T) {

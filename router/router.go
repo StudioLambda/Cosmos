@@ -294,6 +294,7 @@ func (router *Router[H]) registerPair(method string, pattern string, handler H) 
 //   - [http.MethodPatch]
 //   - [http.MethodDelete]
 //   - [http.MethodOptions]
+//   - "QUERY"
 //
 // WARNING: TRACE and CONNECT should not be used in general-purpose
 // applications. TRACE enables cross-site tracing (XST) attacks and
