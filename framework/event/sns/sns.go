@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awssns "github.com/aws/aws-sdk-go-v2/service/sns"
+	"github.com/studiolambda/cosmos/contract"
 )
 
 var (
@@ -26,6 +27,19 @@ type SNSPublisherConfig struct {
 
 	// Topics maps application event names to SNS topic ARNs.
 	Topics map[string]string
+}
+
+// DefaultSNSPublisherConfig returns the default SNS event publisher configuration.
+func DefaultSNSPublisherConfig() SNSPublisherConfig {
+	return SNSPublisherConfig{}
+}
+
+// FromConfiguration populates the declarative publisher configuration from configuration.
+func (config *SNSPublisherConfig) FromConfiguration(configuration *contract.Configuration) {
+	awsConfig := config.AWSConfig
+	*config = DefaultSNSPublisherConfig()
+	config.AWSConfig = awsConfig
+	config.Topics = configuration.GetOr("topics", config.Topics)
 }
 
 type client interface {

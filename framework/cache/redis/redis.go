@@ -42,6 +42,16 @@ func DefaultRedisConfig() RedisConfig {
 	}
 }
 
+// FromConfiguration populates the Redis cache configuration from configuration.
+func (config *RedisConfig) FromConfiguration(configuration *contract.Configuration) {
+	*config = DefaultRedisConfig()
+	config.Network = configuration.GetOr("network", config.Network)
+	config.Addr = configuration.GetOr("addr", config.Addr)
+	config.Username = configuration.GetOr("username", config.Username)
+	config.Password = configuration.GetOr("password", config.Password)
+	config.DB = configuration.GetOr("db", config.DB)
+}
+
 // NewRedis creates a RedisClient from the given connection configuration.
 func NewRedis(config RedisConfig) *RedisClient {
 	config = config.withDefaults()

@@ -35,7 +35,10 @@ func DefaultMemoryBrokerConfig() MemoryBrokerConfig {
 
 // FromConfiguration populates the memory-broker configuration from configuration.
 func (config *MemoryBrokerConfig) FromConfiguration(configuration *contract.Configuration) {
-	config.MaxConcurrentDeliveries = configuration.GetOr("max_concurrent_deliveries", 0)
+	logger := config.Logger
+	*config = DefaultMemoryBrokerConfig()
+	config.Logger = logger
+	config.MaxConcurrentDeliveries = configuration.GetOr("max_concurrent_deliveries", config.MaxConcurrentDeliveries)
 }
 
 // MemoryBroker implements [contract.EventPublisherDriver] and

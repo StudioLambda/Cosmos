@@ -19,6 +19,19 @@ type Config struct {
 	Name     string
 }
 
+// DefaultConfig returns the default AWS Secrets Manager configuration.
+func DefaultConfig() Config {
+	return Config{}
+}
+
+// FromConfiguration populates the AWS Secrets Manager configuration from configuration.
+func (config *Config) FromConfiguration(configuration *contract.Configuration) {
+	*config = DefaultConfig()
+	config.Region = configuration.GetOr("region", config.Region)
+	config.Endpoint = configuration.GetOr("endpoint", config.Endpoint)
+	config.Name = configuration.GetOr("name", config.Name)
+}
+
 type client interface {
 	GetSecretValue(ctx context.Context, params *secretsmanager.GetSecretValueInput, options ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error)
 }

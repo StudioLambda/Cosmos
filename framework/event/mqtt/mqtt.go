@@ -124,6 +124,18 @@ func DefaultMQTTBrokerConfig() MQTTBrokerConfig {
 	}
 }
 
+// FromConfiguration populates the declarative broker configuration from configuration.
+func (config *MQTTBrokerConfig) FromConfiguration(configuration *contract.Configuration) {
+	logger := config.Logger
+	*config = DefaultMQTTBrokerConfig()
+	config.Logger = logger
+	config.URLs = configuration.GetOr("urls", config.URLs)
+	config.QoS = configuration.GetOr("qos", config.QoS)
+	config.Username = configuration.GetOr("username", config.Username)
+	config.Password = configuration.GetOr("password", config.Password)
+	config.KeepAlive = configuration.GetOr("keep_alive", config.KeepAlive)
+}
+
 // DefaultMQTTQoS is the default quality of service level used
 // for MQTT publish and subscribe operations when not specified.
 const DefaultMQTTQoS = 1

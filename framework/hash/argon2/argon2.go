@@ -30,13 +30,14 @@ func DefaultArgon2Config() Argon2Config {
 
 // FromConfiguration populates the Argon2 configuration from configuration.
 func (config *Argon2Config) FromConfiguration(configuration *contract.Configuration) {
-	config.HashLength = uint32(configuration.GetOr("hash_length", 0))
-	config.SaltLength = uint32(configuration.GetOr("salt_length", 0))
-	config.TimeCost = uint32(configuration.GetOr("time_cost", 0))
-	config.MemoryCost = uint32(configuration.GetOr("memory_cost", 0))
-	config.Parallelism = uint8(configuration.GetOr("parallelism", 0))
-	config.Mode = argon2.Mode(configuration.GetOr("mode", 0))
-	config.Version = argon2.Version(configuration.GetOr("version", 0))
+	*config = DefaultArgon2Config()
+	config.HashLength = uint32(configuration.GetOr("hash_length", int(config.HashLength)))
+	config.SaltLength = uint32(configuration.GetOr("salt_length", int(config.SaltLength)))
+	config.TimeCost = uint32(configuration.GetOr("time_cost", int(config.TimeCost)))
+	config.MemoryCost = uint32(configuration.GetOr("memory_cost", int(config.MemoryCost)))
+	config.Parallelism = uint8(configuration.GetOr("parallelism", int(config.Parallelism)))
+	config.Mode = argon2.Mode(configuration.GetOr("mode", int(config.Mode)))
+	config.Version = argon2.Version(configuration.GetOr("version", int(config.Version)))
 }
 
 // NewArgon2 creates an Argon2 hasher using the provided

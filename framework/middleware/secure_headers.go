@@ -49,13 +49,14 @@ type SecureHeadersConfig struct {
 
 // FromConfiguration populates the secure-header configuration from configuration.
 func (config *SecureHeadersConfig) FromConfiguration(configuration *contract.Configuration) {
-	config.ContentTypeOptions = configuration.GetOr("content_type_options", "")
-	config.FrameOptions = configuration.GetOr("frame_options", "")
-	config.ReferrerPolicy = configuration.GetOr("referrer_policy", "")
-	config.XSSProtection = configuration.GetOr("xss_protection", "")
-	config.StrictTransportSecurity = configuration.GetOr("strict_transport_security", "")
-	config.ContentSecurityPolicy = configuration.GetOr("content_security_policy", "")
-	config.PermissionsPolicy = configuration.GetOr("permissions_policy", "")
+	*config = DefaultSecureHeadersConfig()
+	config.ContentTypeOptions = configuration.GetOr("content_type_options", config.ContentTypeOptions)
+	config.FrameOptions = configuration.GetOr("frame_options", config.FrameOptions)
+	config.ReferrerPolicy = configuration.GetOr("referrer_policy", config.ReferrerPolicy)
+	config.XSSProtection = configuration.GetOr("xss_protection", config.XSSProtection)
+	config.StrictTransportSecurity = configuration.GetOr("strict_transport_security", config.StrictTransportSecurity)
+	config.ContentSecurityPolicy = configuration.GetOr("content_security_policy", config.ContentSecurityPolicy)
+	config.PermissionsPolicy = configuration.GetOr("permissions_policy", config.PermissionsPolicy)
 }
 
 // DefaultSecureHeadersConfig returns safe default values for

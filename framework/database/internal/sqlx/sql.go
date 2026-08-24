@@ -67,6 +67,18 @@ func DefaultSQLConfig() SQLConfig {
 	return SQLConfig{}
 }
 
+// FromConfiguration populates the SQL database configuration from configuration.
+func (config *SQLConfig) FromConfiguration(configuration *contract.Configuration) {
+	driver, dsn := config.Driver, config.DSN
+	*config = DefaultSQLConfig()
+	config.Driver = configuration.GetOr("driver", driver)
+	config.DSN = configuration.GetOr("dsn", dsn)
+	config.MaxOpenConns = configuration.GetOr("max_open_conns", config.MaxOpenConns)
+	config.MaxIdleConns = configuration.GetOr("max_idle_conns", config.MaxIdleConns)
+	config.ConnMaxLifetime = configuration.GetOr("conn_max_lifetime", config.ConnMaxLifetime)
+	config.ConnMaxIdleTime = configuration.GetOr("conn_max_idle_time", config.ConnMaxIdleTime)
+}
+
 // Close is a no-op on transaction wrappers. Transactions are managed
 // by [SQL.WithTransaction] which handles commit and rollback.
 func (tx *sqlTx) Close() error {

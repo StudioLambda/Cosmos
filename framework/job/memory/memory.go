@@ -44,6 +44,14 @@ func DefaultMemoryDriverConfig() MemoryDriverConfig {
 	return MemoryDriverConfig{}
 }
 
+// FromConfiguration populates the declarative driver configuration from configuration.
+func (config *MemoryDriverConfig) FromConfiguration(configuration *contract.Configuration) {
+	logger := config.Logger
+	*config = DefaultMemoryDriverConfig()
+	config.Logger = logger
+	config.RetryDelay = configuration.GetOr("retry_delay", config.RetryDelay)
+}
+
 // MemoryDriver implements [contract.JobDispatcherDriver],
 // [contract.JobConsumerDriver], and [contract.Shutdowner] with in-memory data
 // structures. It is non-durable: process exit or crash loses queued jobs.

@@ -3,6 +3,7 @@ package bcrypt
 import (
 	"errors"
 
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework/hash/internal/secure"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -34,6 +35,12 @@ const DefaultBcryptCost = 12
 // DefaultBcryptConfig returns the default bcrypt hasher configuration.
 func DefaultBcryptConfig() BcryptConfig {
 	return BcryptConfig{Cost: DefaultBcryptCost}
+}
+
+// FromConfiguration populates the bcrypt configuration from configuration.
+func (config *BcryptConfig) FromConfiguration(configuration *contract.Configuration) {
+	*config = DefaultBcryptConfig()
+	config.Cost = configuration.GetOr("cost", config.Cost)
 }
 
 // NewBcrypt creates a Bcrypt hasher with the given configuration,

@@ -50,6 +50,19 @@ type ChaCha20Config struct {
 	Key []byte
 }
 
+// DefaultChaCha20Config returns the default ChaCha20-Poly1305 configuration.
+// A key must be supplied before creating an encrypter.
+func DefaultChaCha20Config() ChaCha20Config {
+	return ChaCha20Config{}
+}
+
+// FromConfiguration populates the ChaCha20 configuration from configuration.
+func (config *ChaCha20Config) FromConfiguration(configuration *contract.Configuration) {
+	key := config.Key
+	*config = DefaultChaCha20Config()
+	config.Key = configuration.GetOr("key", key)
+}
+
 // ErrMismatchedChaCha20NonceSize is returned when the ciphertext
 // provided to Decrypt is shorter than the expected nonce size,
 // indicating truncated or corrupted data.

@@ -93,6 +93,24 @@ func DefaultConfig() Config {
 	return Config{Batch: 1, AckWait: 30 * time.Second}
 }
 
+// FromConfiguration populates the declarative driver configuration from configuration.
+func (config *Config) FromConfiguration(configuration *contract.Configuration) {
+	options := config.Options
+	logger := config.Logger
+	*config = DefaultConfig()
+	config.Options = options
+	config.Logger = logger
+	config.URLs = configuration.GetOr("urls", config.URLs)
+	config.Stream = configuration.GetOr("stream", config.Stream)
+	config.Queues = configuration.GetOr("queues", config.Queues)
+	config.FailureSubject = configuration.GetOr("failure_subject", config.FailureSubject)
+	config.Provision = configuration.GetOr("provision", config.Provision)
+	config.Batch = configuration.GetOr("batch", config.Batch)
+	config.MaxAckPending = configuration.GetOr("max_ack_pending", config.MaxAckPending)
+	config.AckWait = configuration.GetOr("ack_wait", config.AckWait)
+	config.MaxDeliver = configuration.GetOr("max_deliver", config.MaxDeliver)
+}
+
 type pullJetStream interface {
 	nats.JetStreamContext
 	PullSubscribe(string, string, ...nats.SubOpt) (*nats.Subscription, error)

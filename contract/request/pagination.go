@@ -1,6 +1,10 @@
 package request
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/studiolambda/cosmos/contract"
+)
 
 // PaginationConfig configures offset-based pagination defaults.
 type PaginationConfig struct {
@@ -30,6 +34,21 @@ func DefaultCursorPaginationConfig() CursorPaginationConfig {
 		DefaultPerPage: 25,
 		MaxPerPage:     100,
 	}
+}
+
+// FromConfiguration populates the offset pagination configuration from configuration.
+func (config *PaginationConfig) FromConfiguration(configuration *contract.Configuration) {
+	*config = DefaultPaginationConfig()
+	config.DefaultPage = configuration.GetOr("default_page", config.DefaultPage)
+	config.DefaultPerPage = configuration.GetOr("default_per_page", config.DefaultPerPage)
+	config.MaxPerPage = configuration.GetOr("max_per_page", config.MaxPerPage)
+}
+
+// FromConfiguration populates the cursor pagination configuration from configuration.
+func (config *CursorPaginationConfig) FromConfiguration(configuration *contract.Configuration) {
+	*config = DefaultCursorPaginationConfig()
+	config.DefaultPerPage = configuration.GetOr("default_per_page", config.DefaultPerPage)
+	config.MaxPerPage = configuration.GetOr("max_per_page", config.MaxPerPage)
 }
 
 // Pagination extracts the page number and per-page count from the

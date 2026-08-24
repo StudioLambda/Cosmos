@@ -135,6 +135,24 @@ func DefaultNATSBrokerConfig() NATSBrokerConfig {
 	}
 }
 
+// FromConfiguration populates the declarative broker configuration from configuration.
+func (config *NATSBrokerConfig) FromConfiguration(configuration *contract.Configuration) {
+	logger := config.Logger
+	*config = DefaultNATSBrokerConfig()
+	config.Logger = logger
+	config.URLs = configuration.GetOr("urls", config.URLs)
+	config.Name = configuration.GetOr("name", config.Name)
+	config.MaxReconnects = configuration.GetOr("max_reconnects", config.MaxReconnects)
+	config.ReconnectWait = configuration.GetOr("reconnect_wait", config.ReconnectWait)
+	config.Timeout = configuration.GetOr("timeout", config.Timeout)
+	config.Username = configuration.GetOr("username", config.Username)
+	config.Password = configuration.GetOr("password", config.Password)
+	config.Token = configuration.GetOr("token", config.Token)
+	config.NKeySeed = configuration.GetOr("nkey_seed", config.NKeySeed)
+	config.CredentialsFile = configuration.GetOr("credentials_file", config.CredentialsFile)
+	config.RootCAs = configuration.GetOr("root_cas", config.RootCAs)
+}
+
 // NewNATSBroker creates a new NATS broker with custom configuration.
 // It applies sensible defaults for any unspecified configuration fields.
 func NewNATSBroker(config NATSBrokerConfig) (*NATSBroker, error) {

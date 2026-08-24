@@ -6,8 +6,83 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/contract/request"
 )
+
+type paginationConfigurationDriver struct {
+	values map[string]int
+}
+
+func (driver paginationConfigurationDriver) Unmarshal(key string, dest any) error {
+	value, ok := driver.values[key]
+	if !ok {
+		return contract.ErrConfigurationKeyNotFound
+	}
+
+	*dest.(*int) = value
+
+	return nil
+}
+
+func (paginationConfigurationDriver) Has(string) bool {
+	return false
+}
+
+func (paginationConfigurationDriver) Delimiter() string {
+	return "."
+}
+
+func (paginationConfigurationDriver) Extend(...contract.ConfigurationProvider) error {
+	return nil
+}
+
+func TestPaginationConfigFromConfigurationPreservesDefaults(t *testing.T) {
+	t.Parallel()
+
+	configuration := contract.NewConfiguration(paginationConfigurationDriver{})
+	config := request.PaginationConfig{}
+	config.FromConfiguration(configuration.Prefixed("pagination"))
+
+	require.Equal(t, request.DefaultPaginationConfig(), config)
+}
+
+func TestPaginationConfigFromConfigurationOverridesValues(t *testing.T) {
+	t.Parallel()
+
+	configuration := contract.NewConfiguration(paginationConfigurationDriver{values: map[string]int{
+		"pagination.default_page":     2,
+		"pagination.default_per_page": 10,
+		"pagination.max_per_page":     50,
+	}})
+	config := request.PaginationConfig{}
+	config.FromConfiguration(configuration.Prefixed("pagination"))
+
+	require.Equal(t, request.PaginationConfig{DefaultPage: 2, DefaultPerPage: 10, MaxPerPage: 50}, config)
+}
+
+func TestCursorPaginationConfigFromConfigurationPreservesDefaults(t *testing.T) {
+	t.Parallel()
+
+	configuration := contract.NewConfiguration(paginationConfigurationDriver{})
+	config := request.CursorPaginationConfig{}
+	config.FromConfiguration(configuration.Prefixed("pagination"))
+
+	require.Equal(t, request.DefaultCursorPaginationConfig(), config)
+}
+
+func TestCursorPaginationConfigFromConfigurationOverridesValues(t *testing.T) {
+	t.Parallel()
+
+	configuration := contract.NewConfiguration(paginationConfigurationDriver{values: map[string]int{
+		"pagination.default_per_page": 10,
+		"pagination.max_per_page":     50,
+	}})
+	config := request.CursorPaginationConfig{}
+	config.FromConfiguration(configuration.Prefixed("pagination"))
+
+	require.Equal(t, request.CursorPaginationConfig{DefaultPerPage: 10, MaxPerPage: 50}, config)
+}
 
 func TestPaginationReturnsDefaults(t *testing.T) {
 	t.Parallel()

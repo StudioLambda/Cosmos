@@ -47,9 +47,13 @@ func DefaultConfig() Config {
 
 // FromConfiguration populates the slog configuration from configuration.
 func (config *Config) FromConfiguration(configuration *contract.Configuration) {
-	config.Level = configuration.GetOr("level", "")
-	config.Format = configuration.GetOr("format", "")
-	config.Output = outputFrom(configuration.GetOr("output", ""))
+	*config = DefaultConfig()
+	config.Level = configuration.GetOr("level", config.Level)
+	config.Format = configuration.GetOr("format", config.Format)
+
+	if configuration.Has("output") {
+		config.Output = outputFrom(configuration.GetOr("output", ""))
+	}
 }
 
 func outputFrom(value string) io.Writer {

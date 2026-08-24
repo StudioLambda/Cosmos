@@ -117,9 +117,9 @@ func CorrelationWith(config CorrelationConfig, generate Generator) framework.Mid
 }
 
 func (config *CorrelationConfig) FromConfiguration(configuration *contract.Configuration) {
-	defaults := DefaultCorrelationConfig()
-	config.Header = configuration.GetOr("header", defaults.Header)
-	config.ProblemKey = configuration.GetOr("problem_key", defaults.ProblemKey)
+	*config = DefaultCorrelationConfig()
+	config.Header = configuration.GetOr("header", config.Header)
+	config.ProblemKey = configuration.GetOr("problem_key", config.ProblemKey)
 }
 
 func (config CorrelationConfig) withDefaults() CorrelationConfig {

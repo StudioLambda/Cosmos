@@ -78,6 +78,15 @@ func DefaultAMQPBrokerConfig() AMQPBrokerConfig {
 	return AMQPBrokerConfig{Exchange: DefaultAMQPExchange}
 }
 
+// FromConfiguration populates the declarative broker configuration from configuration.
+func (config *AMQPBrokerConfig) FromConfiguration(configuration *contract.Configuration) {
+	logger := config.Logger
+	*config = DefaultAMQPBrokerConfig()
+	config.Logger = logger
+	config.URL = configuration.GetOr("url", config.URL)
+	config.Exchange = configuration.GetOr("exchange", config.Exchange)
+}
+
 // NewAMQPBroker creates a new AMQPBroker using the provided
 // configuration for connection URL and exchange name. If no exchange
 // name is specified in the configuration, DefaultAMQPExchange is used.

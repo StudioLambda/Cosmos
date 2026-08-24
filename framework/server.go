@@ -45,13 +45,14 @@ type ServerConfig struct {
 
 // FromConfiguration populates the server configuration from configuration.
 func (config *ServerConfig) FromConfiguration(configuration *contract.Configuration) {
-	config.Host = configuration.GetOr("host", "")
-	config.Port = configuration.GetOr("port", 0)
-	config.ReadHeaderTimeout = configuration.GetOr("read_header_timeout", time.Duration(0))
-	config.ReadTimeout = configuration.GetOr("read_timeout", time.Duration(0))
-	config.WriteTimeout = configuration.GetOr("write_timeout", time.Duration(0))
-	config.IdleTimeout = configuration.GetOr("idle_timeout", time.Duration(0))
-	config.MaxHeaderBytes = configuration.GetOr("max_header_bytes", 0)
+	*config = DefaultServerConfig()
+	config.Host = configuration.GetOr("host", config.Host)
+	config.Port = configuration.GetOr("port", config.Port)
+	config.ReadHeaderTimeout = configuration.GetOr("read_header_timeout", config.ReadHeaderTimeout)
+	config.ReadTimeout = configuration.GetOr("read_timeout", config.ReadTimeout)
+	config.WriteTimeout = configuration.GetOr("write_timeout", config.WriteTimeout)
+	config.IdleTimeout = configuration.GetOr("idle_timeout", config.IdleTimeout)
+	config.MaxHeaderBytes = configuration.GetOr("max_header_bytes", config.MaxHeaderBytes)
 }
 
 // DefaultServerConfig returns the default server configuration with secure

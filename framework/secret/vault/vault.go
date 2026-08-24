@@ -18,6 +18,22 @@ type Config struct {
 	Mount   string
 }
 
+// DefaultConfig returns the default HashiCorp Vault KV v2 configuration.
+func DefaultConfig() Config {
+	return Config{
+		Address: api.DefaultConfig().Address,
+		Mount:   "secret",
+	}
+}
+
+// FromConfiguration populates the HashiCorp Vault configuration from configuration.
+func (config *Config) FromConfiguration(configuration *contract.Configuration) {
+	*config = DefaultConfig()
+	config.Address = configuration.GetOr("address", config.Address)
+	config.Token = configuration.GetOr("token", config.Token)
+	config.Mount = configuration.GetOr("mount", config.Mount)
+}
+
 type client interface {
 	Get(ctx context.Context, secretPath string) (*api.KVSecret, error)
 }
@@ -45,7 +61,7 @@ func New(clientConfig Config) (*Client, error) {
 
 	mount := clientConfig.Mount
 	if mount == "" {
-		mount = "secret"
+		mount = DefaultConfig().Mount
 	}
 
 	return NewFrom(client.KVv2(mount)), nil

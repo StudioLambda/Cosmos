@@ -39,8 +39,9 @@ func DefaultMemoryConfig() MemoryConfig {
 
 // FromConfiguration populates the memory-cache configuration from configuration.
 func (config *MemoryConfig) FromConfiguration(configuration *contract.Configuration) {
-	config.Expiration = configuration.GetOr("expiration", time.Duration(0))
-	config.Cleanup = configuration.GetOr("cleanup", time.Duration(0))
+	*config = DefaultMemoryConfig()
+	config.Expiration = configuration.GetOr("expiration", config.Expiration)
+	config.Cleanup = configuration.GetOr("cleanup", config.Cleanup)
 }
 
 // NewMemory creates a Memory cache with the given configuration.

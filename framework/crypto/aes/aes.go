@@ -52,7 +52,7 @@ type AESConfig struct {
 
 // FromConfiguration populates the AES configuration from configuration.
 func (config *AESConfig) FromConfiguration(configuration *contract.Configuration) {
-	config.Key = configuration.GetOr("key", []byte(nil))
+	config.Key = configuration.GetOr("key", config.Key)
 }
 
 // ErrMismatchedAESNonceSize is returned when the ciphertext provided

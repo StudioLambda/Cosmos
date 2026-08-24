@@ -102,6 +102,20 @@ func DefaultDriverConfig() DriverConfig {
 	}
 }
 
+// FromConfiguration populates the declarative driver configuration from configuration.
+func (config *DriverConfig) FromConfiguration(configuration *contract.Configuration) {
+	logger := config.Logger
+	*config = DefaultDriverConfig()
+	config.Logger = logger
+	config.URL = configuration.GetOr("url", config.URL)
+	config.Exchange = configuration.GetOr("exchange", config.Exchange)
+	config.Queues = configuration.GetOr("queues", config.Queues)
+	config.Prefetch = configuration.GetOr("prefetch", config.Prefetch)
+	config.RetryDelay = configuration.GetOr("retry_delay", config.RetryDelay)
+	config.MaxRetryDelay = configuration.GetOr("max_retry_delay", config.MaxRetryDelay)
+	config.FailureQueue = configuration.GetOr("failure_queue", config.FailureQueue)
+}
+
 // Driver implements [contract.JobDispatcherDriver] and [contract.JobConsumerDriver]
 // with durable RabbitMQ work queues. Dispatch returns only after RabbitMQ publisher
 // confirms the persistent publish. It does not confirm that a worker processed it.

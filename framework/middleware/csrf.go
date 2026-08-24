@@ -19,7 +19,8 @@ var ErrCSRFBlocked = problem.Details{
 
 // FromConfiguration populates the CSRF configuration from configuration.
 func (config *CSRFConfig) FromConfiguration(configuration *contract.Configuration) {
-	config.TrustedOrigins = configuration.GetOr("trusted_origins", []string(nil))
+	*config = DefaultCSRFConfig()
+	config.TrustedOrigins = configuration.GetOr("trusted_origins", config.TrustedOrigins)
 }
 
 // CSRFConfig configures CSRF protection for trusted cross-origin requests.

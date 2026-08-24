@@ -16,6 +16,17 @@ type Config struct {
 	VaultURL string
 }
 
+// DefaultConfig returns the default Azure Key Vault configuration.
+func DefaultConfig() Config {
+	return Config{}
+}
+
+// FromConfiguration populates the Azure Key Vault configuration from configuration.
+func (config *Config) FromConfiguration(configuration *contract.Configuration) {
+	*config = DefaultConfig()
+	config.VaultURL = configuration.GetOr("vault_url", config.VaultURL)
+}
+
 type client interface {
 	GetSecret(ctx context.Context, name, version string, options *azsecrets.GetSecretOptions) (azsecrets.GetSecretResponse, error)
 }

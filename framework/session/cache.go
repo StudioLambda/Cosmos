@@ -34,6 +34,12 @@ func DefaultCacheDriverConfig() CacheDriverConfig {
 	return CacheDriverConfig{Prefix: "cosmos:sessions"}
 }
 
+// FromConfiguration populates the session cache driver configuration from configuration.
+func (config *CacheDriverConfig) FromConfiguration(configuration *contract.Configuration) {
+	*config = DefaultCacheDriverConfig()
+	config.Prefix = configuration.GetOr("prefix", config.Prefix)
+}
+
 // sessionData is the serializable representation of a session for
 // storage in the cache backend.
 type sessionData struct {

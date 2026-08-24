@@ -68,6 +68,19 @@ func DefaultSQSDriverConfig() SQSDriverConfig {
 	return SQSDriverConfig{WaitTimeSeconds: 20, MaxMessages: 1}
 }
 
+// FromConfiguration populates the declarative driver configuration from configuration.
+func (config *SQSDriverConfig) FromConfiguration(configuration *contract.Configuration) {
+	awsConfig := config.AWSConfig
+	logger := config.Logger
+	*config = DefaultSQSDriverConfig()
+	config.AWSConfig = awsConfig
+	config.Logger = logger
+	config.Queues = configuration.GetOr("queues", config.Queues)
+	config.FailureQueueURL = configuration.GetOr("failure_queue_url", config.FailureQueueURL)
+	config.WaitTimeSeconds = configuration.GetOr("wait_time_seconds", config.WaitTimeSeconds)
+	config.MaxMessages = configuration.GetOr("max_messages", config.MaxMessages)
+}
+
 type client interface {
 	SendMessage(context.Context, *awssqs.SendMessageInput, ...func(*awssqs.Options)) (*awssqs.SendMessageOutput, error)
 	ReceiveMessage(context.Context, *awssqs.ReceiveMessageInput, ...func(*awssqs.Options)) (*awssqs.ReceiveMessageOutput, error)

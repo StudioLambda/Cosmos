@@ -20,11 +20,11 @@ type Config struct {
 
 // FromConfiguration populates the SQLite configuration from configuration.
 func (config *Config) FromConfiguration(configuration *contract.Configuration) {
-	config.DSN = configuration.GetOr("dsn", "")
-	config.MaxOpenConns = configuration.GetOr("max_open_conns", 0)
-	config.MaxIdleConns = configuration.GetOr("max_idle_conns", 0)
-	config.ConnMaxLifetime = configuration.GetOr("conn_max_lifetime", time.Duration(0))
-	config.ConnMaxIdleTime = configuration.GetOr("conn_max_idle_time", time.Duration(0))
+	config.DSN = configuration.GetOr("dsn", config.DSN)
+	config.MaxOpenConns = configuration.GetOr("max_open_conns", config.MaxOpenConns)
+	config.MaxIdleConns = configuration.GetOr("max_idle_conns", config.MaxIdleConns)
+	config.ConnMaxLifetime = configuration.GetOr("conn_max_lifetime", config.ConnMaxLifetime)
+	config.ConnMaxIdleTime = configuration.GetOr("conn_max_idle_time", config.ConnMaxIdleTime)
 }
 
 // New connects to SQLite and returns a contract-compatible database driver.

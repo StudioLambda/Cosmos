@@ -25,9 +25,10 @@ var ErrRateLimited = problem.Details{
 
 // FromConfiguration populates the rate-limit configuration from configuration.
 func (config *RateLimitConfig) FromConfiguration(configuration *contract.Configuration) {
-	config.Name = configuration.GetOr("name", "")
-	config.Limit = configuration.GetOr("limit", 0)
-	config.Window = configuration.GetOr("window", time.Duration(0))
+	*config = DefaultRateLimitConfig()
+	config.Name = configuration.GetOr("name", config.Name)
+	config.Limit = configuration.GetOr("limit", config.Limit)
+	config.Window = configuration.GetOr("window", config.Window)
 }
 
 // RateLimitConfig configures the rate limiter middleware.

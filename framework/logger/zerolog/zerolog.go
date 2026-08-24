@@ -43,6 +43,16 @@ func DefaultConfig() Config {
 	}
 }
 
+// FromConfiguration populates the Zerolog configuration from configuration.
+// Output is intentionally retained because writers are runtime objects.
+func (config *Config) FromConfiguration(configuration *contract.Configuration) {
+	output := config.Output
+	*config = DefaultConfig()
+	config.Output = output
+	config.Level = configuration.GetOr("level", config.Level)
+	config.Format = configuration.GetOr("format", config.Format)
+}
+
 // Zerolog implements [contract.LoggerDriver] with [zerolog.Logger].
 type Zerolog struct {
 	logger rszerolog.Logger

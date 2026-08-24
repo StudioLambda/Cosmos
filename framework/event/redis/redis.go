@@ -53,6 +53,18 @@ func DefaultRedisBrokerConfig() RedisBrokerConfig {
 	}
 }
 
+// FromConfiguration populates the declarative broker configuration from configuration.
+func (config *RedisBrokerConfig) FromConfiguration(configuration *contract.Configuration) {
+	logger := config.Logger
+	*config = DefaultRedisBrokerConfig()
+	config.Logger = logger
+	config.Network = configuration.GetOr("network", config.Network)
+	config.Addr = configuration.GetOr("addr", config.Addr)
+	config.Username = configuration.GetOr("username", config.Username)
+	config.Password = configuration.GetOr("password", config.Password)
+	config.DB = configuration.GetOr("db", config.DB)
+}
+
 // NewRedisBroker creates a RedisBroker by connecting to Redis
 // with the given configuration.
 func NewRedisBroker(config RedisBrokerConfig) *RedisBroker {
