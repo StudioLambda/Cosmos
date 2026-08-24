@@ -20,11 +20,12 @@ jobs:
       run:
         working-directory: ./router
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
+          go-version: "1.27.0-rc.2" # temp, remove when done.
           go-version-file: "router/go.mod"
           cache-dependency-path: "router/go.sum"
 
@@ -32,4 +33,70 @@ jobs:
         run: go mod download
 
       - name: Test
-        run: go test -v ./...
+        run: go test -race -v ./...
+
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./router
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.27.0-rc.2" # temp, remove when done.
+          go-version-file: "router/go.mod"
+          cache-dependency-path: "router/go.sum"
+
+      - name: Check formatting
+        run: test -z "$(gofmt -l .)"
+
+  vet:
+    name: Vet
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./router
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.27.0-rc.2" # temp, remove when done.
+          go-version-file: "router/go.mod"
+          cache-dependency-path: "router/go.sum"
+
+      - name: Download Dependencies
+        run: go mod download
+
+      - name: Vet
+        run: go vet ./...
+
+  vuln:
+    name: Vulnerability Scan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./router
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.27.0-rc.2" # temp, remove when done.
+          go-version-file: "router/go.mod"
+          cache-dependency-path: "router/go.sum"
+
+      - name: Download Dependencies
+        run: go mod download
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Vulnerability scan
+        run: govulncheck ./...

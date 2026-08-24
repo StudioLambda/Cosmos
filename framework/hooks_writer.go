@@ -1,7 +1,8 @@
 package framework
 
 import (
-	"log/slog"
+	"bufio"
+	"net"
 	"net/http"
 	"sync/atomic"
 
@@ -18,15 +19,7 @@ type ResponseWriter struct {
 	http.ResponseWriter
 	*contract.Hooks
 	writeHeaderCalled atomic.Bool
-}
-
-// ResponseWriterFlusher extends ResponseWriter with the
-// http.Flusher interface. It is returned by NewResponseWriter
-// when the underlying writer supports flushing, preserving
-// streaming capabilities through the hook layer.
-type ResponseWriterFlusher struct {
-	*ResponseWriter
-	http.Flusher
+	logger            *atomic.Pointer[contract.Logger]
 }
 
 // WrappedResponseWriter is the interface returned by
@@ -38,36 +31,42 @@ type WrappedResponseWriter interface {
 	WriteHeaderCalled() bool
 }
 
-// NewResponseWriter creates a WrappedResponseWriter that fires
-// the given hooks on write operations. If the underlying writer
-// implements http.Flusher, the returned value also satisfies
-// http.Flusher via ResponseWriterFlusher.
-func NewResponseWriter(writer http.ResponseWriter, hooks *contract.Hooks) WrappedResponseWriter {
+// NewResponseWriter creates a WrappedResponseWriter that fires the given hooks
+// on write operations. Use [http.NewResponseController] for optional response
+// capabilities such as flushing, connection deadlines, and full duplex mode.
+func NewResponseWriter(
+	writer http.ResponseWriter,
+	hooks *contract.Hooks,
+	logger ...*atomic.Pointer[contract.Logger],
+) WrappedResponseWriter {
 	wrapped := &ResponseWriter{
 		ResponseWriter: writer,
 		Hooks:          hooks,
 	}
 
-	if flusher, ok := writer.(http.Flusher); ok {
-		return &ResponseWriterFlusher{
-			ResponseWriter: wrapped,
-			Flusher:        flusher,
-		}
+	if len(logger) > 0 {
+		wrapped.logger = logger[0]
 	}
 
 	return wrapped
 }
 
-// WriteHeaderCalled reports whether WriteHeader has already
-// been invoked on this writer. Useful for middleware that
+// WriteHeaderCalled reports whether a final response has already
+// been started on this writer. Useful for middleware that
 // needs to conditionally set a default status code.
+//
+// Example:
+//
+//	if !wrapped.WriteHeaderCalled() {
+//		wrapped.WriteHeader(http.StatusNoContent)
+//	}
 func (writer *ResponseWriter) WriteHeaderCalled() bool {
 	return writer.writeHeaderCalled.Load()
 }
 
-// WriteHeader sends the HTTP status code to the client after
-// firing all registered BeforeWriteHeader hooks. Subsequent
-// calls are no-ops to match http.ResponseWriter semantics.
+// WriteHeader sends the HTTP status code to the client after firing all
+// registered BeforeWriteHeader hooks. Informational responses do not commit
+// the response, except for 101 Switching Protocols.
 func (writer *ResponseWriter) WriteHeader(status int) {
 	if writer.WriteHeaderCalled() {
 		return
@@ -77,7 +76,7 @@ func (writer *ResponseWriter) WriteHeader(status int) {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					slog.Error("before write header hook panicked", "error", r)
+					writer.logHookPanic("before write header hook panicked", r)
 				}
 			}()
 
@@ -86,7 +85,10 @@ func (writer *ResponseWriter) WriteHeader(status int) {
 	}
 
 	writer.ResponseWriter.WriteHeader(status)
-	writer.writeHeaderCalled.Store(true)
+
+	if status < http.StatusContinue || status >= http.StatusOK || status == http.StatusSwitchingProtocols {
+		writer.writeHeaderCalled.Store(true)
+	}
 }
 
 // Unwrap returns the underlying [http.ResponseWriter]. This enables
@@ -110,7 +112,7 @@ func (writer *ResponseWriter) Write(content []byte) (int, error) {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					slog.Error("before write hook panicked", "error", r)
+					writer.logHookPanic("before write hook panicked", r)
 				}
 			}()
 
@@ -119,4 +121,34 @@ func (writer *ResponseWriter) Write(content []byte) (int, error) {
 	}
 
 	return writer.ResponseWriter.Write(content)
+}
+
+// FlushError flushes buffered data to the client. It is discovered by
+// [http.ResponseController] and commits a default 200 response when needed.
+func (writer *ResponseWriter) FlushError() error {
+	if !writer.WriteHeaderCalled() {
+		writer.WriteHeader(http.StatusOK)
+	}
+
+	return http.NewResponseController(writer.ResponseWriter).Flush()
+}
+
+// Hijack implements [http.Hijacker] for compatibility with WebSocket
+// libraries that assert the interface directly. New code should use
+// [http.ResponseController.Hijack].
+func (writer *ResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	connection, readWriter, err := http.NewResponseController(writer.ResponseWriter).Hijack()
+	if err == nil {
+		writer.writeHeaderCalled.Store(true)
+	}
+
+	return connection, readWriter, err
+}
+
+func (writer *ResponseWriter) logHookPanic(message string, recovered any) {
+	if writer.logger == nil {
+		return
+	}
+
+	writer.logger.Load().Error(message, "error", recovered)
 }

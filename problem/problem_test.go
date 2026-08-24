@@ -1,9 +1,8 @@
 package problem_test
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,11 +11,11 @@ import (
 	"github.com/studiolambda/cosmos/problem"
 )
 
-func TestNewProblem(t *testing.T) {
+func TestNewDetails(t *testing.T) {
 	t.Parallel()
 
 	err := errors.New("something failed")
-	p := problem.NewProblem(err, http.StatusBadRequest)
+	p := problem.NewDetails(err, http.StatusBadRequest)
 
 	if p.Status != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, p.Status)
@@ -27,10 +26,10 @@ func TestNewProblem(t *testing.T) {
 	}
 }
 
-func TestNewProblemNilError(t *testing.T) {
+func TestNewDetailsNilError(t *testing.T) {
 	t.Parallel()
 
-	p := problem.NewProblem(nil, http.StatusNotFound)
+	p := problem.NewDetails(nil, http.StatusNotFound)
 
 	if p.Status != http.StatusNotFound {
 		t.Fatalf("expected status %d, got %d", http.StatusNotFound, p.Status)
@@ -41,13 +40,88 @@ func TestNewProblemNilError(t *testing.T) {
 	}
 }
 
+func TestWithType(t *testing.T) {
+	t.Parallel()
+
+	original := problem.Details{}
+	modified := original.WithType("https://example.com/problems/custom")
+
+	if modified.Type != "https://example.com/problems/custom" {
+		t.Fatalf("expected type to be set, got %q", modified.Type)
+	}
+
+	if original.Type != "" {
+		t.Fatalf("original was mutated: got %q", original.Type)
+	}
+}
+
+func TestWithTitle(t *testing.T) {
+	t.Parallel()
+
+	original := problem.Details{}
+	modified := original.WithTitle("Custom Title")
+
+	if modified.Title != "Custom Title" {
+		t.Fatalf("expected title to be set, got %q", modified.Title)
+	}
+
+	if original.Title != "" {
+		t.Fatalf("original was mutated: got %q", original.Title)
+	}
+}
+
+func TestWithDetail(t *testing.T) {
+	t.Parallel()
+
+	original := problem.Details{}
+	modified := original.WithDetail("The request could not be processed.")
+
+	if modified.Detail != "The request could not be processed." {
+		t.Fatalf("expected detail to be set, got %q", modified.Detail)
+	}
+
+	if original.Detail != "" {
+		t.Fatalf("original was mutated: got %q", original.Detail)
+	}
+}
+
+func TestWithStatus(t *testing.T) {
+	t.Parallel()
+
+	original := problem.Details{}
+	modified := original.WithStatus(http.StatusUnprocessableEntity)
+
+	if modified.Status != http.StatusUnprocessableEntity {
+		t.Fatalf("expected status to be set, got %d", modified.Status)
+	}
+
+	if original.Status != 0 {
+		t.Fatalf("original was mutated: got %d", original.Status)
+	}
+}
+
+func TestWithInstance(t *testing.T) {
+	t.Parallel()
+
+	original := problem.Details{}
+	modified := original.WithInstance("/problems/123")
+
+	if modified.Instance != "/problems/123" {
+		t.Fatalf("expected instance to be set, got %q", modified.Instance)
+	}
+
+	if original.Instance != "" {
+		t.Fatalf("original was mutated: got %q", original.Instance)
+	}
+}
+
 func TestAdditionalFound(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{Status: http.StatusBadRequest}
+	p := problem.Details{Status: http.StatusBadRequest}
 	p = p.With("key", "value")
 
-	val, ok := p.Additional("key")
+	val, ok := p.Additional["key"]
 
 	if !ok {
 		t.Fatalf("expected key to be found")
@@ -61,9 +135,9 @@ func TestAdditionalFound(t *testing.T) {
 func TestAdditionalNotFound(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{Status: http.StatusBadRequest}
+	p := problem.Details{Status: http.StatusBadRequest}
 
-	val, ok := p.Additional("missing")
+	val, ok := p.Additional["missing"]
 
 	if ok {
 		t.Fatalf("expected key to not be found")
@@ -77,9 +151,9 @@ func TestAdditionalNotFound(t *testing.T) {
 func TestAdditionalNotFoundNilMap(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{}
+	p := problem.Details{}
 
-	val, ok := p.Additional("anything")
+	val, ok := p.Additional["anything"]
 
 	if ok {
 		t.Fatalf("expected key to not be found on nil map")
@@ -93,10 +167,10 @@ func TestAdditionalNotFoundNilMap(t *testing.T) {
 func TestWithNilMap(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{Status: http.StatusBadRequest}
+	p := problem.Details{Status: http.StatusBadRequest}
 	p = p.With("foo", "bar")
 
-	val, ok := p.Additional("foo")
+	val, ok := p.Additional["foo"]
 
 	if !ok {
 		t.Fatalf("expected key to be found")
@@ -110,12 +184,12 @@ func TestWithNilMap(t *testing.T) {
 func TestWithExistingMap(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{Status: http.StatusBadRequest}
+	p := problem.Details{Status: http.StatusBadRequest}
 	p = p.With("first", 1)
 	p = p.With("second", 2)
 
-	val1, ok1 := p.Additional("first")
-	val2, ok2 := p.Additional("second")
+	val1, ok1 := p.Additional["first"]
+	val2, ok2 := p.Additional["second"]
 
 	if !ok1 || !ok2 {
 		t.Fatalf("expected both keys to be found")
@@ -133,17 +207,17 @@ func TestWithExistingMap(t *testing.T) {
 func TestWithDoesNotMutateOriginal(t *testing.T) {
 	t.Parallel()
 
-	original := problem.Problem{Status: http.StatusBadRequest}
+	original := problem.Details{Status: http.StatusBadRequest}
 	original = original.With("key", "original")
 	modified := original.With("key", "modified")
 
-	val, _ := original.Additional("key")
+	val, _ := original.Additional["key"]
 
 	if val != "original" {
 		t.Fatalf("original was mutated: expected %q, got %v", "original", val)
 	}
 
-	val2, _ := modified.Additional("key")
+	val2, _ := modified.Additional["key"]
 
 	if val2 != "modified" {
 		t.Fatalf("modified has wrong value: expected %q, got %v", "modified", val2)
@@ -153,7 +227,7 @@ func TestWithDoesNotMutateOriginal(t *testing.T) {
 func TestWithError(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{Status: http.StatusInternalServerError}
+	p := problem.Details{Status: http.StatusInternalServerError}
 	err := errors.New("database error")
 	p = p.WithError(err)
 
@@ -166,7 +240,7 @@ func TestWithoutError(t *testing.T) {
 	t.Parallel()
 
 	err := errors.New("some error")
-	p := problem.NewProblem(err, http.StatusInternalServerError)
+	p := problem.NewDetails(err, http.StatusInternalServerError)
 	p = p.WithoutError()
 
 	if p.Unwrap() != nil {
@@ -177,7 +251,7 @@ func TestWithoutError(t *testing.T) {
 func TestWithoutNilMap(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{Status: http.StatusBadRequest}
+	p := problem.Details{Status: http.StatusBadRequest}
 	p = p.Without("nonexistent")
 
 	if p.Status != http.StatusBadRequest {
@@ -188,11 +262,11 @@ func TestWithoutNilMap(t *testing.T) {
 func TestWithoutExistingKey(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{Status: http.StatusBadRequest}
+	p := problem.Details{Status: http.StatusBadRequest}
 	p = p.With("key", "value")
 	p = p.Without("key")
 
-	_, ok := p.Additional("key")
+	_, ok := p.Additional["key"]
 
 	if ok {
 		t.Fatalf("expected key to be removed")
@@ -202,11 +276,11 @@ func TestWithoutExistingKey(t *testing.T) {
 func TestWithoutDoesNotMutateOriginal(t *testing.T) {
 	t.Parallel()
 
-	original := problem.Problem{Status: http.StatusBadRequest}
+	original := problem.Details{Status: http.StatusBadRequest}
 	original = original.With("key", "value")
 	_ = original.Without("key")
 
-	val, ok := original.Additional("key")
+	val, ok := original.Additional["key"]
 
 	if !ok {
 		t.Fatalf("original was mutated: key was removed")
@@ -221,10 +295,10 @@ func TestErrorWithErr(t *testing.T) {
 	t.Parallel()
 
 	err := errors.New("something broke")
-	p := problem.NewProblem(err, http.StatusInternalServerError)
+	p := problem.NewDetails(err, http.StatusInternalServerError).WithTitle("Database Unavailable")
 
 	got := p.Error()
-	expected := "500 internal server error: something broke"
+	expected := "500 Database Unavailable: something broke"
 
 	if got != expected {
 		t.Fatalf("expected %q, got %q", expected, got)
@@ -234,70 +308,16 @@ func TestErrorWithErr(t *testing.T) {
 func TestErrorWithoutErr(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{
+	p := problem.Details{
 		Status: http.StatusNotFound,
 		Title:  "Resource Not Found",
 	}
 
 	got := p.Error()
-	expected := "404 not found: resource not found"
+	expected := "404 Resource Not Found"
 
 	if got != expected {
 		t.Fatalf("expected %q, got %q", expected, got)
-	}
-}
-
-func TestErrorsNilError(t *testing.T) {
-	t.Parallel()
-
-	p := problem.Problem{}
-	errs := p.Errors()
-
-	if len(errs) != 0 {
-		t.Fatalf("expected empty errors, got %d", len(errs))
-	}
-}
-
-func TestErrorsSingleError(t *testing.T) {
-	t.Parallel()
-
-	err := errors.New("one error")
-	p := problem.NewProblem(err, http.StatusBadRequest)
-	errs := p.Errors()
-
-	if len(errs) != 1 {
-		t.Fatalf("expected 1 error, got %d", len(errs))
-	}
-
-	if errs[0].Error() != "one error" {
-		t.Fatalf("expected %q, got %q", "one error", errs[0].Error())
-	}
-}
-
-func TestErrorsWrappedChain(t *testing.T) {
-	t.Parallel()
-
-	inner := errors.New("inner")
-	outer := fmt.Errorf("outer: %w", inner)
-	p := problem.NewProblem(outer, http.StatusInternalServerError)
-	errs := p.Errors()
-
-	if len(errs) != 1 {
-		t.Fatalf("expected 1 error (fmt.Errorf wraps single), got %d", len(errs))
-	}
-}
-
-func TestErrorsJoinedErrors(t *testing.T) {
-	t.Parallel()
-
-	err1 := errors.New("first")
-	err2 := errors.New("second")
-	joined := errors.Join(err1, err2)
-	p := problem.NewProblem(joined, http.StatusInternalServerError)
-	errs := p.Errors()
-
-	if len(errs) != 2 {
-		t.Fatalf("expected 2 errors, got %d", len(errs))
 	}
 }
 
@@ -305,7 +325,7 @@ func TestUnwrap(t *testing.T) {
 	t.Parallel()
 
 	err := errors.New("test error")
-	p := problem.NewProblem(err, http.StatusBadRequest)
+	p := problem.NewDetails(err, http.StatusBadRequest)
 
 	if p.Unwrap() != err {
 		t.Fatalf("expected %v, got %v", err, p.Unwrap())
@@ -315,83 +335,17 @@ func TestUnwrap(t *testing.T) {
 func TestUnwrapNil(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{}
+	p := problem.Details{}
 
 	if p.Unwrap() != nil {
 		t.Fatalf("expected nil, got %v", p.Unwrap())
 	}
 }
 
-func TestWithStackTrace(t *testing.T) {
-	t.Parallel()
-
-	err := errors.New("root cause")
-	p := problem.NewProblem(err, http.StatusInternalServerError)
-	p = p.WithStackTrace()
-
-	val, ok := p.Additional(problem.StackTraceKey)
-
-	if !ok {
-		t.Fatalf("expected stack_trace to be present")
-	}
-
-	traces, ok := val.([]string)
-
-	if !ok {
-		t.Fatalf("expected []string, got %T", val)
-	}
-
-	if len(traces) != 1 {
-		t.Fatalf("expected 1 trace, got %d", len(traces))
-	}
-
-	if traces[0] != "root cause" {
-		t.Fatalf("expected %q, got %q", "root cause", traces[0])
-	}
-}
-
-func TestWithStackTraceNoError(t *testing.T) {
-	t.Parallel()
-
-	p := problem.Problem{Status: http.StatusBadRequest}
-	p = p.WithStackTrace()
-
-	val, ok := p.Additional(problem.StackTraceKey)
-
-	if !ok {
-		t.Fatalf("expected stack_trace key to be present")
-	}
-
-	traces, ok := val.([]string)
-
-	if !ok {
-		t.Fatalf("expected []string, got %T", val)
-	}
-
-	if len(traces) != 0 {
-		t.Fatalf("expected 0 traces, got %d", len(traces))
-	}
-}
-
-func TestWithoutStackTrace(t *testing.T) {
-	t.Parallel()
-
-	err := errors.New("root cause")
-	p := problem.NewProblem(err, http.StatusInternalServerError)
-	p = p.WithStackTrace()
-	p = p.WithoutStackTrace()
-
-	_, ok := p.Additional(problem.StackTraceKey)
-
-	if ok {
-		t.Fatalf("expected stack_trace to be removed")
-	}
-}
-
 func TestMarshalJSON(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{
+	p := problem.Details{
 		Type:     "https://example.com/errors/test",
 		Title:    "Test Error",
 		Detail:   "Something went wrong",
@@ -437,7 +391,7 @@ func TestMarshalJSON(t *testing.T) {
 func TestMarshalJSONWithAdditional(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{
+	p := problem.Details{
 		Type:   "https://example.com/errors/test",
 		Title:  "Test",
 		Status: http.StatusBadRequest,
@@ -453,18 +407,12 @@ func TestMarshalJSONWithAdditional(t *testing.T) {
 
 	var decoded map[string]any
 
-	err = json.Unmarshal(data, &decoded)
-
-	if err != nil {
+	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatalf("failed to unmarshal result: %s", err)
 	}
 
 	if decoded["custom_field"] != "custom_value" {
-		t.Fatalf(
-			"expected custom_field %q, got %v",
-			"custom_value",
-			decoded["custom_field"],
-		)
+		t.Fatalf("expected embedded additional field, got %v", decoded["custom_field"])
 	}
 }
 
@@ -479,7 +427,7 @@ func TestUnmarshalJSON(t *testing.T) {
 		"instance": "/test/123"
 	}`
 
-	var p problem.Problem
+	var p problem.Details
 
 	err := json.Unmarshal([]byte(raw), &p)
 
@@ -518,7 +466,7 @@ func TestUnmarshalJSONWithAdditional(t *testing.T) {
 		"custom": "extra"
 	}`
 
-	var p problem.Problem
+	var p problem.Details
 
 	err := json.Unmarshal([]byte(raw), &p)
 
@@ -526,14 +474,8 @@ func TestUnmarshalJSONWithAdditional(t *testing.T) {
 		t.Fatalf("failed to unmarshal: %s", err)
 	}
 
-	val, ok := p.Additional("custom")
-
-	if !ok {
-		t.Fatalf("expected custom key to be found")
-	}
-
-	if val != "extra" {
-		t.Fatalf("expected %q, got %v", "extra", val)
+	if p.Additional["custom"] != "extra" {
+		t.Fatalf("expected custom additional field, got %v", p.Additional["custom"])
 	}
 }
 
@@ -542,7 +484,7 @@ func TestUnmarshalJSONMissingFields(t *testing.T) {
 
 	raw := `{}`
 
-	var p problem.Problem
+	var p problem.Details
 
 	err := json.Unmarshal([]byte(raw), &p)
 
@@ -574,9 +516,9 @@ func TestUnmarshalJSONMissingFields(t *testing.T) {
 func TestUnmarshalJSONInvalid(t *testing.T) {
 	t.Parallel()
 
-	var p problem.Problem
+	var p problem.Details
 
-	err := p.UnmarshalJSON([]byte(`not valid json`))
+	err := json.Unmarshal([]byte(`not valid json`), &p)
 
 	if err == nil {
 		t.Fatalf("expected error for invalid JSON")
@@ -586,7 +528,7 @@ func TestUnmarshalJSONInvalid(t *testing.T) {
 func TestDefaultedAllEmpty(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{}
+	p := problem.Details{}
 	req := httptest.NewRequest(http.MethodGet, "/test/path", nil)
 	p = p.Defaulted(req)
 
@@ -614,7 +556,7 @@ func TestDefaultedAllEmpty(t *testing.T) {
 func TestDefaultedAllFilled(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{
+	p := problem.Details{
 		Type:     "https://example.com/errors/custom",
 		Title:    "Custom Title",
 		Status:   http.StatusBadRequest,
@@ -648,7 +590,7 @@ func TestDefaultedAllFilled(t *testing.T) {
 func TestDefaultedPartialFilled(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{
+	p := problem.Details{
 		Status: http.StatusNotFound,
 	}
 
@@ -675,7 +617,7 @@ func TestDefaultedPartialFilled(t *testing.T) {
 func TestServeHTTPProblemJSON(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{
+	p := problem.Details{
 		Type:   "https://example.com/errors/test",
 		Title:  "Test Error",
 		Detail: "Details here",
@@ -700,7 +642,7 @@ func TestServeHTTPProblemJSON(t *testing.T) {
 
 	var decoded map[string]any
 
-	err := json.NewDecoder(rec.Body).Decode(&decoded)
+	err := json.UnmarshalRead(rec.Body, &decoded)
 
 	if err != nil {
 		t.Fatalf("failed to decode response: %s", err)
@@ -714,7 +656,7 @@ func TestServeHTTPProblemJSON(t *testing.T) {
 func TestServeHTTPJSON(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{
+	p := problem.Details{
 		Type:   "https://example.com/errors/test",
 		Title:  "Test Error",
 		Detail: "Details here",
@@ -739,7 +681,7 @@ func TestServeHTTPJSON(t *testing.T) {
 
 	var decoded map[string]any
 
-	err := json.NewDecoder(rec.Body).Decode(&decoded)
+	err := json.UnmarshalRead(rec.Body, &decoded)
 
 	if err != nil {
 		t.Fatalf("failed to decode response: %s", err)
@@ -753,7 +695,7 @@ func TestServeHTTPJSON(t *testing.T) {
 func TestServeHTTPTextFallback(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{
+	p := problem.Details{
 		Title:  "Test Error",
 		Detail: "Something went wrong",
 		Status: http.StatusBadRequest,
@@ -786,7 +728,7 @@ func TestServeHTTPTextFallback(t *testing.T) {
 func TestServeHTTPTextFallbackWithUnknownAccept(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{
+	p := problem.Details{
 		Title:  "Test Error",
 		Detail: "Something went wrong",
 		Status: http.StatusBadRequest,
@@ -809,84 +751,10 @@ func TestServeHTTPTextFallbackWithUnknownAccept(t *testing.T) {
 	}
 }
 
-func TestServeHTTPTextWithStackTrace(t *testing.T) {
-	t.Parallel()
-
-	err := errors.New("root cause")
-	p := problem.NewProblem(err, http.StatusInternalServerError)
-	p.Title = "Server Error"
-	p.Detail = "An error occurred"
-	p = p.WithStackTrace()
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
-
-	p.ServeHTTP(rec, req)
-
-	body := rec.Body.String()
-
-	if !strings.Contains(body, "root cause") {
-		t.Fatalf("expected stack trace in text body, got %q", body)
-	}
-}
-
-func TestServeHTTPDev(t *testing.T) {
-	t.Parallel()
-
-	err := errors.New("debug error")
-	p := problem.NewProblem(err, http.StatusInternalServerError)
-	p.Title = "Server Error"
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Accept", "application/json")
-	rec := httptest.NewRecorder()
-
-	p.ServeHTTPDev(rec, req)
-
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf(
-			"expected status %d, got %d",
-			http.StatusInternalServerError,
-			rec.Code,
-		)
-	}
-
-	var decoded map[string]any
-
-	err2 := json.NewDecoder(rec.Body).Decode(&decoded)
-
-	if err2 != nil {
-		t.Fatalf("failed to decode response: %s", err2)
-	}
-
-	if _, ok := decoded[problem.StackTraceKey]; !ok {
-		t.Fatalf("expected stack_trace in dev response")
-	}
-}
-
-func TestServeHTTPDevTextFallback(t *testing.T) {
-	t.Parallel()
-
-	err := errors.New("debug text error")
-	p := problem.NewProblem(err, http.StatusInternalServerError)
-	p.Title = "Server Error"
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
-
-	p.ServeHTTPDev(rec, req)
-
-	body := rec.Body.String()
-
-	if !strings.Contains(body, "debug text error") {
-		t.Fatalf("expected stack trace in dev text response, got %q", body)
-	}
-}
-
 func TestHTTPStatus(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{Status: http.StatusTeapot}
+	p := problem.Details{Status: http.StatusTeapot}
 
 	if p.HTTPStatus() != http.StatusTeapot {
 		t.Fatalf("expected %d, got %d", http.StatusTeapot, p.HTTPStatus())
@@ -896,7 +764,7 @@ func TestHTTPStatus(t *testing.T) {
 func TestHTTPStatusZero(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{}
+	p := problem.Details{}
 
 	if p.HTTPStatus() != 0 {
 		t.Fatalf("expected 0, got %d", p.HTTPStatus())
@@ -906,7 +774,7 @@ func TestHTTPStatusZero(t *testing.T) {
 func TestServeHTTPDefaultsApplied(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{}
+	p := problem.Details{}
 
 	req := httptest.NewRequest(http.MethodGet, "/my/path", nil)
 	req.Header.Set("Accept", "application/problem+json")
@@ -924,7 +792,7 @@ func TestServeHTTPDefaultsApplied(t *testing.T) {
 
 	var decoded map[string]any
 
-	err := json.NewDecoder(rec.Body).Decode(&decoded)
+	err := json.UnmarshalRead(rec.Body, &decoded)
 
 	if err != nil {
 		t.Fatalf("failed to decode response: %s", err)
@@ -950,7 +818,7 @@ func TestServeHTTPDefaultsApplied(t *testing.T) {
 func TestServeHTTPProblemJSONPreferredOverJSON(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{
+	p := problem.Details{
 		Status: http.StatusBadRequest,
 		Title:  "Bad Request",
 	}
@@ -974,7 +842,7 @@ func TestServeHTTPProblemJSONPreferredOverJSON(t *testing.T) {
 func TestServeHTTPJSONPreferredOverProblemJSON(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{
+	p := problem.Details{
 		Status: http.StatusBadRequest,
 		Title:  "Bad Request",
 	}
@@ -995,10 +863,40 @@ func TestServeHTTPJSONPreferredOverProblemJSON(t *testing.T) {
 	}
 }
 
+func TestServeHTTPDoesNotServeExcludedJSON(t *testing.T) {
+	t.Parallel()
+
+	p := problem.Details{Status: http.StatusBadRequest, Title: "Bad Request"}
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Accept", "application/json;q=0, application/problem+json;q=0")
+	rec := httptest.NewRecorder()
+
+	p.ServeHTTP(rec, req)
+
+	if rec.Header().Get("Content-Type") == "application/json" || rec.Header().Get("Content-Type") == "application/problem+json" {
+		t.Fatal("served an explicitly excluded JSON representation")
+	}
+}
+
+func TestServeHTTPServesJSONForApplicationWildcard(t *testing.T) {
+	t.Parallel()
+
+	p := problem.Details{Status: http.StatusBadRequest, Title: "Bad Request"}
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Accept", "application/*")
+	rec := httptest.NewRecorder()
+
+	p.ServeHTTP(rec, req)
+
+	if rec.Header().Get("Content-Type") != "application/json" {
+		t.Fatalf("expected application/json, got %q", rec.Header().Get("Content-Type"))
+	}
+}
+
 func TestMarshalJSONEmpty(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{}
+	p := problem.Details{}
 
 	data, err := json.Marshal(p)
 
@@ -1026,7 +924,7 @@ func TestMarshalJSONEmpty(t *testing.T) {
 func TestMarshalUnmarshalRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	original := problem.Problem{
+	original := problem.Details{
 		Type:     "https://example.com/errors/test",
 		Title:    "Test Error",
 		Detail:   "A detailed description",
@@ -1042,7 +940,7 @@ func TestMarshalUnmarshalRoundTrip(t *testing.T) {
 		t.Fatalf("failed to marshal: %s", err)
 	}
 
-	var restored problem.Problem
+	var restored problem.Details
 
 	err = json.Unmarshal(data, &restored)
 
@@ -1074,7 +972,7 @@ func TestMarshalUnmarshalRoundTrip(t *testing.T) {
 		)
 	}
 
-	val, ok := restored.Additional("trace_id")
+	val, ok := restored.Additional["trace_id"]
 
 	if !ok {
 		t.Fatalf("expected trace_id in additional fields")
@@ -1085,37 +983,10 @@ func TestMarshalUnmarshalRoundTrip(t *testing.T) {
 	}
 }
 
-func TestTextHandlerWithStackTraceNonStringSlice(t *testing.T) {
-	t.Parallel()
-
-	p := problem.Problem{
-		Status: http.StatusInternalServerError,
-		Title:  "Error",
-		Detail: "Detail",
-	}
-
-	p = p.With(problem.StackTraceKey, 12345)
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	rec := httptest.NewRecorder()
-
-	p.ServeHTTP(rec, req)
-
-	body := rec.Body.String()
-
-	if !strings.Contains(body, "500 Error") {
-		t.Fatalf("expected text output, got %q", body)
-	}
-
-	if strings.Contains(body, "12345") {
-		t.Fatalf("non-string stack trace should not appear in text output")
-	}
-}
-
 func TestProblemImplementsErrorInterface(t *testing.T) {
 	t.Parallel()
 
-	var err error = problem.Problem{
+	var err error = problem.Details{
 		Status: http.StatusBadRequest,
 		Title:  "Bad Request",
 	}
@@ -1125,39 +996,12 @@ func TestProblemImplementsErrorInterface(t *testing.T) {
 	}
 }
 
-func TestWithStackTraceJoinedErrors(t *testing.T) {
-	t.Parallel()
-
-	err1 := errors.New("first error")
-	err2 := errors.New("second error")
-	joined := errors.Join(err1, err2)
-
-	p := problem.NewProblem(joined, http.StatusInternalServerError)
-	p = p.WithStackTrace()
-
-	val, ok := p.Additional(problem.StackTraceKey)
-
-	if !ok {
-		t.Fatalf("expected stack_trace to be present")
-	}
-
-	traces, ok := val.([]string)
-
-	if !ok {
-		t.Fatalf("expected []string, got %T", val)
-	}
-
-	if len(traces) != 2 {
-		t.Fatalf("expected 2 traces, got %d", len(traces))
-	}
-}
-
 func TestUnmarshalJSONPartialFields(t *testing.T) {
 	t.Parallel()
 
 	raw := `{"status": 422, "detail": "Validation failed"}`
 
-	var p problem.Problem
+	var p problem.Details
 
 	err := json.Unmarshal([]byte(raw), &p)
 
@@ -1185,7 +1029,7 @@ func TestUnmarshalJSONPartialFields(t *testing.T) {
 func TestMarshalJSONStandardFieldsCannotBeOverwritten(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{
+	p := problem.Details{
 		Type:     "https://example.com/errors/test",
 		Title:    "Test Error",
 		Detail:   "Real detail",
@@ -1199,45 +1043,17 @@ func TestMarshalJSONStandardFieldsCannotBeOverwritten(t *testing.T) {
 	p = p.With("detail", "Hijacked detail")
 	p = p.With("instance", "/hijacked/instance")
 
-	data, err := json.Marshal(p)
+	_, err := json.Marshal(p)
 
-	if err != nil {
-		t.Fatalf("failed to marshal: %s", err)
-	}
-
-	var decoded map[string]any
-
-	err = json.Unmarshal(data, &decoded)
-
-	if err != nil {
-		t.Fatalf("failed to unmarshal result: %s", err)
-	}
-
-	if decoded["status"] != float64(http.StatusBadRequest) {
-		t.Fatalf("expected status %v, got %v", float64(http.StatusBadRequest), decoded["status"])
-	}
-
-	if decoded["type"] != "https://example.com/errors/test" {
-		t.Fatalf("expected type %q, got %v", "https://example.com/errors/test", decoded["type"])
-	}
-
-	if decoded["title"] != "Test Error" {
-		t.Fatalf("expected title %q, got %v", "Test Error", decoded["title"])
-	}
-
-	if decoded["detail"] != "Real detail" {
-		t.Fatalf("expected detail %q, got %v", "Real detail", decoded["detail"])
-	}
-
-	if decoded["instance"] != "/real/instance" {
-		t.Fatalf("expected instance %q, got %v", "/real/instance", decoded["instance"])
+	if err == nil {
+		t.Fatalf("expected error for additional fields that conflict with standard members")
 	}
 }
 
 func TestServeHTTPWithAcceptWildcardReturnsJSON(t *testing.T) {
 	t.Parallel()
 
-	p := problem.Problem{
+	p := problem.Details{
 		Type:   "https://example.com/errors/test",
 		Title:  "Test Error",
 		Detail: "Details here",
@@ -1262,7 +1078,7 @@ func TestServeHTTPWithAcceptWildcardReturnsJSON(t *testing.T) {
 
 	var decoded map[string]any
 
-	err := json.NewDecoder(rec.Body).Decode(&decoded)
+	err := json.UnmarshalRead(rec.Body, &decoded)
 
 	if err != nil {
 		t.Fatalf("failed to decode response: %s", err)
@@ -1284,31 +1100,11 @@ func TestUnmarshalJSONWrongFieldTypes(t *testing.T) {
 		"instance": ["array"]
 	}`
 
-	var p problem.Problem
+	var p problem.Details
 
 	err := json.Unmarshal([]byte(raw), &p)
 
-	if err != nil {
-		t.Fatalf("failed to unmarshal: %s", err)
-	}
-
-	if p.Type != "" {
-		t.Fatalf("expected empty type for wrong type, got %q", p.Type)
-	}
-
-	if p.Title != "" {
-		t.Fatalf("expected empty title for wrong type, got %q", p.Title)
-	}
-
-	if p.Detail != "" {
-		t.Fatalf("expected empty detail for wrong type, got %q", p.Detail)
-	}
-
-	if p.Status != 0 {
-		t.Fatalf("expected zero status for wrong type, got %d", p.Status)
-	}
-
-	if p.Instance != "" {
-		t.Fatalf("expected empty instance for wrong type, got %q", p.Instance)
+	if err == nil {
+		t.Fatalf("expected error for wrong field types")
 	}
 }

@@ -3,11 +3,12 @@ package framework
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 
 	"github.com/studiolambda/cosmos/contract"
+	"github.com/studiolambda/cosmos/contract/request"
 	"github.com/studiolambda/cosmos/problem"
 )
 
@@ -26,14 +27,31 @@ import (
 //   - r: The HTTP request containing client data and context
 //
 // Returns an error if the request handling fails, nil on success.
+//
+// Example:
+//
+//	app.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) error {
+//		return response.JSON(w, http.StatusOK, map[string]any{"id": r.PathValue("id")})
+//	})
 type Handler func(w http.ResponseWriter, r *http.Request) error
 
-// HTTPStatus is an interface that errors can implement to specify
+// HTTP converts a standard [http.Handler] into a Cosmos [Handler]. Standard
+// handlers cannot return errors, so errors they handle internally do not enter
+// Cosmos error rendering and this adapter always returns nil.
+func HTTP(handler http.Handler) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		handler.ServeHTTP(w, r)
+
+		return nil
+	}
+}
+
+// HTTPStatusError is an interface that errors can implement to specify
 // a custom HTTP status code when they are returned from a handler.
 // This allows for more precise error handling and appropriate HTTP
 // response codes based on the type of error that occurred.
 //
-// When a handler returns an error that implements HTTPStatus, the
+// When a handler returns an error that implements HTTPStatusError, the
 // ServeHTTP method will use the returned status code instead of
 // the default 500 Internal Server Error.
 //
@@ -50,37 +68,47 @@ type Handler func(w http.ResponseWriter, r *http.Request) error
 //	func (e NotFoundError) HTTPStatus() int {
 //	    return http.StatusNotFound
 //	}
-type HTTPStatus interface {
+type HTTPStatusError interface {
+	error
 	HTTPStatus() int
+}
+
+type HttpHandlerError interface {
+	error
+	http.Handler
 }
 
 // StatusClientClosedRequest is the non-standard HTTP status code used
 // when the client closes the connection before the server responds.
 const StatusClientClosedRequest = 499
 
-// handleError writes an error response by inspecting the error for context
-// cancellation, custom status codes via [HTTPStatus], or self-rendering
-// capability via [http.Handler], falling back to a Problem Details response.
-func handleError(w http.ResponseWriter, r *http.Request, err error) {
-	status := http.StatusInternalServerError
+func errorStatus(err error) int {
+	if target, ok := errors.AsType[HTTPStatusError](err); ok {
+		return target.HTTPStatus()
+	}
 
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		status = StatusClientClosedRequest
+		return StatusClientClosedRequest
 	}
 
-	if target := (HTTPStatus)(nil); errors.As(err, &target) {
-		status = target.HTTPStatus()
-	}
+	return http.StatusInternalServerError
+}
 
+// handleError writes an error response by inspecting the error for context
+// cancellation, custom status codes via [HTTPStatusError], or self-rendering
+// capability via [http.Handler], falling back to a Problem Details response.
+func handleError(w http.ResponseWriter, r *http.Request, err error) {
 	// When the error itself implements http.Handler, delegate
 	// rendering entirely to it. This allows error types like
-	// problem.Problem to control their own HTTP response format.
-	if target := (http.Handler)(nil); errors.As(err, &target) {
+	// problem.Details to control their own HTTP response format.
+	if target, ok := errors.AsType[HttpHandlerError](err); ok {
 		target.ServeHTTP(w, r)
 		return
 	}
 
-	problem.NewProblem(err, status).ServeHTTP(w, r)
+	problem.
+		NewDetails(err, errorStatus(err)).
+		ServeHTTP(w, r)
 }
 
 // ServeHTTP implements the http.Handler interface, bridging Cosmos's
@@ -92,7 +120,7 @@ func handleError(w http.ResponseWriter, r *http.Request, err error) {
 // response (WriteHeader was called), the error is logged instead
 // of attempting a second write which would corrupt the response.
 //
-// Errors implementing [HTTPStatus] get their custom status code,
+// Errors implementing [HTTPStatusError] get their custom status code,
 // and errors implementing [http.Handler] render themselves
 // directly. If no status code has been written after the handler
 // returns, a 204 No Content is sent as the default.
@@ -102,21 +130,27 @@ func (handler Handler) ServeHTTP(
 	r *http.Request,
 ) {
 	hooks := contract.NewHooks()
-	wrapped := NewResponseWriter(w, hooks)
 	ctx := context.WithValue(r.Context(), contract.HooksKey, hooks)
-	err := handler(wrapped, r.WithContext(ctx))
+	ctx = problem.WithContextValuesContainer(ctx, problem.NewContextValues())
+	ctx = contract.WithLogValuesContainer(ctx, contract.NewLogValues())
+	logger := new(atomic.Pointer[contract.Logger])
+	logger.Store(contract.NewLogger(nil))
+	ctx = context.WithValue(ctx, contract.LoggerKey, logger)
+	requestContext := r.WithContext(ctx)
+	wrapped := NewResponseWriter(w, hooks, logger)
+	err := handler(wrapped, requestContext)
 
 	if err != nil {
 		if wrapped.WriteHeaderCalled() {
-			slog.ErrorContext(
-				r.Context(),
+			request.Logger(requestContext).ErrorContext(
+				requestContext.Context(),
 				"handler error after partial response write",
 				"method", r.Method,
 				"path", r.URL.Path,
 				"err", err,
 			)
 		} else {
-			handleError(wrapped, r.WithContext(ctx), err)
+			handleError(wrapped, requestContext, err)
 		}
 	}
 
@@ -128,7 +162,8 @@ func (handler Handler) ServeHTTP(
 		func() {
 			defer func() {
 				if recovered := recover(); recovered != nil {
-					slog.Error(
+					request.Logger(requestContext).ErrorContext(
+						requestContext.Context(),
 						"after response hook panicked",
 						"error", recovered,
 					)
@@ -143,6 +178,11 @@ func (handler Handler) ServeHTTP(
 // Record executes the handler with the given request and returns the resulting HTTP response.
 // It uses httptest.NewRecorder() to capture the response that would be written to a client,
 // making it useful for testing HTTP handlers without starting a server.
+//
+// Example:
+//
+//	res := handler.Record(httptest.NewRequest(http.MethodGet, "/health", nil))
+//	defer res.Body.Close()
 func (handler Handler) Record(r *http.Request) *http.Response {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, r)

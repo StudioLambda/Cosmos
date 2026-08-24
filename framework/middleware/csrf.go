@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework"
 	"github.com/studiolambda/cosmos/problem"
 )
@@ -10,45 +11,50 @@ import (
 // ErrCSRFBlocked is the default error returned when a CSRF attack is detected.
 // It contains a structured problem response with appropriate HTTP status and details
 // that can be safely returned to clients without exposing security implementation details.
-var ErrCSRFBlocked = problem.Problem{
+var ErrCSRFBlocked = problem.Details{
 	Title:  "Cross-Origin Request Blocked",
 	Detail: "The request was rejected because its origin or fetch context did not meet security requirements.",
 	Status: http.StatusForbidden,
 }
 
-// CSRF returns a middleware that protects against Cross-Site Request Forgery attacks
-// using Go's built-in http.CrossOriginProtection. It creates a new CSRF protection
-// instance with the specified trusted origins and uses the default ErrCSRFBlocked
-// error for rejected requests.
-//
-// Parameters:
-//   - origins: A list of trusted origin URLs that are allowed to make cross-origin requests
-//
-// Returns a middleware function that can be applied to routes or route groups.
-func CSRF(origins ...string) framework.Middleware {
+// FromConfiguration populates the CSRF configuration from configuration.
+func (config *CSRFConfig) FromConfiguration(configuration *contract.Configuration) {
+	*config = DefaultCSRFConfig()
+	config.TrustedOrigins = configuration.GetOr("trusted_origins", config.TrustedOrigins)
+}
+
+// CSRFConfig configures CSRF protection for trusted cross-origin requests.
+type CSRFConfig struct {
+	// TrustedOrigins is the list of trusted origins allowed to make
+	// cross-origin requests.
+	TrustedOrigins []string
+}
+
+// DefaultCSRFConfig returns the default CSRF middleware configuration.
+func DefaultCSRFConfig() CSRFConfig {
+	return CSRFConfig{}
+}
+
+// CSRF returns a middleware that protects against Cross-Site Request
+// Forgery attacks using Go's built-in http.CrossOriginProtection.
+func CSRF(config CSRFConfig) framework.Middleware {
 	csrf := http.NewCrossOriginProtection()
 
-	for _, origin := range origins {
+	for _, origin := range config.TrustedOrigins {
 		csrf.AddTrustedOrigin(origin)
 	}
 
-	return CSRFWith(csrf, ErrCSRFBlocked)
+	return CSRFWith(config, csrf, ErrCSRFBlocked)
 }
 
-// CSRFWith creates a CSRF protection middleware using a custom CrossOriginProtection
-// instance and a custom error response. This provides full control over the CSRF
-// configuration and error handling behavior.
-//
-// Parameters:
-//   - csrf: A configured CrossOriginProtection instance with desired settings
-//   - p: The problem.Problem to return when CSRF validation fails
-//
-// Returns a middleware function that validates requests and returns the custom error on failure.
-func CSRFWith(csrf *http.CrossOriginProtection, p problem.Problem) framework.Middleware {
+// CSRFWith creates a CSRF protection middleware using a custom
+// CrossOriginProtection instance. This provides full control over the
+// CSRF engine while preserving a serializable application config.
+func CSRFWith(config CSRFConfig, csrf *http.CrossOriginProtection, errResponse problem.Details) framework.Middleware {
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
 			if err := csrf.Check(r); err != nil {
-				return p.WithError(err)
+				return errResponse.WithError(err)
 			}
 
 			return next(w, r)

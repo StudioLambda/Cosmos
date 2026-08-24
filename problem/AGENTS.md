@@ -2,7 +2,7 @@
 
 ## Module Overview
 
-Problem module: RFC 9457 (Problem Details for HTTP APIs) implementation. Zero dependencies. Structured error responses with content negotiation, stack traces, error wrapping.
+Problem module: RFC 9457 (Problem Details for HTTP APIs) implementation. Zero dependencies. Structured error responses with content negotiation and error wrapping.
 
 Module: github.com/studiolambda/cosmos/problem
 Dependencies: Zero
@@ -17,19 +17,24 @@ go fmt ./...
 
 ## Architecture
 
-RFC 9457 structure: Type, Title, Detail, Status, Instance. Additional metadata via map[string]any. Wrapped error (not serialized). Implements http.Handler and error interface.
+Details is the RFC 9457 structure: Type, Title, Detail, Status, Instance. Additional metadata via map[string]any. Wrapped errors are not serialized. It implements http.Handler and error.
 
 Content negotiation: application/problem+json, application/json, text/plain.
 
+Request extensions: middleware can add client-facing values with
+WithContextValues. Calls compose with later values winning; explicit Details.With
+values take precedence, and standard RFC 9457 members are ignored.
+
 ## Code Style
 
-Define problems as package variables with consistent Type URIs. Methods return new instances (immutable). Use With() for metadata, WithError() for wrapping, WithStackTrace() for dev.
+Define problems as package variables with consistent Type URIs. Methods return new instances (immutable). Use With() for metadata and WithError() for wrapping.
 
 ## Common Patterns
 
 Define:
+
 ```go
-var ErrNotFound = problem.Problem{
+var ErrNotFound = problem.Details{
     Type:   "https://api.example.com/errors/not-found",
     Title:  "Resource Not Found",
     Status: http.StatusNotFound,
@@ -37,23 +42,19 @@ var ErrNotFound = problem.Problem{
 ```
 
 Serve:
+
 ```go
 ErrNotFound.With("user_id", id).ServeHTTP(w, r)
 ```
 
-From error:
-```go
-problem.NewProblem(err, http.StatusInternalServerError).ServeHTTP(w, r)
-```
+From error (preferred pattern):
 
-Stack traces:
 ```go
-problem.WithStackTrace().ServeHTTP(w, r)
-// or
-problem.ServeHTTPDev(w, r)
+ErrInternal.WithError(err).ServeHTTP(w, r)
 ```
 
 Remove data:
+
 ```go
 problem.Without("debug_info").WithoutError().ServeHTTP(w, r)
 ```
@@ -75,7 +76,6 @@ assert.Equal(t, http.StatusNotFound, rec.Code)
 ```
 problem/
 ├── problem.go     # Main implementation
-├── utils.go       # Helpers
 └── internal/
     └── accept.go  # Content negotiation
 ```
@@ -84,7 +84,6 @@ problem/
 
 - Immutable: methods return new instances, use returned value
 - Zero dependencies: no external imports
-- Stack traces via "stack_trace" key
 - Defaulting happens at serve time, not creation
-- Wrapped errors not in JSON unless WithStackTrace()
+- Wrapped errors are never serialized
 - Errors with HTTPStatus() int preserve custom status

@@ -1,0 +1,588 @@
+package mqtt
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+
+	"github.com/studiolambda/cosmos/contract"
+	core "github.com/studiolambda/cosmos/framework/event/internal/event"
+
+	"github.com/eclipse/paho.golang/autopaho"
+	"github.com/eclipse/paho.golang/paho"
+)
+
+const defaultMaxConcurrentDeliveries = 1024
+
+// MQTTBroker implements [contract.EventPublisherDriver] and
+// [contract.EventSubscriberDriver] using MQTT v5
+// protocol for publish/subscribe messaging. It uses the Eclipse
+// Paho Go client with automatic reconnection support and always
+// operates with clean sessions for simplicity.
+//
+// Event names are automatically converted to MQTT topic format
+// where dots become slashes and asterisks become plus signs for
+// single-level wildcard matching. Hash symbols remain unchanged
+// for multi-level wildcards.
+//
+// The broker supports fan-out messaging where multiple handlers
+// can subscribe to the same topic and all will receive messages.
+//
+// Wildcard patterns: dots are converted to MQTT '/' separators, '*' is
+// converted to MQTT '+' (single-level), and '#' matches multiple levels
+// (must be the last token).
+type MQTTBroker struct {
+	// lifecycle serializes route admission with Close so no WaitGroup work is
+	// added after shutdown begins waiting.
+	lifecycle sync.Mutex
+	closed    bool
+
+	// client is the autopaho connection manager with auto-reconnection.
+	client *autopaho.ConnectionManager
+	owned  bool
+
+	// qos is the quality of service level for publish and subscribe.
+	qos byte
+
+	// mu protects the handlers and subscriptions maps during
+	// concurrent access.
+	mu sync.RWMutex
+
+	// handlers stores all event handlers keyed by topic and
+	// handler ID for supporting multiple handlers per topic.
+	handlers map[string]map[string]contract.EventHandler
+
+	// subscriptions tracks active MQTT broker subscriptions
+	// by topic to enable proper cleanup and unsubscribe.
+	subscriptions map[string]bool
+
+	// nextID generates unique handler identifiers for
+	// proper unsubscribe behavior.
+	nextID atomic.Uint64
+
+	// sem limits the number of concurrent delivery goroutines
+	// to prevent resource exhaustion under high throughput.
+	sem chan struct{}
+
+	// routeWg tracks in-flight handler deliveries so Close
+	// can wait for them to complete.
+	routeWg sync.WaitGroup
+
+	logger *contract.Logger
+}
+
+// MQTTBrokerConfig configures the creation of a new MQTTBroker,
+// allowing customization of connection URLs, QoS level, and
+// authentication credentials.
+//
+// WARNING: Credential fields (Username, Password) are stored
+// as plain strings in memory for the lifetime of this struct.
+// Callers should:
+//  1. Always use TLS (mqtts:// URLs) to protect credentials
+//     in transit.
+//  2. Load credentials from environment variables or a secret
+//     manager rather than hard-coding them.
+//  3. Consider short-lived or certificate-based credentials
+//     where the broker supports them.
+type MQTTBrokerConfig struct {
+	// URLs is a slice of MQTT broker URLs to connect to.
+	// Format: mqtt://host:port or mqtts://host:port for TLS.
+	// Multiple URLs enable automatic failover between brokers.
+	URLs []string
+
+	// QoS is the quality of service level (0, 1, or 2).
+	// 0: At most once delivery (fire and forget).
+	// 1: At least once delivery (recommended default).
+	// 2: Exactly once delivery (highest overhead).
+	// Default: 1
+	QoS byte
+
+	// Username for MQTT broker authentication (optional).
+	Username string
+
+	// Password for MQTT broker authentication (optional).
+	Password string
+
+	// KeepAlive is the interval in seconds for keep-alive pings
+	// to maintain the connection. Default: 30
+	KeepAlive uint16
+
+	// Logger records recovered handler panics. A nil logger discards records.
+	Logger *contract.Logger
+}
+
+// DefaultMQTTBrokerConfig returns the default MQTT broker configuration.
+func DefaultMQTTBrokerConfig() MQTTBrokerConfig {
+	return MQTTBrokerConfig{
+		QoS:       DefaultMQTTQoS,
+		KeepAlive: DefaultMQTTKeepAlive,
+	}
+}
+
+// FromConfiguration populates the declarative broker configuration from configuration.
+func (config *MQTTBrokerConfig) FromConfiguration(configuration *contract.Configuration) {
+	logger := config.Logger
+	*config = DefaultMQTTBrokerConfig()
+	config.Logger = logger
+	config.URLs = configuration.GetOr("urls", config.URLs)
+	config.QoS = configuration.GetOr("qos", config.QoS)
+	config.Username = configuration.GetOr("username", config.Username)
+	config.Password = configuration.GetOr("password", config.Password)
+	config.KeepAlive = configuration.GetOr("keep_alive", config.KeepAlive)
+}
+
+// DefaultMQTTQoS is the default quality of service level used
+// for MQTT publish and subscribe operations when not specified.
+const DefaultMQTTQoS = 1
+
+// DefaultMQTTKeepAlive is the default keep-alive interval in
+// seconds used to maintain the MQTT connection.
+const DefaultMQTTKeepAlive = 30
+
+// convertTopic converts an event name to MQTT topic format by
+// replacing dots with slashes (topic separator) and asterisks
+// with plus signs (single-level wildcard). Multi-level wildcards
+// (hash) are left unchanged as they match MQTT conventions.
+func convertTopic(event string) string {
+	topic := strings.ReplaceAll(event, ".", "/")
+	topic = strings.ReplaceAll(topic, "*", "+")
+
+	return topic
+}
+
+// matchTopic checks if a message topic matches a subscription
+// pattern, supporting MQTT wildcard semantics for single-level
+// plus and multi-level hash wildcards.
+func matchTopic(pattern, topic string) bool {
+	if pattern == topic {
+		return true
+	}
+
+	patternParts := strings.Split(pattern, "/")
+	topicParts := strings.Split(topic, "/")
+
+	return matchParts(patternParts, topicParts)
+}
+
+// matchParts recursively matches topic parts against pattern
+// parts, handling plus for single-level and hash for multi-level
+// wildcard matching according to MQTT topic filter rules.
+func matchParts(pattern, topic []string) bool {
+	if len(pattern) == 0 {
+		return len(topic) == 0
+	}
+
+	if len(topic) == 0 {
+		return pattern[0] == "#"
+	}
+
+	if pattern[0] == "#" {
+		return true
+	}
+
+	if pattern[0] == "+" || pattern[0] == topic[0] {
+		return matchParts(pattern[1:], topic[1:])
+	}
+
+	return false
+}
+
+// NewMQTTBroker creates a new MQTTBroker using the provided
+// configuration for connection URLs, QoS level, and authentication.
+// Multiple URLs enable automatic failover between brokers. The
+// broker uses clean sessions and automatic reconnection.
+func NewMQTTBroker(config MQTTBrokerConfig) (*MQTTBroker, error) {
+	qos := config.QoS
+	if qos == 0 && len(config.URLs) > 0 {
+		qos = DefaultMQTTQoS
+	}
+
+	keepAlive := config.KeepAlive
+	if keepAlive == 0 {
+		keepAlive = DefaultMQTTKeepAlive
+	}
+
+	urls := make([]*url.URL, len(config.URLs))
+	for i, urlStr := range config.URLs {
+		parsed, err := url.Parse(urlStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid url %q: %w", urlStr, err)
+		}
+		urls[i] = parsed
+	}
+
+	broker := &MQTTBroker{
+		qos:           qos,
+		handlers:      make(map[string]map[string]contract.EventHandler),
+		subscriptions: make(map[string]bool),
+		sem:           make(chan struct{}, defaultMaxConcurrentDeliveries),
+		logger:        brokerLogger(config.Logger),
+	}
+
+	cfg := autopaho.ClientConfig{
+		ServerUrls:                    urls,
+		KeepAlive:                     keepAlive,
+		CleanStartOnInitialConnection: true,
+		SessionExpiryInterval:         0,
+		ClientID:                      "",
+		OnPublishReceived: []func(paho.PublishReceived) (bool, error){
+			broker.HandlePublish,
+		},
+	}
+
+	if config.Username != "" {
+		cfg.ConnectUsername = config.Username
+		cfg.ConnectPassword = []byte(config.Password)
+	}
+
+	ctx := context.Background()
+	cm, err := autopaho.NewConnection(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	broker.client = cm
+	broker.owned = true
+
+	return broker, nil
+}
+
+// NewMQTTBrokerFrom creates a new MQTTBroker from an existing
+// autopaho ConnectionManager and QoS level. This constructor is
+// useful for advanced scenarios where the user needs full control over the MQTT
+// connection configuration. The caller retains ownership of client.
+//
+// Because autopaho.ConnectionManager does not allow post-creation
+// configuration changes, the caller must wire up message routing
+// when building the paho config. Use [MQTTBroker.HandlePublish] in
+// the ClientConfig.OnPublishReceived slice:
+//
+//	broker := event.NewMQTTBrokerFrom(nil, 1)
+//	cfg.ClientConfig.OnPublishReceived = []func(paho.PublishReceived) (bool, error){
+//	    broker.HandlePublish,
+//	}
+//	cm, err := autopaho.NewConnection(ctx, cfg)
+//	// then set the client so Publish/Subscribe/Close work:
+//	broker.SetClient(cm)
+func NewMQTTBrokerFrom(
+	client *autopaho.ConnectionManager,
+	qos byte,
+) *MQTTBroker {
+	return &MQTTBroker{
+		client:        client,
+		qos:           qos,
+		handlers:      make(map[string]map[string]contract.EventHandler),
+		subscriptions: make(map[string]bool),
+		sem:           make(chan struct{}, defaultMaxConcurrentDeliveries),
+		logger:        brokerLogger(nil),
+	}
+}
+
+// SetClient sets the underlying autopaho ConnectionManager. This is
+// intended for use with [NewMQTTBrokerFrom] when the broker must be
+// created before the ConnectionManager so that [MQTTBroker.HandlePublish]
+// can be wired into the paho config.
+func (broker *MQTTBroker) SetClient(client *autopaho.ConnectionManager) {
+	broker.client = client
+}
+
+// HandlePublish is a paho OnPublishReceived callback that routes
+// incoming MQTT messages to registered handlers. Callers using
+// [NewMQTTBrokerFrom] must include this method in the paho
+// ClientConfig.OnPublishReceived slice so that subscribed handlers
+// receive messages.
+func (broker *MQTTBroker) HandlePublish(pr paho.PublishReceived) (bool, error) {
+	broker.route(pr.Packet)
+
+	return true, nil
+}
+
+// route delivers an incoming MQTT message to all matching
+// handlers based on topic pattern matching. This implements
+// fan-out behavior where multiple handlers can receive the
+// same message if they subscribed to matching patterns.
+//
+// Handlers are dispatched asynchronously in separate goroutines
+// with semaphore-bounded concurrency and panic recovery to
+// prevent a slow or failing handler from blocking all message
+// delivery.
+func (broker *MQTTBroker) route(pb *paho.Publish) {
+	broker.mu.RLock()
+
+	var matched []contract.EventHandler
+
+	for pattern, handlers := range broker.handlers {
+		if matchTopic(pattern, pb.Topic) {
+			for _, handler := range handlers {
+				matched = append(matched, handler)
+			}
+		}
+	}
+
+	broker.mu.RUnlock()
+
+	broker.lifecycle.Lock()
+	if broker.closed {
+		broker.lifecycle.Unlock()
+
+		return
+	}
+
+	broker.routeWg.Add(len(matched))
+	broker.lifecycle.Unlock()
+
+	for _, handler := range matched {
+		broker.sem <- struct{}{}
+
+		go func(h contract.EventHandler) {
+			defer func() {
+				<-broker.sem
+				broker.routeWg.Done()
+			}()
+
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					broker.logError(
+						"event handler panicked",
+						"error", recovered,
+					)
+				}
+			}()
+
+			h(pb.Payload)
+		}(handler)
+	}
+}
+
+// deliverToHandler invokes a single handler with panic recovery.
+func (broker *MQTTBroker) deliverToHandler(
+	handler contract.EventHandler,
+	topic string,
+	payload []byte,
+) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			broker.logError(
+				"mqtt event handler panicked",
+				"topic", topic,
+				"error", recovered,
+			)
+		}
+	}()
+
+	handler(payload)
+}
+
+func brokerLogger(logger *contract.Logger) *contract.Logger {
+	if logger == nil {
+		return contract.NewLogger(nil)
+	}
+
+	return logger
+}
+
+func (broker *MQTTBroker) logError(message string, args ...any) {
+	brokerLogger(broker.logger).Error(message, args...)
+}
+
+// Publish sends raw payload bytes to all subscribers of the named event.
+func (broker *MQTTBroker) Publish(
+	ctx context.Context,
+	event string,
+	payload []byte,
+) error {
+	if err := core.ValidateName(event); err != nil {
+		return err
+	}
+
+	topic := convertTopic(event)
+
+	_, err := broker.client.Publish(ctx, &paho.Publish{
+		Topic:   topic,
+		QoS:     broker.qos,
+		Payload: payload,
+		Properties: &paho.PublishProperties{
+			ContentType: "application/octet-stream",
+		},
+	})
+
+	return err
+}
+
+// Subscribe registers a handler to receive events with the given
+// name or pattern. The event name is converted to MQTT topic
+// format where dots become slashes and asterisks become plus
+// signs for single-level wildcard matching. Hash symbols remain
+// unchanged for multi-level wildcard matching.
+//
+// Multiple handlers can subscribe to the same topic and all will
+// receive messages (fan-out). Each handler is tracked individually
+// so unsubscribing one handler does not affect others.
+//
+// The returned unsubscribe function removes the specific handler
+// and unsubscribes from the MQTT broker only when the last handler
+// for the topic is removed.
+func (broker *MQTTBroker) Subscribe(
+	ctx context.Context,
+	event string,
+	handler contract.EventHandler,
+) (contract.EventUnsubscribeFunc, error) {
+	broker.lifecycle.Lock()
+	if broker.closed {
+		broker.lifecycle.Unlock()
+
+		return nil, errors.New("mqtt broker is closed")
+	}
+	broker.lifecycle.Unlock()
+
+	if err := core.ValidatePattern(event); err != nil {
+		return nil, err
+	}
+
+	topic := convertTopic(event)
+	handlerID := strconv.FormatUint(broker.nextID.Add(1), 10)
+
+	broker.mu.Lock()
+
+	if broker.subscriptions[topic] {
+		// Already subscribed at MQTT level; just append the handler.
+		if broker.handlers[topic] == nil {
+			broker.handlers[topic] = make(map[string]contract.EventHandler)
+		}
+
+		broker.handlers[topic][handlerID] = handler
+		broker.mu.Unlock()
+
+		return broker.unsubscribeFunc(ctx, topic, handlerID), nil
+	}
+
+	broker.mu.Unlock()
+
+	// First subscriber for this pattern: subscribe at the MQTT
+	// broker level before registering the handler so that on
+	// failure the handler is never visible to route().
+	_, err := broker.client.Subscribe(ctx, &paho.Subscribe{
+		Subscriptions: []paho.SubscribeOptions{
+			{
+				Topic: topic,
+				QoS:   broker.qos,
+			},
+		},
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	broker.mu.Lock()
+
+	// Mark the MQTT-level subscription. Another goroutine may
+	// have raced and already registered; that is harmless since
+	// duplicate MQTT subscribes are idempotent.
+	broker.subscriptions[topic] = true
+
+	if broker.handlers[topic] == nil {
+		broker.handlers[topic] = make(map[string]contract.EventHandler)
+	}
+
+	broker.handlers[topic][handlerID] = handler
+	broker.mu.Unlock()
+
+	return broker.unsubscribeFunc(ctx, topic, handlerID), nil
+}
+
+// unsubscribeFunc returns a function that removes a specific
+// handler and unsubscribes from the MQTT broker when the last
+// handler for the topic is removed.
+func (broker *MQTTBroker) unsubscribeFunc(
+	ctx context.Context,
+	topic string,
+	handlerID string,
+) contract.EventUnsubscribeFunc {
+	return func() error {
+		broker.mu.Lock()
+		delete(broker.handlers[topic], handlerID)
+		shouldUnsubscribe := len(broker.handlers[topic]) == 0
+
+		if shouldUnsubscribe {
+			delete(broker.handlers, topic)
+			delete(broker.subscriptions, topic)
+		}
+
+		broker.mu.Unlock()
+
+		if shouldUnsubscribe {
+			_, err := broker.client.Unsubscribe(
+				context.WithoutCancel(ctx),
+				&paho.Unsubscribe{
+					Topics: []string{topic},
+				},
+			)
+
+			return err
+		}
+
+		return nil
+	}
+}
+
+// Ping verifies that the MQTT connection is currently available.
+func (broker *MQTTBroker) Ping(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	return broker.client.AwaitConnection(ctx)
+}
+
+// Close gracefully disconnects from the MQTT broker and releases
+// all resources. It waits for all in-flight handler deliveries to
+// complete before disconnecting. This will terminate all active
+// subscriptions and close the underlying connection.
+func (broker *MQTTBroker) Close() error {
+	return broker.Shutdown(context.Background())
+}
+
+// Shutdown stops accepting deliveries and waits for in-flight handlers until
+// ctx expires. It disconnects only a client created by [NewMQTTBroker].
+func (broker *MQTTBroker) Shutdown(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	broker.lifecycle.Lock()
+	broker.closed = true
+	broker.lifecycle.Unlock()
+
+	if err := waitGroupContext(ctx, &broker.routeWg); err != nil {
+		return err
+	}
+
+	if !broker.owned {
+		return nil
+	}
+
+	return broker.client.Disconnect(ctx)
+}
+
+// waitGroupContext waits for group until ctx expires.
+func waitGroupContext(ctx context.Context, group *sync.WaitGroup) error {
+	done := make(chan struct{})
+
+	go func() {
+		group.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}

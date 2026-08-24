@@ -18,6 +18,17 @@ var ErrNonFlushableWriter = errors.New("non-flushable response writer")
 // If no Content-Type header has been explicitly set on the
 // response writer, it defaults to application/octet-stream
 // to ensure a safe default content type is always present.
+//
+// Example:
+//
+//	updates := make(chan []byte)
+//	go func() {
+//		defer close(updates)
+//		updates <- []byte("first chunk\n")
+//	}()
+//	if err := response.Stream(w, r, updates); err != nil {
+//		return err
+//	}
 func Stream(w http.ResponseWriter, r *http.Request, c <-chan []byte) error {
 	if w.Header().Get("Content-Type") == "" {
 		w.Header().Set("Content-Type", "application/octet-stream")
@@ -58,6 +69,17 @@ func Stream(w http.ResponseWriter, r *http.Request, c <-chan []byte) error {
 // SSE sends data from a channel to an HTTP client using the Server-Sent
 // Events protocol. It sets the appropriate Content-Type header and
 // delegates to [Stream] for the actual streaming logic.
+//
+// Example:
+//
+//	events := make(chan []byte)
+//	go func() {
+//		defer close(events)
+//		events <- []byte("data: hello\n\n")
+//	}()
+//	if err := response.SSE(w, r, events); err != nil {
+//		return err
+//	}
 func SSE(w http.ResponseWriter, r *http.Request, c <-chan []byte) error {
 	w.Header().Set("Content-Type", "text/event-stream")
 

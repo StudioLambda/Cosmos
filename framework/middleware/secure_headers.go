@@ -3,14 +3,15 @@ package middleware
 import (
 	"net/http"
 
+	"github.com/studiolambda/cosmos/contract"
 	"github.com/studiolambda/cosmos/framework"
 )
 
-// SecureHeadersOptions configures which security headers are
+// SecureHeadersConfig configures which security headers are
 // set by the [SecureHeaders] middleware. Each field maps to a
 // standard HTTP security header. Empty strings disable the
 // corresponding header.
-type SecureHeadersOptions struct {
+type SecureHeadersConfig struct {
 	// ContentTypeOptions controls the X-Content-Type-Options
 	// header, which prevents MIME-type sniffing.
 	ContentTypeOptions string
@@ -46,56 +47,62 @@ type SecureHeadersOptions struct {
 	PermissionsPolicy string
 }
 
-// DefaultSecureHeadersOptions holds safe default values for
+// FromConfiguration populates the secure-header configuration from configuration.
+func (config *SecureHeadersConfig) FromConfiguration(configuration *contract.Configuration) {
+	*config = DefaultSecureHeadersConfig()
+	config.ContentTypeOptions = configuration.GetOr("content_type_options", config.ContentTypeOptions)
+	config.FrameOptions = configuration.GetOr("frame_options", config.FrameOptions)
+	config.ReferrerPolicy = configuration.GetOr("referrer_policy", config.ReferrerPolicy)
+	config.XSSProtection = configuration.GetOr("xss_protection", config.XSSProtection)
+	config.StrictTransportSecurity = configuration.GetOr("strict_transport_security", config.StrictTransportSecurity)
+	config.ContentSecurityPolicy = configuration.GetOr("content_security_policy", config.ContentSecurityPolicy)
+	config.PermissionsPolicy = configuration.GetOr("permissions_policy", config.PermissionsPolicy)
+}
+
+// DefaultSecureHeadersConfig returns safe default values for
 // all commonly recommended security headers.
-var DefaultSecureHeadersOptions = SecureHeadersOptions{
-	ContentTypeOptions:      "nosniff",
-	FrameOptions:            "DENY",
-	ReferrerPolicy:          "strict-origin-when-cross-origin",
-	XSSProtection:           "0",
-	StrictTransportSecurity: "max-age=63072000; includeSubDomains",
+func DefaultSecureHeadersConfig() SecureHeadersConfig {
+	return SecureHeadersConfig{
+		ContentTypeOptions:      "nosniff",
+		FrameOptions:            "DENY",
+		ReferrerPolicy:          "strict-origin-when-cross-origin",
+		XSSProtection:           "0",
+		StrictTransportSecurity: "max-age=63072000; includeSubDomains",
+	}
 }
 
-// SecureHeaders returns middleware that sets standard HTTP
-// security response headers using [DefaultSecureHeadersOptions].
-// This protects against MIME sniffing, clickjacking, referrer
-// leakage, and protocol downgrade attacks.
-func SecureHeaders() framework.Middleware {
-	return SecureHeadersWith(DefaultSecureHeadersOptions)
-}
-
-// SecureHeadersWith returns middleware that sets HTTP security
-// response headers using the provided options. Headers with
-// empty values are skipped.
-func SecureHeadersWith(opts SecureHeadersOptions) framework.Middleware {
+// SecureHeaders returns middleware that sets HTTP security response
+// headers using the provided configuration. Headers with empty values
+// are skipped.
+func SecureHeaders(config SecureHeadersConfig) framework.Middleware {
 	return func(next framework.Handler) framework.Handler {
 		return func(w http.ResponseWriter, r *http.Request) error {
-			if opts.ContentTypeOptions != "" {
-				w.Header().Set("X-Content-Type-Options", opts.ContentTypeOptions)
+			if config.ContentTypeOptions != "" {
+				w.Header().Set("X-Content-Type-Options", config.ContentTypeOptions)
 			}
 
-			if opts.FrameOptions != "" {
-				w.Header().Set("X-Frame-Options", opts.FrameOptions)
+			if config.FrameOptions != "" {
+				w.Header().Set("X-Frame-Options", config.FrameOptions)
 			}
 
-			if opts.ReferrerPolicy != "" {
-				w.Header().Set("Referrer-Policy", opts.ReferrerPolicy)
+			if config.ReferrerPolicy != "" {
+				w.Header().Set("Referrer-Policy", config.ReferrerPolicy)
 			}
 
-			if opts.XSSProtection != "" {
-				w.Header().Set("X-XSS-Protection", opts.XSSProtection)
+			if config.XSSProtection != "" {
+				w.Header().Set("X-XSS-Protection", config.XSSProtection)
 			}
 
-			if opts.StrictTransportSecurity != "" {
-				w.Header().Set("Strict-Transport-Security", opts.StrictTransportSecurity)
+			if config.StrictTransportSecurity != "" {
+				w.Header().Set("Strict-Transport-Security", config.StrictTransportSecurity)
 			}
 
-			if opts.ContentSecurityPolicy != "" {
-				w.Header().Set("Content-Security-Policy", opts.ContentSecurityPolicy)
+			if config.ContentSecurityPolicy != "" {
+				w.Header().Set("Content-Security-Policy", config.ContentSecurityPolicy)
 			}
 
-			if opts.PermissionsPolicy != "" {
-				w.Header().Set("Permissions-Policy", opts.PermissionsPolicy)
+			if config.PermissionsPolicy != "" {
+				w.Header().Set("Permissions-Policy", config.PermissionsPolicy)
 			}
 
 			return next(w, r)

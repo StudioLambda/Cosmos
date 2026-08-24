@@ -9,7 +9,7 @@ import (
 
 // ErrSessionNotFound is the problem returned when attempting to
 // retrieve a session that does not exist in the request context.
-var ErrSessionNotFound = problem.Problem{
+var ErrSessionNotFound = problem.Details{
 	Title:  "Session not found",
 	Detail: "Unable to find the session in the request",
 	Status: http.StatusInternalServerError,
@@ -18,6 +18,14 @@ var ErrSessionNotFound = problem.Problem{
 // Session retrieves the session from the request context using the
 // default [contract.SessionKey]. The boolean return value indicates
 // whether a session was found.
+//
+// Example:
+//
+//	session, ok := request.Session(r)
+//	if !ok {
+//		return request.ErrSessionNotFound
+//	}
+//	_ = session
 func Session(r *http.Request) (*contract.Session, bool) {
 	return SessionKeyed(r, contract.SessionKey)
 }
@@ -25,6 +33,13 @@ func Session(r *http.Request) (*contract.Session, bool) {
 // SessionKeyed retrieves the session from the request context using
 // the provided key. The boolean return value indicates whether a
 // session was found for that key.
+//
+// Example:
+//
+//	session, ok := request.SessionKeyed(r, customSessionKey)
+//	if ok {
+//		_ = session
+//	}
 func SessionKeyed(r *http.Request, key any) (*contract.Session, bool) {
 	s, ok := r.Context().Value(key).(*contract.Session)
 
@@ -38,6 +53,11 @@ func SessionKeyed(r *http.Request, key any) (*contract.Session, bool) {
 // WARNING: This function panics when the session is missing. Use
 // [SessionKeyed] for a non-panicking alternative, or ensure the
 // [framework.Recover] middleware is in place.
+//
+// Example:
+//
+//	session := request.MustSessionKeyed(r, customSessionKey)
+//	_ = session
 func MustSessionKeyed(r *http.Request, key any) *contract.Session {
 	if s, ok := SessionKeyed(r, key); ok {
 		return s
@@ -53,6 +73,11 @@ func MustSessionKeyed(r *http.Request, key any) *contract.Session {
 // WARNING: This function panics when the session is missing. Use
 // [Session] for a non-panicking alternative, or ensure the
 // [framework.Recover] middleware is in place.
+//
+// Example:
+//
+//	session := request.MustSession(r)
+//	_ = session
 func MustSession(r *http.Request) *contract.Session {
 	return MustSessionKeyed(r, contract.SessionKey)
 }

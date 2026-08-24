@@ -210,6 +210,27 @@ func TestConnectRegistersRoute(t *testing.T) {
 	}
 }
 
+func TestQueryRegistersRoute(t *testing.T) {
+	t.Parallel()
+
+	rt := router.New[http.HandlerFunc]()
+
+	rt.Query("/search", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	if !rt.Has("QUERY", "/search") {
+		t.Fatal("router should have QUERY /search")
+	}
+
+	req := httptest.NewRequest("QUERY", "/search", nil)
+	res := rt.Record(req)
+
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d but got %d", http.StatusOK, res.StatusCode)
+	}
+}
+
 func TestOptionsRegistersRoute(t *testing.T) {
 	t.Parallel()
 
@@ -279,6 +300,7 @@ func TestAnyRegistersAllStandardMethods(t *testing.T) {
 		http.MethodPatch,
 		http.MethodDelete,
 		http.MethodOptions,
+		"QUERY",
 	}
 
 	for _, method := range expected {
@@ -1178,6 +1200,7 @@ func TestAnyAllMethodsRespond(t *testing.T) {
 		http.MethodPatch,
 		http.MethodDelete,
 		http.MethodOptions,
+		"QUERY",
 	}
 
 	for _, method := range methods {

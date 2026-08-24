@@ -37,6 +37,156 @@ func (_m *CacheDriverMock) EXPECT() *CacheDriverMock_Expecter {
 	return &CacheDriverMock_Expecter{mock: &_m.Mock}
 }
 
+// Add provides a mock function for the type CacheDriverMock
+func (_mock *CacheDriverMock) Add(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error) {
+	ret := _mock.Called(ctx, key, value, ttl)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Add")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []byte, time.Duration) (bool, error)); ok {
+		return returnFunc(ctx, key, value, ttl)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []byte, time.Duration) bool); ok {
+		r0 = returnFunc(ctx, key, value, ttl)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, []byte, time.Duration) error); ok {
+		r1 = returnFunc(ctx, key, value, ttl)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// CacheDriverMock_Add_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Add'
+type CacheDriverMock_Add_Call struct {
+	*mock.Call
+}
+
+// Add is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - value []byte
+//   - ttl time.Duration
+func (_e *CacheDriverMock_Expecter) Add(ctx any, key any, value any, ttl any) *CacheDriverMock_Add_Call {
+	return &CacheDriverMock_Add_Call{Call: _e.mock.On("Add", ctx, key, value, ttl)}
+}
+
+func (_c *CacheDriverMock_Add_Call) Run(run func(ctx context.Context, key string, value []byte, ttl time.Duration)) *CacheDriverMock_Add_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []byte
+		if args[2] != nil {
+			arg2 = args[2].([]byte)
+		}
+		var arg3 time.Duration
+		if args[3] != nil {
+			arg3 = args[3].(time.Duration)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *CacheDriverMock_Add_Call) Return(b bool, err error) *CacheDriverMock_Add_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *CacheDriverMock_Add_Call) RunAndReturn(run func(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error)) *CacheDriverMock_Add_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Decrement provides a mock function for the type CacheDriverMock
+func (_mock *CacheDriverMock) Decrement(ctx context.Context, key string, delta int64) (int64, error) {
+	ret := _mock.Called(ctx, key, delta)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Decrement")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64) (int64, error)); ok {
+		return returnFunc(ctx, key, delta)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64) int64); ok {
+		r0 = returnFunc(ctx, key, delta)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = returnFunc(ctx, key, delta)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// CacheDriverMock_Decrement_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Decrement'
+type CacheDriverMock_Decrement_Call struct {
+	*mock.Call
+}
+
+// Decrement is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - delta int64
+func (_e *CacheDriverMock_Expecter) Decrement(ctx any, key any, delta any) *CacheDriverMock_Decrement_Call {
+	return &CacheDriverMock_Decrement_Call{Call: _e.mock.On("Decrement", ctx, key, delta)}
+}
+
+func (_c *CacheDriverMock_Decrement_Call) Run(run func(ctx context.Context, key string, delta int64)) *CacheDriverMock_Decrement_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 int64
+		if args[2] != nil {
+			arg2 = args[2].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *CacheDriverMock_Decrement_Call) Return(n int64, err error) *CacheDriverMock_Decrement_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *CacheDriverMock_Decrement_Call) RunAndReturn(run func(ctx context.Context, key string, delta int64) (int64, error)) *CacheDriverMock_Decrement_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Delete provides a mock function for the type CacheDriverMock
 func (_mock *CacheDriverMock) Delete(ctx context.Context, key string) error {
 	ret := _mock.Called(ctx, key)
@@ -62,7 +212,7 @@ type CacheDriverMock_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key string
-func (_e *CacheDriverMock_Expecter) Delete(ctx interface{}, key interface{}) *CacheDriverMock_Delete_Call {
+func (_e *CacheDriverMock_Expecter) Delete(ctx any, key any) *CacheDriverMock_Delete_Call {
 	return &CacheDriverMock_Delete_Call{Call: _e.mock.On("Delete", ctx, key)}
 }
 
@@ -130,7 +280,7 @@ type CacheDriverMock_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key string
-func (_e *CacheDriverMock_Expecter) Get(ctx interface{}, key interface{}) *CacheDriverMock_Get_Call {
+func (_e *CacheDriverMock_Expecter) Get(ctx any, key any) *CacheDriverMock_Get_Call {
 	return &CacheDriverMock_Get_Call{Call: _e.mock.On("Get", ctx, key)}
 }
 
@@ -196,7 +346,7 @@ type CacheDriverMock_Has_Call struct {
 // Has is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key string
-func (_e *CacheDriverMock_Expecter) Has(ctx interface{}, key interface{}) *CacheDriverMock_Has_Call {
+func (_e *CacheDriverMock_Expecter) Has(ctx any, key any) *CacheDriverMock_Has_Call {
 	return &CacheDriverMock_Has_Call{Call: _e.mock.On("Has", ctx, key)}
 }
 
@@ -228,6 +378,78 @@ func (_c *CacheDriverMock_Has_Call) RunAndReturn(run func(ctx context.Context, k
 	return _c
 }
 
+// Increment provides a mock function for the type CacheDriverMock
+func (_mock *CacheDriverMock) Increment(ctx context.Context, key string, delta int64) (int64, error) {
+	ret := _mock.Called(ctx, key, delta)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Increment")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64) (int64, error)); ok {
+		return returnFunc(ctx, key, delta)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64) int64); ok {
+		r0 = returnFunc(ctx, key, delta)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = returnFunc(ctx, key, delta)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// CacheDriverMock_Increment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Increment'
+type CacheDriverMock_Increment_Call struct {
+	*mock.Call
+}
+
+// Increment is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - delta int64
+func (_e *CacheDriverMock_Expecter) Increment(ctx any, key any, delta any) *CacheDriverMock_Increment_Call {
+	return &CacheDriverMock_Increment_Call{Call: _e.mock.On("Increment", ctx, key, delta)}
+}
+
+func (_c *CacheDriverMock_Increment_Call) Run(run func(ctx context.Context, key string, delta int64)) *CacheDriverMock_Increment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 int64
+		if args[2] != nil {
+			arg2 = args[2].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *CacheDriverMock_Increment_Call) Return(n int64, err error) *CacheDriverMock_Increment_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *CacheDriverMock_Increment_Call) RunAndReturn(run func(ctx context.Context, key string, delta int64) (int64, error)) *CacheDriverMock_Increment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Put provides a mock function for the type CacheDriverMock
 func (_mock *CacheDriverMock) Put(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	ret := _mock.Called(ctx, key, value, ttl)
@@ -255,7 +477,7 @@ type CacheDriverMock_Put_Call struct {
 //   - key string
 //   - value []byte
 //   - ttl time.Duration
-func (_e *CacheDriverMock_Expecter) Put(ctx interface{}, key interface{}, value interface{}, ttl interface{}) *CacheDriverMock_Put_Call {
+func (_e *CacheDriverMock_Expecter) Put(ctx any, key any, value any, ttl any) *CacheDriverMock_Put_Call {
 	return &CacheDriverMock_Put_Call{Call: _e.mock.On("Put", ctx, key, value, ttl)}
 }
 
@@ -297,13 +519,79 @@ func (_c *CacheDriverMock_Put_Call) RunAndReturn(run func(ctx context.Context, k
 	return _c
 }
 
-// NewCacheCounterMock creates a new instance of CacheCounterMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// TTL provides a mock function for the type CacheDriverMock
+func (_mock *CacheDriverMock) TTL(ctx context.Context, key string) (time.Duration, error) {
+	ret := _mock.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for TTL")
+	}
+
+	var r0 time.Duration
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (time.Duration, error)); ok {
+		return returnFunc(ctx, key)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) time.Duration); ok {
+		r0 = returnFunc(ctx, key)
+	} else {
+		r0 = ret.Get(0).(time.Duration)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, key)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// CacheDriverMock_TTL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TTL'
+type CacheDriverMock_TTL_Call struct {
+	*mock.Call
+}
+
+// TTL is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *CacheDriverMock_Expecter) TTL(ctx any, key any) *CacheDriverMock_TTL_Call {
+	return &CacheDriverMock_TTL_Call{Call: _e.mock.On("TTL", ctx, key)}
+}
+
+func (_c *CacheDriverMock_TTL_Call) Run(run func(ctx context.Context, key string)) *CacheDriverMock_TTL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *CacheDriverMock_TTL_Call) Return(duration time.Duration, err error) *CacheDriverMock_TTL_Call {
+	_c.Call.Return(duration, err)
+	return _c
+}
+
+func (_c *CacheDriverMock_TTL_Call) RunAndReturn(run func(ctx context.Context, key string) (time.Duration, error)) *CacheDriverMock_TTL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// NewCacheCounterWithTTLMock creates a new instance of CacheCounterWithTTLMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
-func NewCacheCounterMock(t interface {
+func NewCacheCounterWithTTLMock(t interface {
 	mock.TestingT
 	Cleanup(func())
-}) *CacheCounterMock {
-	mock := &CacheCounterMock{}
+}) *CacheCounterWithTTLMock {
+	mock := &CacheCounterWithTTLMock{}
 	mock.Mock.Test(t)
 
 	t.Cleanup(func() { mock.AssertExpectations(t) })
@@ -311,59 +599,66 @@ func NewCacheCounterMock(t interface {
 	return mock
 }
 
-// CacheCounterMock is an autogenerated mock type for the CacheCounter type
-type CacheCounterMock struct {
+// CacheCounterWithTTLMock is an autogenerated mock type for the CacheCounterWithTTL type
+type CacheCounterWithTTLMock struct {
 	mock.Mock
 }
 
-type CacheCounterMock_Expecter struct {
+type CacheCounterWithTTLMock_Expecter struct {
 	mock *mock.Mock
 }
 
-func (_m *CacheCounterMock) EXPECT() *CacheCounterMock_Expecter {
-	return &CacheCounterMock_Expecter{mock: &_m.Mock}
+func (_m *CacheCounterWithTTLMock) EXPECT() *CacheCounterWithTTLMock_Expecter {
+	return &CacheCounterWithTTLMock_Expecter{mock: &_m.Mock}
 }
 
-// Decrement provides a mock function for the type CacheCounterMock
-func (_mock *CacheCounterMock) Decrement(ctx context.Context, key string, delta int64) (int64, error) {
-	ret := _mock.Called(ctx, key, delta)
+// IncrementWithTTL provides a mock function for the type CacheCounterWithTTLMock
+func (_mock *CacheCounterWithTTLMock) IncrementWithTTL(ctx context.Context, key string, delta int64, ttl time.Duration) (int64, time.Duration, error) {
+	ret := _mock.Called(ctx, key, delta, ttl)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Decrement")
+		panic("no return value specified for IncrementWithTTL")
 	}
 
 	var r0 int64
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64) (int64, error)); ok {
-		return returnFunc(ctx, key, delta)
+	var r1 time.Duration
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64, time.Duration) (int64, time.Duration, error)); ok {
+		return returnFunc(ctx, key, delta, ttl)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64) int64); ok {
-		r0 = returnFunc(ctx, key, delta)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64, time.Duration) int64); ok {
+		r0 = returnFunc(ctx, key, delta, ttl)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
-		r1 = returnFunc(ctx, key, delta)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int64, time.Duration) time.Duration); ok {
+		r1 = returnFunc(ctx, key, delta, ttl)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(time.Duration)
 	}
-	return r0, r1
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, int64, time.Duration) error); ok {
+		r2 = returnFunc(ctx, key, delta, ttl)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
 }
 
-// CacheCounterMock_Decrement_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Decrement'
-type CacheCounterMock_Decrement_Call struct {
+// CacheCounterWithTTLMock_IncrementWithTTL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IncrementWithTTL'
+type CacheCounterWithTTLMock_IncrementWithTTL_Call struct {
 	*mock.Call
 }
 
-// Decrement is a helper method to define mock.On call
+// IncrementWithTTL is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key string
 //   - delta int64
-func (_e *CacheCounterMock_Expecter) Decrement(ctx interface{}, key interface{}, delta interface{}) *CacheCounterMock_Decrement_Call {
-	return &CacheCounterMock_Decrement_Call{Call: _e.mock.On("Decrement", ctx, key, delta)}
+//   - ttl time.Duration
+func (_e *CacheCounterWithTTLMock_Expecter) IncrementWithTTL(ctx any, key any, delta any, ttl any) *CacheCounterWithTTLMock_IncrementWithTTL_Call {
+	return &CacheCounterWithTTLMock_IncrementWithTTL_Call{Call: _e.mock.On("IncrementWithTTL", ctx, key, delta, ttl)}
 }
 
-func (_c *CacheCounterMock_Decrement_Call) Run(run func(ctx context.Context, key string, delta int64)) *CacheCounterMock_Decrement_Call {
+func (_c *CacheCounterWithTTLMock_IncrementWithTTL_Call) Run(run func(ctx context.Context, key string, delta int64, ttl time.Duration)) *CacheCounterWithTTLMock_IncrementWithTTL_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -377,93 +672,26 @@ func (_c *CacheCounterMock_Decrement_Call) Run(run func(ctx context.Context, key
 		if args[2] != nil {
 			arg2 = args[2].(int64)
 		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *CacheCounterMock_Decrement_Call) Return(n int64, err error) *CacheCounterMock_Decrement_Call {
-	_c.Call.Return(n, err)
-	return _c
-}
-
-func (_c *CacheCounterMock_Decrement_Call) RunAndReturn(run func(ctx context.Context, key string, delta int64) (int64, error)) *CacheCounterMock_Decrement_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// Increment provides a mock function for the type CacheCounterMock
-func (_mock *CacheCounterMock) Increment(ctx context.Context, key string, delta int64) (int64, error) {
-	ret := _mock.Called(ctx, key, delta)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Increment")
-	}
-
-	var r0 int64
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64) (int64, error)); ok {
-		return returnFunc(ctx, key, delta)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64) int64); ok {
-		r0 = returnFunc(ctx, key, delta)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
-		r1 = returnFunc(ctx, key, delta)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// CacheCounterMock_Increment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Increment'
-type CacheCounterMock_Increment_Call struct {
-	*mock.Call
-}
-
-// Increment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - key string
-//   - delta int64
-func (_e *CacheCounterMock_Expecter) Increment(ctx interface{}, key interface{}, delta interface{}) *CacheCounterMock_Increment_Call {
-	return &CacheCounterMock_Increment_Call{Call: _e.mock.On("Increment", ctx, key, delta)}
-}
-
-func (_c *CacheCounterMock_Increment_Call) Run(run func(ctx context.Context, key string, delta int64)) *CacheCounterMock_Increment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 int64
-		if args[2] != nil {
-			arg2 = args[2].(int64)
+		var arg3 time.Duration
+		if args[3] != nil {
+			arg3 = args[3].(time.Duration)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
 }
 
-func (_c *CacheCounterMock_Increment_Call) Return(n int64, err error) *CacheCounterMock_Increment_Call {
-	_c.Call.Return(n, err)
+func (_c *CacheCounterWithTTLMock_IncrementWithTTL_Call) Return(n int64, duration time.Duration, err error) *CacheCounterWithTTLMock_IncrementWithTTL_Call {
+	_c.Call.Return(n, duration, err)
 	return _c
 }
 
-func (_c *CacheCounterMock_Increment_Call) RunAndReturn(run func(ctx context.Context, key string, delta int64) (int64, error)) *CacheCounterMock_Increment_Call {
+func (_c *CacheCounterWithTTLMock_IncrementWithTTL_Call) RunAndReturn(run func(ctx context.Context, key string, delta int64, ttl time.Duration) (int64, time.Duration, error)) *CacheCounterWithTTLMock_IncrementWithTTL_Call {
 	_c.Call.Return(run)
 	return _c
 }

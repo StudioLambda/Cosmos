@@ -2,7 +2,7 @@ package request
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"encoding/xml"
 	"errors"
 	"io"
@@ -20,12 +20,26 @@ var ErrBodyTooLarge = errors.New("request body too large")
 // large request bodies that could exhaust server memory.
 const DefaultMaxBodySize int64 = 10 << 20 // 10 MB
 
+// BodyConfig configures the maximum request body size used by the
+// size-limited request helpers.
+type BodyConfig struct {
+	MaxSize int64
+}
+
 // Bytes reads the entire request body and returns it as a byte slice.
 // The request body is consumed after this call and cannot be read again.
 //
 // WARNING: This function reads the body without any size limit.
 // Prefer [LimitedBytes] or apply [http.MaxBytesReader] in a
 // middleware to prevent memory exhaustion from oversized requests.
+//
+// Example:
+//
+//	body, err := request.Bytes(r)
+//	if err != nil {
+//		return err
+//	}
+//	_ = body
 func Bytes(r *http.Request) ([]byte, error) {
 	return io.ReadAll(r.Body)
 }
@@ -35,6 +49,14 @@ func Bytes(r *http.Request) ([]byte, error) {
 // [ErrBodyTooLarge] is returned. This prevents denial-of-service
 // attacks via excessively large request bodies. Pass -1 to use
 // [DefaultMaxBodySize].
+//
+// Example:
+//
+//	body, err := request.LimitedBytes(r, 1<<20)
+//	if err != nil {
+//		return err
+//	}
+//	_ = body
 func LimitedBytes(r *http.Request, maxSize int64) ([]byte, error) {
 	if maxSize < 0 {
 		maxSize = DefaultMaxBodySize
@@ -93,8 +115,16 @@ func LimitedString(r *http.Request, maxSize int64) (string, error) {
 // WARNING: This function decodes without any body size limit.
 // Prefer [LimitedJSON] or apply [http.MaxBytesReader] in a
 // middleware to prevent memory exhaustion from oversized requests.
+//
+// Example:
+//
+//	payload, err := request.JSON[CreateUserRequest](r)
+//	if err != nil {
+//		return err
+//	}
+//	_ = payload
 func JSON[T any](r *http.Request) (value T, err error) {
-	if err := json.NewDecoder(r.Body).Decode(&value); err != nil {
+	if err := json.UnmarshalRead(r.Body, &value); err != nil {
 		return value, err
 	}
 
@@ -111,11 +141,16 @@ func JSON[T any](r *http.Request) (value T, err error) {
 // WARNING: This function decodes without any body size limit.
 // Prefer [StrictLimitedJSON] or apply [http.MaxBytesReader] in a
 // middleware to prevent memory exhaustion from oversized requests.
+//
+// Example:
+//
+//	payload, err := request.StrictJSON[CreateUserRequest](r)
+//	if err != nil {
+//		return err
+//	}
+//	_ = payload
 func StrictJSON[T any](r *http.Request) (value T, err error) {
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-
-	if err := decoder.Decode(&value); err != nil {
+	if err := json.UnmarshalRead(r.Body, &value, json.RejectUnknownMembers(true)); err != nil {
 		return value, err
 	}
 
@@ -127,6 +162,14 @@ func StrictJSON[T any](r *http.Request) (value T, err error) {
 // maxSize, [ErrBodyTooLarge] is returned. This prevents
 // denial-of-service attacks via oversized JSON payloads. Pass -1
 // to use [DefaultMaxBodySize].
+//
+// Example:
+//
+//	payload, err := request.LimitedJSON[CreateUserRequest](r, -1)
+//	if err != nil {
+//		return err
+//	}
+//	_ = payload
 func LimitedJSON[T any](r *http.Request, maxSize int64) (value T, err error) {
 	if maxSize < 0 {
 		maxSize = DefaultMaxBodySize
@@ -142,7 +185,7 @@ func LimitedJSON[T any](r *http.Request, maxSize int64) (value T, err error) {
 		return value, ErrBodyTooLarge
 	}
 
-	if err := json.NewDecoder(bytes.NewReader(data)).Decode(&value); err != nil {
+	if err := json.Unmarshal(data, &value); err != nil {
 		return value, err
 	}
 
@@ -153,6 +196,14 @@ func LimitedJSON[T any](r *http.Request, maxSize int64) (value T, err error) {
 // a value of type T, reading at most maxSize bytes and rejecting
 // unknown fields. If the body exceeds maxSize, [ErrBodyTooLarge]
 // is returned. Pass -1 to use [DefaultMaxBodySize].
+//
+// Example:
+//
+//	payload, err := request.StrictLimitedJSON[CreateUserRequest](r, -1)
+//	if err != nil {
+//		return err
+//	}
+//	_ = payload
 func StrictLimitedJSON[T any](r *http.Request, maxSize int64) (value T, err error) {
 	if maxSize < 0 {
 		maxSize = DefaultMaxBodySize
@@ -168,10 +219,7 @@ func StrictLimitedJSON[T any](r *http.Request, maxSize int64) (value T, err erro
 		return value, ErrBodyTooLarge
 	}
 
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-
-	if err := decoder.Decode(&value); err != nil {
+	if err := json.Unmarshal(data, &value, json.RejectUnknownMembers(true)); err != nil {
 		return value, err
 	}
 
@@ -190,6 +238,14 @@ func StrictLimitedJSON[T any](r *http.Request, maxSize int64) (value T, err erro
 // expansion attacks (e.g. "Billion Laughs"). Callers should
 // validate or sanitize XML input before processing, or use
 // [LimitedXML] with a small size limit to bound expansion.
+//
+// Example:
+//
+//	payload, err := request.XML[Feed](r)
+//	if err != nil {
+//		return err
+//	}
+//	_ = payload
 func XML[T any](r *http.Request) (value T, err error) {
 	if err := xml.NewDecoder(r.Body).Decode(&value); err != nil {
 		return value, err
@@ -209,6 +265,14 @@ func XML[T any](r *http.Request) (value T, err error) {
 // maxSize, a crafted XML document may expand to significantly
 // more memory than its wire size. Callers should validate or
 // sanitize XML input before processing.
+//
+// Example:
+//
+//	payload, err := request.LimitedXML[Feed](r, 1<<20)
+//	if err != nil {
+//		return err
+//	}
+//	_ = payload
 func LimitedXML[T any](r *http.Request, maxSize int64) (value T, err error) {
 	if maxSize < 0 {
 		maxSize = DefaultMaxBodySize

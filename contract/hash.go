@@ -1,12 +1,29 @@
 package contract
 
-// Hasher defines the interface for hashing and verifying hashed values.
+import (
+	"encoding/json/v2"
+	"fmt"
+)
+
+// HasherDriver defines the interface for hashing and verifying raw values.
 // Implementations of Hasher are responsible for generating cryptographic hashes
 // and verifying that values match their corresponding hashes.
 //
 // Both Hash and Check zero the input value slice after use as a security
 // measure. Callers must not reuse the value slice after calling either method.
-type Hasher interface {
+//
+// Example:
+//
+//	hash, err := hasher.Hash([]byte("password"))
+//	if err != nil {
+//		return err
+//	}
+//	ok, err := hasher.Check([]byte("password"), hash)
+//	if err != nil {
+//		return err
+//	}
+//	_ = ok
+type HasherDriver interface {
 	// Hash computes a cryptographic hash of the given byte slice and returns the hash.
 	// The input value is zeroed after hashing as a security measure.
 	// Callers must not reuse the value slice after calling Hash.
@@ -21,13 +38,77 @@ type Hasher interface {
 	Check(value []byte, hash []byte) (bool, error)
 }
 
-// Rehashable extends [Hasher] with the ability to detect stale hash parameters.
+// Rehashable extends [HasherDriver] with the ability to detect stale hash parameters.
 // Implementations should return true when the given hash was produced with
 // different parameters than the current configuration, indicating the value
 // should be re-hashed on the next successful authentication.
+//
+// Example:
+//
+//	if rehashable, ok := hasher.(contract.Rehashable); ok && rehashable.NeedsRehash(hash) {
+//		newHash, err := hasher.Hash([]byte("password"))
+//		if err != nil {
+//			return err
+//		}
+//		_ = newHash
+//	}
 type Rehashable interface {
 	// NeedsRehash reports whether the given hash was produced with
 	// different parameters than the current configuration, indicating
 	// the value should be re-hashed.
 	NeedsRehash(hash []byte) bool
+}
+
+// Hasher provides typed hashing over a [HasherDriver].
+type Hasher struct {
+	driver HasherDriver
+}
+
+// NewHasher creates a new Hasher that delegates to driver.
+func NewHasher(driver HasherDriver) *Hasher {
+	return &Hasher{
+		driver: driver,
+	}
+}
+
+// Driver returns the underlying [HasherDriver].
+func (hasher *Hasher) Driver() HasherDriver {
+	return hasher.driver
+}
+
+// Hash JSON-encodes and hashes value.
+func (hasher *Hasher) Hash[T any](value T) ([]byte, error) {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return nil, fmt.Errorf("encode hashed value: %w", err)
+	}
+
+	return hasher.driver.Hash(encoded)
+}
+
+// Check JSON-encodes value and verifies it against hash.
+func (hasher *Hasher) Check[T any](value T, hash []byte) (bool, error) {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return false, fmt.Errorf("encode checked value: %w", err)
+	}
+
+	return hasher.driver.Check(encoded, hash)
+}
+
+// HashRaw hashes raw bytes.
+func (hasher *Hasher) HashRaw(value []byte) ([]byte, error) {
+	return hasher.driver.Hash(value)
+}
+
+// CheckRaw verifies raw bytes against hash.
+func (hasher *Hasher) CheckRaw(value, hash []byte) (bool, error) {
+	return hasher.driver.Check(value, hash)
+}
+
+// NeedsRehash reports whether hash uses stale parameters when supported by the driver.
+func (hasher *Hasher) NeedsRehash(hash []byte) bool {
+	rehashable, ok := hasher.driver.(Rehashable)
+
+	return ok && rehashable.NeedsRehash(hash)
 }

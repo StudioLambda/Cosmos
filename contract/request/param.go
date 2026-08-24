@@ -8,12 +8,22 @@ import (
 
 // Param retrieves the value of the named path parameter from the
 // given HTTP request using [http.Request.PathValue].
+//
+// Example:
+//
+//	id := request.Param(r, "id")
+//	_ = id
 func Param(r *http.Request, name string) string {
 	return r.PathValue(name)
 }
 
 // ParamOr retrieves the named path parameter, falling back to
 // the provided default value if the parameter is missing or empty.
+//
+// Example:
+//
+//	locale := request.ParamOr(r, "locale", "en")
+//	_ = locale
 func ParamOr(r *http.Request, name string, fallback string) string {
 	if value := Param(r, name); value != "" {
 		return value
@@ -25,6 +35,14 @@ func ParamOr(r *http.Request, name string, fallback string) string {
 // ParamInt retrieves the named path parameter and parses it as an
 // integer. It returns an error if the parameter is empty or is not
 // a valid integer string.
+//
+// Example:
+//
+//	id, err := request.ParamInt(r, "id")
+//	if err != nil {
+//		return err
+//	}
+//	_ = id
 func ParamInt(r *http.Request, name string) (int, error) {
 	raw := Param(r, name)
 
@@ -47,6 +65,11 @@ func ParamInt(r *http.Request, name string) (int, error) {
 // ParamIntOr retrieves the named path parameter and parses it as an
 // integer, falling back to the provided default value if the parameter
 // is empty or cannot be parsed.
+//
+// Example:
+//
+//	page := request.ParamIntOr(r, "page", 1)
+//	_ = page
 func ParamIntOr(r *http.Request, name string, fallback int) int {
 	value, err := ParamInt(r, name)
 

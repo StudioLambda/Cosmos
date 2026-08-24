@@ -4,6 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json/v2"
+	"errors"
+	"fmt"
 	"maps"
 	"sync"
 	"time"
@@ -12,25 +15,18 @@ import (
 // sessionKey is a private type used as a context key to avoid collisions.
 type sessionKey struct{}
 
-// SessionKey is the context key used to store and retrieve the session from a context.Context.
-var SessionKey = sessionKey{}
+// SessionDriver defines the interface for persisting and retrieving
+// session data. Implementations manage session storage in backends
+// such as databases, caches, or file systems.
+type SessionDriver interface {
+	// Get retrieves a session from persistent storage by its ID.
+	Get(ctx context.Context, id string) (*Session, error)
 
-// sessionIDLength is the number of random bytes used to generate
-// a session ID. 32 bytes provides 256 bits of entropy.
-const sessionIDLength = 32
+	// Save persists a session to storage with the specified TTL.
+	Save(ctx context.Context, session *Session, ttl time.Duration) error
 
-// generateSessionID generates a cryptographically random session
-// ID using crypto/rand and base64url encoding (43 characters).
-func generateSessionID() (string, error) {
-	b := make([]byte, sessionIDLength)
-
-	_, err := rand.Read(b)
-
-	if err != nil {
-		return "", err
-	}
-
-	return base64.RawURLEncoding.EncodeToString(b), nil
+	// Delete removes a session from persistent storage by its ID.
+	Delete(ctx context.Context, id string) error
 }
 
 // Session represents a user session with data storage and lifecycle
@@ -64,16 +60,47 @@ type Session struct {
 	changed bool
 }
 
+// sessionIDLength is the number of random bytes used to generate
+// a session ID. 32 bytes provides 256 bits of entropy.
+const sessionIDLength = 32
+
+// SessionKey is the context key used to store and retrieve the session from a context.Context.
+var SessionKey = sessionKey{}
+
+// ErrSessionKeyNotFound indicates that a session has no value for a key.
+var ErrSessionKeyNotFound = errors.New("session key not found")
+
+// ErrSessionInvalidValueType indicates that a session value cannot be decoded
+// into its requested type.
+var ErrSessionInvalidValueType = errors.New("session invalid value type")
+
+// generateSessionID generates a cryptographically random session
+// ID using crypto/rand and base64url encoding (43 characters).
+func generateSessionID() string {
+	value := make([]byte, sessionIDLength)
+
+	// crypto/rand.Read always fills value or terminates the process when the
+	// operating system cannot provide cryptographically secure randomness.
+	_, _ = rand.Read(value)
+
+	return base64.RawURLEncoding.EncodeToString(value)
+}
+
 // NewSession creates a new session with the specified expiration
 // time and initial storage data. It generates a cryptographically
 // random session ID. The session is marked as changed to ensure it
-// is persisted on first save. Returns an error if ID generation fails.
+// is persisted on first save. Its error result is retained for compatibility
+// and is always nil because crypto/rand.Read is infallible.
+//
+// Example:
+//
+//	session, err := contract.NewSession(time.Now().Add(24*time.Hour), map[string]any{"role": "user"})
+//	if err != nil {
+//		return err
+//	}
+//	_ = session
 func NewSession(expiresAt time.Time, storage map[string]any) (*Session, error) {
-	id, err := generateSessionID()
-
-	if err != nil {
-		return nil, err
-	}
+	id := generateSessionID()
 
 	return &Session{
 		originalID: id,
@@ -88,6 +115,11 @@ func NewSession(expiresAt time.Time, storage map[string]any) (*Session, error) {
 // NewSessionFrom reconstructs a session from persisted data. Unlike
 // [NewSession], it does not generate a new ID or mark the session as
 // changed. This is used by session drivers when loading from storage.
+//
+// Example:
+//
+//	session := contract.NewSessionFrom(id, createdAt, expiresAt, storedValues)
+//	_ = session
 func NewSessionFrom(id string, createdAt time.Time, expiresAt time.Time, storage map[string]any) *Session {
 	return &Session{
 		originalID: id,
@@ -105,11 +137,7 @@ func (session *Session) All() map[string]any {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	result := make(map[string]any, len(session.storage))
-
-	maps.Copy(result, session.storage)
-
-	return result
+	return maps.Clone(session.storage)
 }
 
 // SessionID returns the current session identifier. This may differ
@@ -132,13 +160,40 @@ func (session *Session) OriginalSessionID() string {
 
 // Get retrieves a value from the session storage by key. It returns
 // the value and a boolean indicating whether the key exists.
-func (session *Session) Get(key string) (any, bool) {
+//
+// Example:
+//
+//	userID, err := session.Get[int]("user_id")
+//	if err != nil {
+//		return err
+//	}
+//	_ = userID
+func (session *Session) Get[T any](key string) (res T, err error) {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
-	value, ok := session.storage[key]
+	raw, ok := session.storage[key]
 
-	return value, ok
+	if !ok {
+		return res, fmt.Errorf("%w for key %q: expected %T but got %T", ErrSessionKeyNotFound, key, res, raw)
+	}
+
+	if value, ok := raw.(T); ok {
+		return value, nil
+	}
+
+	// Session drivers may serialize values before persistence. Re-decode the
+	// stored representation so JSON-compatible values retain their API type.
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return res, fmt.Errorf("%w for key %q: %w", ErrSessionInvalidValueType, key, err)
+	}
+
+	if err := json.Unmarshal(encoded, &res); err == nil {
+		return res, nil
+	}
+
+	return res, fmt.Errorf("%w for key %q", ErrSessionInvalidValueType, key)
 }
 
 // Put stores a value in the session associated with the given key.
@@ -147,7 +202,12 @@ func (session *Session) Get(key string) (any, bool) {
 // WARNING: When storing authentication-related state, callers MUST
 // call [Session.Regenerate] immediately after to prevent session
 // fixation attacks.
-func (session *Session) Put(key string, value any) {
+//
+// Example:
+//
+//	session.Put("user_id", 42)
+//	session.Regenerate()
+func (session *Session) Put[T any](key string, value T) {
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
@@ -175,26 +235,26 @@ func (session *Session) Extend(expiresAt time.Time) {
 	session.changed = true
 }
 
-// Regenerate generates a new cryptographically random session ID.
-// The original session ID is preserved for cleanup. This operation
-// marks the session as changed.
+// Regenerate generates a new cryptographically random session ID. The original
+// session ID is preserved for cleanup and this operation marks the session as
+// changed. When using middleware.Session, the middleware persists the new
+// session, deletes the old record, and issues the replacement cookie before
+// response headers are written.
 //
 // WARNING: This method MUST be called after any authentication
 // state change (login, logout, privilege escalation).
-func (session *Session) Regenerate() error {
-	id, err := generateSessionID()
-
-	if err != nil {
-		return err
-	}
+//
+// Example:
+//
+//	session.Regenerate()
+func (session *Session) Regenerate() {
+	id := generateSessionID()
 
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
 
 	session.id = id
 	session.changed = true
-
-	return nil
 }
 
 // Clear removes all data from the session while maintaining the
@@ -269,18 +329,4 @@ func (session *Session) MarkAsUnchanged() {
 	defer session.mutex.Unlock()
 
 	session.changed = false
-}
-
-// SessionDriver defines the interface for persisting and retrieving
-// session data. Implementations manage session storage in backends
-// such as databases, caches, or file systems.
-type SessionDriver interface {
-	// Get retrieves a session from persistent storage by its ID.
-	Get(ctx context.Context, id string) (*Session, error)
-
-	// Save persists a session to storage with the specified TTL.
-	Save(ctx context.Context, session *Session, ttl time.Duration) error
-
-	// Delete removes a session from persistent storage by its ID.
-	Delete(ctx context.Context, id string) error
 }

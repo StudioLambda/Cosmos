@@ -132,6 +132,7 @@ All standard HTTP methods are supported:
 
 ```go
 r.Get("/path", handler)       // GET
+r.Query("/path", handler)     // QUERY
 r.Post("/path", handler)      // POST
 r.Put("/path", handler)       // PUT
 r.Patch("/path", handler)     // PATCH
@@ -142,6 +143,10 @@ r.Connect("/path", handler)   // CONNECT
 r.Trace("/path", handler)     // TRACE
 ```
 
+`QUERY` is a non-standard HTTP method supported explicitly by Cosmos when an
+application needs safe, request-body-based query semantics without overloading
+`GET`.
+
 Multiple methods for the same route:
 
 ```go
@@ -151,7 +156,7 @@ r.Methods([]string{"GET", "POST"}, "/path", handler)
 All methods:
 
 ```go
-r.Any("/path", handler) // Registers all HTTP methods
+r.Any("/path", handler) // Registers GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS, QUERY
 ```
 
 Dynamic method:

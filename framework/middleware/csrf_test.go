@@ -17,7 +17,7 @@ func TestCSRFAllowsSameOriginRequest(t *testing.T) {
 	t.Parallel()
 
 	called := false
-	handler := middleware.CSRF()(framework.Handler(func(
+	handler := middleware.CSRF(middleware.DefaultCSRFConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -37,7 +37,7 @@ func TestCSRFAllowsSameOriginRequest(t *testing.T) {
 func TestCSRFBlocksCrossOriginPost(t *testing.T) {
 	t.Parallel()
 
-	handler := middleware.CSRF()(framework.Handler(func(
+	handler := middleware.CSRF(middleware.DefaultCSRFConfig())(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -56,7 +56,7 @@ func TestCSRFBlocksCrossOriginPost(t *testing.T) {
 func TestCSRFWithCustomError(t *testing.T) {
 	t.Parallel()
 
-	customErr := problem.Problem{
+	customErr := problem.Details{
 		Title:  "Custom CSRF Error",
 		Detail: "Custom detail",
 		Status: http.StatusUnauthorized,
@@ -64,7 +64,7 @@ func TestCSRFWithCustomError(t *testing.T) {
 
 	csrf := http.NewCrossOriginProtection()
 	handler := middleware.CSRFWith(
-		csrf, customErr,
+		middleware.DefaultCSRFConfig(), csrf, customErr,
 	)(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
@@ -86,7 +86,7 @@ func TestCSRFWithTrustedOrigin(t *testing.T) {
 
 	called := false
 	handler := middleware.CSRF(
-		"https://trusted.example.com",
+		middleware.CSRFConfig{TrustedOrigins: []string{"https://trusted.example.com"}},
 	)(framework.Handler(func(
 		w http.ResponseWriter,
 		r *http.Request,
@@ -109,7 +109,7 @@ func TestCSRFBlockedErrorWrapsOriginal(t *testing.T) {
 	t.Parallel()
 
 	var captured error
-	handler := middleware.CSRF()(func(
+	handler := middleware.CSRF(middleware.DefaultCSRFConfig())(func(
 		w http.ResponseWriter,
 		r *http.Request,
 	) error {
@@ -125,5 +125,5 @@ func TestCSRFBlockedErrorWrapsOriginal(t *testing.T) {
 	captured = handler(rec, req)
 
 	require.Error(t, captured)
-	require.True(t, errors.As(captured, &problem.Problem{}))
+	require.True(t, errors.As(captured, &problem.Details{}))
 }

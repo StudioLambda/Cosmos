@@ -1,9 +1,10 @@
 package response_test
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"encoding/xml"
 	htmltemplate "html/template"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -276,6 +277,19 @@ func TestJSONSetsStatusCode(t *testing.T) {
 	require.Equal(t, http.StatusCreated, w.Code)
 }
 
+func TestJSONDoesNotCommitResponseWhenEncodingFails(t *testing.T) {
+	t.Parallel()
+
+	w := httptest.NewRecorder()
+
+	err := response.JSON(w, http.StatusOK, math.Inf(1))
+
+	require.Error(t, err)
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Empty(t, w.Header().Get("Content-Type"))
+	require.Empty(t, w.Body.String())
+}
+
 func TestXMLWritesXMLContent(t *testing.T) {
 	t.Parallel()
 
@@ -316,6 +330,19 @@ func TestXMLSetsStatusCode(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, http.StatusCreated, w.Code)
+}
+
+func TestXMLDoesNotCommitResponseWhenEncodingFails(t *testing.T) {
+	t.Parallel()
+
+	w := httptest.NewRecorder()
+
+	err := response.XML(w, http.StatusOK, make(chan int))
+
+	require.Error(t, err)
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Empty(t, w.Header().Get("Content-Type"))
+	require.Empty(t, w.Body.String())
 }
 
 func TestRedirectSetsLocationHeader(t *testing.T) {
@@ -436,6 +463,16 @@ func TestSafeRedirectRejectsUnparseableURL(t *testing.T) {
 	)
 
 	require.ErrorIs(t, err, response.ErrUnsafeRedirect)
+}
+
+func TestErrUnsafeRedirectMessage(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(
+		t,
+		"unsafe redirect URL",
+		response.ErrUnsafeRedirect.Error(),
+	)
 }
 
 func TestStringTemplateBuffersBeforeWritingStatus(t *testing.T) {

@@ -1,15 +1,24 @@
 package framework
 
 import (
+	"net"
 	"net/http"
+	"strconv"
 	"time"
+
+	"github.com/studiolambda/cosmos/contract"
 )
 
-// ServerOptions configures the HTTP server created by [NewServer].
-// All zero-valued fields default to secure values from [DefaultServerOptions].
-type ServerOptions struct {
-	// Addr is the TCP address to listen on (e.g. ":8080").
-	Addr string
+// ServerConfig configures the HTTP server created by [NewServer].
+// All zero-valued fields default to secure values from [DefaultServerConfig].
+type ServerConfig struct {
+	// Host is the interface or host address to listen on.
+	// Defaults to 0.0.0.0.
+	Host string
+
+	// Port is the TCP port to listen on.
+	// Defaults to 8080.
+	Port int
 
 	// ReadHeaderTimeout limits the time allowed to read request
 	// headers. Protects against Slowloris attacks.
@@ -21,7 +30,8 @@ type ServerOptions struct {
 	ReadTimeout time.Duration
 
 	// WriteTimeout limits the time for writing the response.
-	// Defaults to 60s.
+	// Defaults to 60s. Set a negative value to disable the deadline for
+	// long-lived streaming responses.
 	WriteTimeout time.Duration
 
 	// IdleTimeout limits the keep-alive idle time between
@@ -33,12 +43,30 @@ type ServerOptions struct {
 	MaxHeaderBytes int
 }
 
-// DefaultServerOptions returns the default server options with secure
+// FromConfiguration populates the server configuration from configuration.
+func (config *ServerConfig) FromConfiguration(configuration *contract.Configuration) {
+	*config = DefaultServerConfig()
+	config.Host = configuration.GetOr("host", config.Host)
+	config.Port = configuration.GetOr("port", config.Port)
+	config.ReadHeaderTimeout = configuration.GetOr("read_header_timeout", config.ReadHeaderTimeout)
+	config.ReadTimeout = configuration.GetOr("read_timeout", config.ReadTimeout)
+	config.WriteTimeout = configuration.GetOr("write_timeout", config.WriteTimeout)
+	config.IdleTimeout = configuration.GetOr("idle_timeout", config.IdleTimeout)
+	config.MaxHeaderBytes = configuration.GetOr("max_header_bytes", config.MaxHeaderBytes)
+}
+
+// DefaultServerConfig returns the default server configuration with secure
 // timeout values. Each call returns a fresh copy, preventing
 // accidental mutation of shared defaults.
-func DefaultServerOptions() ServerOptions {
-	return ServerOptions{
-		Addr:              ":8080",
+//
+// Example:
+//
+//	config := framework.DefaultServerConfig()
+//	config.Port = 9090
+func DefaultServerConfig() ServerConfig {
+	return ServerConfig{
+		Host:              "0.0.0.0",
+		Port:              8080,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,
@@ -47,59 +75,64 @@ func DefaultServerOptions() ServerOptions {
 	}
 }
 
-// withDefaults returns a copy of the options with zero values
-// replaced by the corresponding [DefaultServerOptions] fields.
-func (options ServerOptions) withDefaults() ServerOptions {
-	defaults := DefaultServerOptions()
+// withDefaults returns a copy of the config with zero values
+// replaced by the corresponding [DefaultServerConfig] fields.
+func (config ServerConfig) withDefaults() ServerConfig {
+	defaults := DefaultServerConfig()
 
-	if options.ReadHeaderTimeout == 0 {
-		options.ReadHeaderTimeout = defaults.ReadHeaderTimeout
+	if config.Host == "" {
+		config.Host = defaults.Host
 	}
 
-	if options.ReadTimeout == 0 {
-		options.ReadTimeout = defaults.ReadTimeout
+	if config.Port == 0 {
+		config.Port = defaults.Port
 	}
 
-	if options.WriteTimeout == 0 {
-		options.WriteTimeout = defaults.WriteTimeout
+	if config.ReadHeaderTimeout == 0 {
+		config.ReadHeaderTimeout = defaults.ReadHeaderTimeout
 	}
 
-	if options.IdleTimeout == 0 {
-		options.IdleTimeout = defaults.IdleTimeout
+	if config.ReadTimeout == 0 {
+		config.ReadTimeout = defaults.ReadTimeout
 	}
 
-	if options.MaxHeaderBytes == 0 {
-		options.MaxHeaderBytes = defaults.MaxHeaderBytes
+	if config.WriteTimeout == 0 {
+		config.WriteTimeout = defaults.WriteTimeout
 	}
 
-	return options
+	if config.WriteTimeout < 0 {
+		config.WriteTimeout = 0
+	}
+
+	if config.IdleTimeout == 0 {
+		config.IdleTimeout = defaults.IdleTimeout
+	}
+
+	if config.MaxHeaderBytes == 0 {
+		config.MaxHeaderBytes = defaults.MaxHeaderBytes
+	}
+
+	return config
 }
 
-// NewServer creates an [http.Server] with secure timeout defaults
-// using the given handler. It applies [DefaultServerOptions]
-// values, protecting against Slowloris and connection-exhaustion
-// attacks that are possible when using [http.ListenAndServe]
-// directly (which sets all timeouts to zero/infinite).
-func NewServer(addr string, handler http.Handler) *http.Server {
-	opts := DefaultServerOptions()
-	opts.Addr = addr
-
-	return NewServerWith(opts, handler)
-}
-
-// NewServerWith creates an [http.Server] with the provided
-// options and handler. Zero-valued timeout fields are replaced
-// with their secure defaults from [DefaultServerOptions].
-func NewServerWith(opts ServerOptions, handler http.Handler) *http.Server {
-	opts = opts.withDefaults()
+// NewServer creates an [http.Server] with the provided
+// configuration and handler. Zero-valued timeout fields are replaced
+// with their secure defaults from [DefaultServerConfig].
+//
+// Example:
+//
+//	server := framework.NewServer(framework.ServerConfig{Host: "0.0.0.0", Port: 8443}, app)
+//	_ = server
+func NewServer(config ServerConfig, handler http.Handler) *http.Server {
+	config = config.withDefaults()
 
 	return &http.Server{
-		Addr:              opts.Addr,
+		Addr:              net.JoinHostPort(config.Host, strconv.Itoa(config.Port)),
 		Handler:           handler,
-		ReadHeaderTimeout: opts.ReadHeaderTimeout,
-		ReadTimeout:       opts.ReadTimeout,
-		WriteTimeout:      opts.WriteTimeout,
-		IdleTimeout:       opts.IdleTimeout,
-		MaxHeaderBytes:    opts.MaxHeaderBytes,
+		ReadHeaderTimeout: config.ReadHeaderTimeout,
+		ReadTimeout:       config.ReadTimeout,
+		WriteTimeout:      config.WriteTimeout,
+		IdleTimeout:       config.IdleTimeout,
+		MaxHeaderBytes:    config.MaxHeaderBytes,
 	}
 }

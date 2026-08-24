@@ -9,7 +9,7 @@ import (
 
 // ErrNoHooksMiddleware is the problem returned when attempting to
 // access hooks from a request that lacks the hooks middleware.
-var ErrNoHooksMiddleware = problem.Problem{
+var ErrNoHooksMiddleware = problem.Details{
 	Title:  "No hooks context",
 	Detail: "Unable to resolve hooks as there's no context value",
 	Status: http.StatusInternalServerError,
@@ -22,6 +22,15 @@ var ErrNoHooksMiddleware = problem.Problem{
 // WARNING: This function panics when hooks are missing. Use
 // [TryHooks] for a non-panicking alternative, or ensure the
 // [framework.Recover] middleware is in place.
+//
+// Example:
+//
+//	hooks := request.Hooks(r)
+//	hooks.AfterResponse(func(err error) {
+//		if err != nil {
+//			logger.Error("request failed", "error", err)
+//		}
+//	})
 func Hooks(r *http.Request) *contract.Hooks {
 	if hooks, ok := r.Context().Value(contract.HooksKey).(*contract.Hooks); ok {
 		return hooks
@@ -34,6 +43,14 @@ func Hooks(r *http.Request) *contract.Hooks {
 // context without panicking. The boolean return value indicates
 // whether hooks were found. This is the safe alternative to
 // [Hooks] for use outside the framework handler chain.
+//
+// Example:
+//
+//	if hooks, ok := request.TryHooks(r); ok {
+//		hooks.BeforeWriteHeader(func(w http.ResponseWriter, status int) {
+//			_ = status
+//		})
+//	}
 func TryHooks(r *http.Request) (*contract.Hooks, bool) {
 	hooks, ok := r.Context().Value(contract.HooksKey).(*contract.Hooks)
 

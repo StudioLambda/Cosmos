@@ -2,75 +2,133 @@ package contract
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 )
 
-// EventHandler is a callback function invoked when a subscribed
-// event is received. It receives the raw JSON payload bytes.
+// EventHandler is a callback function invoked when a subscribed event is
+// received. It receives the raw payload bytes.
 type EventHandler = func(payload []byte)
 
 // EventUnsubscribeFunc is a function returned by subscription
 // that cancels the subscription when called.
 type EventUnsubscribeFunc = func() error
 
-// EventDriver defines the contract for a publish/subscribe event
-// system backend. Drivers handle raw byte delivery; the [Events]
-// wrapper adds JSON serialization on top.
-type EventDriver interface {
-	// Publish sends raw bytes to all subscribers of the named event.
-	Publish(ctx context.Context, event string, payload []byte) error
+// EventDecoder decodes an event payload into T.
+type EventDecoder[T any] = func() (T, error)
 
-	// Subscribe registers a handler for the named event. The handler
-	// receives raw payload bytes. Returns a function to cancel the
+// EventPublisherDriver publishes raw event payloads. A successful publish does
+// not confirm that any subscriber processed the event.
+type EventPublisherDriver interface {
+	// Publish sends raw bytes to all active subscribers of the named event.
+	// Event names are dot-separated tokens and cannot contain wildcards.
+	Publish(ctx context.Context, event string, payload []byte) error
+}
+
+// EventSubscriberDriver subscribes to raw event payloads. Drivers do not
+// provide persistence or retries.
+type EventSubscriberDriver interface {
+	// Subscribe registers a handler for an event name or pattern. Patterns use
+	// '*' for exactly one token and a final '#' for zero or more trailing tokens.
+	// The handler receives raw payload bytes. Returns a function to cancel the
 	// subscription.
 	Subscribe(ctx context.Context, event string, handler EventHandler) (EventUnsubscribeFunc, error)
-
-	// Close shuts down the event system and releases resources.
-	Close() error
 }
 
-// Events provides a type-safe event bus over an [EventDriver].
-// It handles JSON serialization of payloads and deserialization
-// in subscriber callbacks. When generic methods become available
-// in Go, Publish and Subscribe will accept typed values directly.
-type Events struct {
-	driver EventDriver
+// EventPublisher JSON-encodes event payloads before publishing them through an
+// [EventPublisherDriver].
+type EventPublisher struct {
+	driver EventPublisherDriver
 }
 
-// NewEvents creates a new [Events] that delegates to the given driver.
-func NewEvents(driver EventDriver) *Events {
-	return &Events{driver: driver}
+// NewEventPublisher creates an [EventPublisher] that delegates to driver.
+//
+// Example:
+//
+//	publisher := contract.NewEventPublisher(driver)
+func NewEventPublisher(driver EventPublisherDriver) *EventPublisher {
+	return &EventPublisher{driver: driver}
 }
 
-// Driver returns the underlying [EventDriver].
-func (events *Events) Driver() EventDriver {
-	return events.driver
+// Driver returns the underlying [EventPublisherDriver].
+//
+// Example:
+//
+//	publisher := contract.NewEventPublisher(driver)
+//	raw := publisher.Driver()
+//	_ = raw
+func (publisher *EventPublisher) Driver() EventPublisherDriver {
+	return publisher.driver
 }
 
 // Publish JSON-encodes the payload and sends it to all subscribers
 // of the named event.
-func (events *Events) Publish(ctx context.Context, event string, payload any) error {
+//
+// Example:
+//
+//	if err := publisher.Publish(ctx, "users.created", UserCreated{ID: 1}); err != nil {
+//		return err
+//	}
+func (publisher *EventPublisher) Publish[T any](ctx context.Context, event string, payload T) error {
 	encoded, err := json.Marshal(payload)
 
 	if err != nil {
 		return err
 	}
 
-	return events.driver.Publish(ctx, event, encoded)
+	return publisher.driver.Publish(ctx, event, encoded)
 }
 
-// Subscribe registers a handler for the named event. The handler
-// receives a decode function that unmarshals the event payload into
-// a destination pointer. Returns a function to cancel the subscription.
-func (events *Events) Subscribe(ctx context.Context, event string, handler func(func(dest any) error)) (EventUnsubscribeFunc, error) {
-	return events.driver.Subscribe(ctx, event, func(payload []byte) {
-		handler(func(dest any) error {
-			return json.Unmarshal(payload, dest)
+// EventSubscriber JSON-decodes event payloads received through an
+// [EventSubscriberDriver].
+type EventSubscriber struct {
+	driver EventSubscriberDriver
+}
+
+// NewEventSubscriber creates an [EventSubscriber] that delegates to driver.
+//
+// Example:
+//
+//	subscriber := contract.NewEventSubscriber(driver)
+func NewEventSubscriber(driver EventSubscriberDriver) *EventSubscriber {
+	return &EventSubscriber{driver: driver}
+}
+
+// Driver returns the underlying [EventSubscriberDriver].
+//
+// Example:
+//
+//	subscriber := contract.NewEventSubscriber(driver)
+//	raw := subscriber.Driver()
+//	_ = raw
+func (subscriber *EventSubscriber) Driver() EventSubscriberDriver {
+	return subscriber.driver
+}
+
+// Subscribe registers a handler for an event name or pattern. The handler
+// receives a decode function that unmarshals the event payload into T. Returns
+// a function to cancel the subscription.
+//
+// Example:
+//
+//	unsubscribe, err := subscriber.Subscribe[UserCreated](ctx, "users.created", func(decode EventDecoder[UserCreated]) {
+//		msg, err := decode()
+//		if err != nil {
+//			return
+//		}
+//		_ = msg
+//	})
+//	if err != nil {
+//		return err
+//	}
+//	defer unsubscribe()
+func (subscriber *EventSubscriber) Subscribe[T any](ctx context.Context, event string, handler func(decode EventDecoder[T])) (EventUnsubscribeFunc, error) {
+	return subscriber.driver.Subscribe(ctx, event, func(payload []byte) {
+		handler(func() (res T, err error) {
+			if err := json.Unmarshal(payload, &res); err != nil {
+				return res, err
+			}
+
+			return res, nil
 		})
 	})
-}
-
-// Close shuts down the event system and releases resources.
-func (events *Events) Close() error {
-	return events.driver.Close()
 }

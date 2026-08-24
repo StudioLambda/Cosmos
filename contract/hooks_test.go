@@ -149,14 +149,12 @@ func TestHooksConcurrentAccess(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for range 100 {
-		wg.Add(1)
 
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 
 			hooks.AfterResponse(func(err error) {})
 			hooks.AfterResponseFuncs()
-		}()
+		})
 	}
 
 	wg.Wait()

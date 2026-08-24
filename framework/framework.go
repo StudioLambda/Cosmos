@@ -36,7 +36,8 @@ type Middleware = router.Middleware[Handler]
 //
 //	app := framework.New()
 //	app.Get("/users/{id}", getUserHandler)
-//	http.ListenAndServe(":8080", app)
+//	server := framework.NewServer(framework.DefaultServerConfig(), app)
+//	_ = server.ListenAndServe()
 func New() *Router {
 	return router.New[Handler]()
 }

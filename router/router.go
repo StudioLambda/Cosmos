@@ -54,9 +54,17 @@ var allMethods = []string{
 	http.MethodPatch,
 	http.MethodDelete,
 	http.MethodOptions,
+	"QUERY",
 }
 
 // New creates a new [Router] with an empty [http.ServeMux].
+//
+// Example:
+//
+//	r := router.New[http.Handler]()
+//	r.Get("/health", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+//		w.WriteHeader(http.StatusNoContent)
+//	}))
 func New[H http.Handler]() *Router[H] {
 	return &Router[H]{
 		native:      http.NewServeMux(),
@@ -81,6 +89,12 @@ func New[H http.Handler]() *Router[H] {
 // and collapsed. Callers should not rely on literal
 // ".." segments in route patterns, as they will be
 // cleaned away during path joining.
+//
+// Example:
+//
+//	r.Group("/api", func(api *router.Router[http.Handler]) {
+//		api.Get("/users/{id}", userHandler)
+//	})
 func (router *Router[H]) Group(pattern string, subrouter func(*Router[H])) {
 	subrouter(&Router[H]{
 		native:      nil, // parent's native will be used
@@ -91,12 +105,25 @@ func (router *Router[H]) Group(pattern string, subrouter func(*Router[H])) {
 }
 
 // Grouped creates a cloned sub-router for scoping middleware without a path prefix.
+//
+// Example:
+//
+//	r.Grouped(func(group *router.Router[http.Handler]) {
+//		group.Use(authMiddleware)
+//		group.Get("/me", profileHandler)
+//	})
 func (router *Router[H]) Grouped(subrouter func(*Router[H])) {
 	subrouter(router.Clone())
 }
 
 // Clone creates a sub-router that shares the same [http.ServeMux] but has an
 // independent middleware stack.
+//
+// Example:
+//
+//	api := r.Clone()
+//	api.Use(authMiddleware)
+//	api.Get("/private", privateHandler)
 func (router *Router[H]) Clone() *Router[H] {
 	return &Router[H]{
 		native:      nil, // parent's native will be used
@@ -113,6 +140,10 @@ func (router *Router[H]) Clone() *Router[H] {
 //
 // In contrast to [Router.Use], it creates a new sub-router instead of
 // modifying the current router.
+//
+// Example:
+//
+//	r.With(authMiddleware).Get("/account", accountHandler)
 func (router *Router[H]) With(middlewares ...Middleware[H]) *Router[H] {
 	return &Router[H]{
 		native:      nil, // parent's native will be used
@@ -138,8 +169,8 @@ func (router *Router[H]) mux() *http.ServeMux {
 // This means that the resulting handler is the same as first calling
 // the router's middleware and then the provided handler.
 func (router *Router[H]) wrap(handler H) H {
-	for i := len(router.middlewares) - 1; i >= 0; i-- {
-		handler = router.middlewares[i](handler)
+	for _, v := range slices.Backward(router.middlewares) {
+		handler = v(handler)
 	}
 
 	return handler
@@ -159,6 +190,10 @@ func (router *Router[H]) wrap(handler H) H {
 //
 // In contrast with the [Router.With] method, this one does modify
 // the current router instead of returning a new sub-router.
+//
+// Example:
+//
+//	r.Use(loggingMiddleware, recoverMiddleware)
 func (router *Router[H]) Use(middlewares ...Middleware[H]) {
 	router.middlewares = append(router.middlewares, middlewares...)
 }
@@ -259,11 +294,16 @@ func (router *Router[H]) registerPair(method string, pattern string, handler H) 
 //   - [http.MethodPatch]
 //   - [http.MethodDelete]
 //   - [http.MethodOptions]
+//   - "QUERY"
 //
 // WARNING: TRACE and CONNECT should not be used in general-purpose
 // applications. TRACE enables cross-site tracing (XST) attacks and
 // CONNECT is reserved for HTTP proxies. If needed, use the
 // [Router.Trace] or [Router.Connect] methods explicitly.
+//
+// Example:
+//
+//	r.Method(http.MethodPost, "/users", createUserHandler)
 func (router *Router[H]) Method(method string, pattern string, handler H) {
 	if method == "" {
 		panic("router: method must not be empty")
@@ -288,6 +328,10 @@ func (router *Router[H]) Method(method string, pattern string, handler H) {
 
 // Methods registers a handler for each method in the given slice by calling
 // [Router.Method] for each entry.
+//
+// Example:
+//
+//	r.Methods([]string{http.MethodGet, http.MethodHead}, "/assets/{path...}", assetsHandler)
 func (router *Router[H]) Methods(methods []string, pattern string, handler H) {
 	for _, method := range methods {
 		router.Method(method, pattern, handler)
@@ -295,13 +339,30 @@ func (router *Router[H]) Methods(methods []string, pattern string, handler H) {
 }
 
 // Any registers a handler for all standard HTTP methods (GET, HEAD, POST, PUT,
-// PATCH, DELETE, OPTIONS) using [Router.Methods]. TRACE and CONNECT are
+// PATCH, DELETE, OPTIONS, QUERY) using [Router.Methods]. TRACE and CONNECT are
 // intentionally excluded for security reasons.
+//
+// Example:
+//
+//	r.Any("/health", healthHandler)
 func (router *Router[H]) Any(pattern string, handler H) {
 	router.Methods(allMethods, pattern, handler)
 }
 
+// Query registers a handler for QUERY using [Router.Method].
+//
+// Example:
+//
+//	r.Query("/users/{id}", getUserHandler)
+func (router *Router[H]) Query(pattern string, handler H) {
+	router.Method("QUERY", pattern, handler)
+}
+
 // Get registers a handler for [http.MethodGet] using [Router.Method].
+//
+// Example:
+//
+//	r.Get("/users/{id}", getUserHandler)
 func (router *Router[H]) Get(pattern string, handler H) {
 	router.Method(http.MethodGet, pattern, handler)
 }
@@ -312,6 +373,10 @@ func (router *Router[H]) Head(pattern string, handler H) {
 }
 
 // Post registers a handler for [http.MethodPost] using [Router.Method].
+//
+// Example:
+//
+//	r.Post("/users", createUserHandler)
 func (router *Router[H]) Post(pattern string, handler H) {
 	router.Method(http.MethodPost, pattern, handler)
 }
@@ -347,6 +412,11 @@ func (router *Router[H]) Trace(pattern string, handler H) {
 }
 
 // ServeHTTP implements [http.Handler] by delegating to the underlying [http.ServeMux].
+//
+// Example:
+//
+//	server := &http.Server{Addr: ":8080", Handler: r}
+//	_ = server.ListenAndServe()
 func (router *Router[H]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	router.mux().ServeHTTP(w, r)
 }
@@ -355,6 +425,12 @@ func (router *Router[H]) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // with the given method.
 //
 // Alternatively, use the [Router.Matches] method with an [http.Request].
+//
+// Example:
+//
+//	if r.Has(http.MethodGet, "/users/{id}") {
+//		// route exists
+//	}
 func (router *Router[H]) Has(method string, pattern string) bool {
 	if req, err := http.NewRequest(method, pattern, nil); err == nil {
 		return router.Matches(req)
@@ -368,6 +444,12 @@ func (router *Router[H]) Has(method string, pattern string) bool {
 //
 // This means that, given the request method and the
 // URL, a handler can be resolved.
+//
+// Example:
+//
+//	if r.Matches(req) {
+//		// request is routable
+//	}
 func (router *Router[H]) Matches(request *http.Request) bool {
 	_, ok := router.HandlerMatch(request)
 
@@ -379,6 +461,13 @@ func (router *Router[H]) Matches(request *http.Request) bool {
 // the first return value is the zero value of H.
 //
 // For matching against an [http.Request] use the [Router.HandlerMatch] method.
+//
+// Example:
+//
+//	h, ok := r.Handler(http.MethodGet, "/users/1")
+//	if ok {
+//		_ = h
+//	}
 func (router *Router[H]) Handler(method string, pattern string) (h H, ok bool) {
 	if req, err := http.NewRequest(method, pattern, nil); err == nil {
 		return router.HandlerMatch(req)
@@ -391,6 +480,13 @@ func (router *Router[H]) Handler(method string, pattern string) (h H, ok bool) {
 // The second return value determines if the handler was found or not.
 //
 // For matching against a method and a pattern, use the [Router.Handler] method.
+//
+// Example:
+//
+//	h, ok := r.HandlerMatch(req)
+//	if ok {
+//		_ = h
+//	}
 func (router *Router[H]) HandlerMatch(request *http.Request) (h H, ok bool) {
 	// We can look for that specific handler in the
 	// native [http.ServeMux] and return it if found.
@@ -405,6 +501,11 @@ func (router *Router[H]) HandlerMatch(request *http.Request) (h H, ok bool) {
 
 // Record returns an [http.Response] produced by dispatching the given HTTP
 // request through the router's full middleware and handler pipeline.
+//
+// Example:
+//
+//	res := r.Record(httptest.NewRequest(http.MethodGet, "/health", nil))
+//	defer res.Body.Close()
 func (router *Router[H]) Record(request *http.Request) *http.Response {
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, request)

@@ -15,19 +15,21 @@ Current versions: contract v0.10.0, framework v0.11.0, problem v0.4.0, router v0
 go work sync && go test ./...
 
 # Test specific module
-go test ./contract/...
-go test ./router/...
-go test ./problem/...
-go test ./framework/...
+go test -race ./contract/...
+go test -race ./router/...
+go test -race ./problem/...
+go test -race ./framework/...
 
 # Coverage and formatting
-go test -cover ./...
+go test -race -cover ./...
 go fmt ./...
 go vet ./...
 
 # Generate mocks (contract only)
 cd contract && go generate ./...
 ```
+
+Do not run `go build` commands.
 
 ## Module Navigation
 
@@ -59,7 +61,7 @@ func MyMiddleware() framework.Middleware {
 Secure server (always use instead of http.ListenAndServe):
 
 ```go
-server := framework.NewServer(":8080", app) // has timeout defaults
+server := framework.NewServer(framework.ServerConfig{}, app) // has timeout defaults
 server.ListenAndServe()
 ```
 
@@ -144,17 +146,16 @@ Available in `framework/middleware`:
 - `Recover()` / `RecoverWith(fn)` — panic recovery with error wrapping
 - `Logger(slog.Logger)` — structured request logging (fires AfterResponse)
 - `CSRF(origins...)` / `CSRFWith(csrf, problem)` — cross-origin protection
-- `CORS(CORSOptions)` — configurable CORS headers
-- `SecureHeaders()` / `SecureHeadersWith(opts)` — security headers (HSTS, CSP, X-Frame-Options)
-- `RateLimit()` / `RateLimitWith(opts)` — per-key token bucket (default 15 req/s, burst 30, idle eviction after 5m)
+- `CORS(CORSConfig)` — configurable CORS headers
+- `SecureHeaders(config)` — security headers (HSTS, CSP, X-Frame-Options)
+- `RateLimit(cache)` / `RateLimitWith(cache, config)` — per-key fixed-window rate limiting backed by cache
 - `Provide(key, value)` / `ProvideWith(fn)` — context injection
 - `HTTP(func(http.Handler) http.Handler)` — stdlib middleware adapter
 
-Correlation ID in `framework/correlation`:
+Correlation ID middleware in `framework/middleware`:
 
-- `Middleware()` / `MiddlewareWith(opts)` — ensures every request has a correlation ID (W3C traceparent, header, or generated)
-- `Handler(next)` — slog handler decorator that injects correlation ID into log records
-- `From(r)` — retrieves correlation ID from request context
+- `Correlation(config)` / `CorrelationWith(config, generate)` — ensures every request has a correlation ID (W3C traceparent, header, or generated)
+- `request.CorrelationID(r)` — retrieves the correlation ID from the request context
 
 Session middleware in `framework/session`:
 
@@ -183,8 +184,8 @@ Session middleware in `framework/session`:
 
 - Use `framework.NewServer()` instead of `http.ListenAndServe` (timeout defaults)
 - Use `middleware.CSRF()` for state-changing endpoints
-- Use `middleware.SecureHeaders()` for all applications
-- Use `middleware.RateLimit()` to prevent abuse
+- Use `middleware.SecureHeaders(middleware.DefaultSecureHeadersConfig())` for all applications
+- Use `middleware.RateLimit(cache)` to prevent abuse
 - Use `middleware.CORS()` for cross-origin APIs
 - Use `request.LimitedJSON` / `LimitedBytes` instead of unlimited variants
 - Use `response.SafeRedirect` instead of `response.Redirect` for user-supplied URLs
@@ -226,7 +227,7 @@ Session middleware in `framework/session`:
 - Framework hooks: framework/hooks.go, framework/hooks_writer.go
 - Router: router/router.go
 - Problem: problem/problem.go
-- Correlation: framework/correlation/middleware.go, framework/correlation/handler.go
+- Correlation: framework/middleware/correlation.go, contract/request/correlation_id.go
 - Middleware: framework/middleware/\*.go
 - Session: framework/session/\*.go
 - Cache: framework/cache/memory.go, framework/cache/redis.go
